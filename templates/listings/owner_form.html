@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{{ title_key|t }} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{{ title_key|t }}{% endblock %}
+
+
+
+{% block topbar_actions %}
+<a href="{% url 'listings:owner_list' %}" class="btn btn-ghost btn-sm">{% icon "arrow-left" 15 %} {% t 'back' %}</a>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <section class="app-card p-5 sm:p-6">
+    <div class="mb-5 flex items-start gap-3">
+      <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary-dark">{% icon "store" 20 %}</span>
+      <div class="min-w-0">
+        <h2 class="text-[16px] font-extrabold tracking-tight">{{ title_key|t }}</h2>
+        <p class="text-[13px] text-ink-3">{% t 'property_detail' %}</p>
+      </div>
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="toast toast-error mb-4" role="alert">{% icon "alert" 18 %}<span class="flex-1">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</span></div>
+    {% endif %}
+
+    <form method="post" class="space-y-5" data-validate>
+      {% csrf_token %}
+
+      <div>
+        <label class="form-label" for="id_title">{% t 'title_label' %} <span class="text-danger">*</span></label>
+        <input type="text" name="title" id="id_title" class="form-input" maxlength="160" required
+               value="{{ form.title.value|default:'' }}">
+        {% if form.title.errors %}<p class="form-error">{% t 'field_required' field='@title_label' %}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="form-label" for="id_location">{% t 'location' %} <span class="text-danger">*</span></label>
+        <input type="text" name="location" id="id_location" class="form-input" maxlength="160" required
+               value="{{ form.location.value|default:'' }}">
+        {% if form.location.errors %}<p class="form-error">{% t 'field_required' field='@location' %}</p>{% endif %}
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label class="form-label" for="id_price_per_month">{% t 'price_per_month' %} <span class="text-danger">*</span></label>
+          <input type="number" name="price_per_month" id="id_price_per_month" class="form-input" min="0" step="1" required
+                 value="{{ form.price_per_month.value|default:'' }}">
+          {% if form.price_per_month.errors %}<p class="form-error">{% t 'price_required' %}</p>{% endif %}
+        </div>
+        <div>
+          <label class="form-label" for="id_bedrooms">{% t 'bedrooms' %}</label>
+          <input type="number" name="bedrooms" id="id_bedrooms" class="form-input" min="0" max="99" step="1"
+                 value="{{ form.bedrooms.value|default:'2' }}">
+        </div>
+        <div>
+          <label class="form-label" for="id_bathrooms">{% t 'bathrooms' %}</label>
+          <input type="number" name="bathrooms" id="id_bathrooms" class="form-input" min="0" max="99" step="1"
+                 value="{{ form.bathrooms.value|default:'1' }}">
+        </div>
+      </div>
+
+      <div>
+        <label class="form-label" for="id_description">{% t 'description' %} <span class="font-normal text-ink-3">({% t 'optional' %})</span></label>
+        <textarea name="description" id="id_description" rows="5" class="form-input">{{ form.description.value|default:'' }}</textarea>
+      </div>
+
+      {% if mode == "edit" and property %}
+        <div class="rounded-xl bg-surface-2 p-3.5 text-[12px] text-ink-3">
+          <p class="flex items-center gap-1.5"><strong class="text-ink-2">{% t 'property_id' %}:</strong> #{{ property.pk }} · <strong class="text-ink-2">{% t 'owner_id' %}:</strong> #{{ property.owner_id }}</p>
+          <p class="mt-1 flex items-center gap-1.5">{% icon "clock" 13 %} {% t 'created_at' %}: {{ property.created_at|pretty_date }}</p>
+        </div>
+      {% endif %}
+
+      <div class="flex flex-col-reverse gap-2 border-t border-hairline pt-5 sm:flex-row sm:justify-end">
+        <a href="{% url 'listings:owner_list' %}" class="btn btn-ghost">{% t 'cancel' %}</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" 16 %} {{ submit_key|t }}</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

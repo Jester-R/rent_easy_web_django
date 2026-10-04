@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{{ property.title }} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{{ property.title }}{% endblock %}
+{% block page_subtitle %}<p class="truncate text-[12px] text-ink-3">{{ property.location }}</p>{% endblock %}
+
+
+
+{% block topbar_actions %}
+<a href="{% url 'listings:renter_browse' %}" class="btn btn-ghost btn-sm">{% icon "arrow-left" 15 %} {% t 'back' %}</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  {# ---------------- hero ---------------- #}
+  <section class="app-card overflow-hidden">
+    <div class="relative grid h-52 place-items-center sm:h-64 hero-gradient-soft">
+      <span class="grid h-24 w-24 place-items-center rounded-3xl bg-white/70 text-primary shadow-sm dark:bg-white/10 dark:text-white">{% icon "home" 46 %}</span>
+      <span class="absolute end-4 top-4 flex gap-2">
+        <button type="button"
+                class="btn {% if is_favorite %}btn-primary{% else %}btn-outline{% endif %} btn-icon bg-white/90 dark:bg-black/30"
+                data-favorite-toggle
+                href="{% url 'listings:toggle_favorite' property.pk %}"
+                aria-pressed="{% if is_favorite %}true{% else %}false{% endif %}"
+                aria-label="{% t 'favorite' %}">
+          {% if is_favorite %}{% icon "heart-filled" 19 %}{% else %}{% icon "heart" 19 %}{% endif %}
+        </button>
+      </span>
+    </div>
+
+    <div class="p-5 sm:p-6">
+      <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
+        <h2 class="text-[20px] font-extrabold tracking-tight text-ink sm:text-[23px]">{{ property.title }}</h2>
+        {% if active_booking %}
+          {% booking_status active_booking as st %}
+          <span class="pill {{ st.css }}">{{ st.label }}</span>
+        {% endif %}
+      </div>
+
+      <p class="mt-1.5 flex items-center gap-1.5 text-[13px] text-ink-3">{% icon "map-pin" 15 %} {{ property.location }}</p>
+
+      <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <p class="text-[22px] font-extrabold leading-none text-primary">
+          {{ property.price_display }}<span class="text-[13px] font-semibold text-ink-3">/{% t 'month' %}</span>
+        </p>
+        <span class="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">{% icon "bed" 15 %} {{ property.bedrooms }} {% t 'bedrooms' %}</span>
+        <span class="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">{% icon "bath" 15 %} {{ property.bathrooms }} {% t 'bathrooms' %}</span>
+        {% if property.favorite_count %}
+          <span class="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">{% icon "heart" 15 %} {{ property.favorite_count }}</span>
+        {% endif %}
+        {% if owner_bookings %}
+          <span class="flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">{% icon "check-circle" 15 %} {{ owner_bookings }}</span>
+        {% endif %}
+      </div>
+
+      {% if property.description %}
+        <p class="mt-4 whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2">{{ property.description }}</p>
+      {% endif %}
+
+      <div class="divider my-5"></div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        {% if active_booking %}
+          <a href="{% url 'bookings:renter_detail' active_booking.pk %}" class="btn btn-primary">{% icon "clipboard" 16 %} {% t 'already_booked' %}</a>
+          <span class="pill pill-pending">{% icon "clock" 13 %} {% t 'booking_details' %}</span>
+        {% else %}
+          <a href="{% url 'listings:booking_request' property.pk %}" class="btn btn-primary">{% icon "send" 16 %} {% t 'request_booking' %}</a>
+        {% endif %}
+        <a href="{% url 'listings:renter_favorites' %}" class="btn btn-ghost">{% icon "heart" 16 %} {% t 'favorites' %}</a>
+      </div>
+    </div>
+  </section>
+
+  {# ---------------- owner + facts ---------------- #}
+  <div class="grid gap-5 sm:grid-cols-2">
+    <section class="app-card p-5">
+      <h3 class="mb-4 flex items-center gap-2 text-[14px] font-extrabold">{% icon "store" 17 %} {% t 'property_owner' %}</h3>
+      <div class="flex items-center gap-3">
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[14px] font-extrabold"
+              style="background-color: hsl({{ property.owner.avatar_hue }} 42% 92%); color: hsl({{ property.owner.avatar_hue }} 55% 28%);">
+          {{ property.owner.display_name|initials }}
+        </span>
+        <span class="min-w-0">
+          <span class="block truncate text-[14px] font-bold">{{ property.owner.display_name }}</span>
+          <span class="block truncate text-[12px] text-ink-3">&#64;{{ property.owner.username }}</span>
+        </span>
+      </div>
+    </section>
+
+    <section class="app-card p-5">
+      <h3 class="mb-4 flex items-center gap-2 text-[14px] font-extrabold">{% icon "info" 17 %} {% t 'details' %}</h3>
+      <dl class="space-y-2.5 text-[13px]">
+        <div class="flex items-center gap-2.5">{% icon "document" 15 %}<dt class="flex-1 text-ink-3">{% t 'property_id' %}</dt><dd class="font-bold">#{{ property.pk }}</dd></div>
+        <div class="flex items-center gap-2.5">{% icon "dollar" 15 %}<dt class="flex-1 text-ink-3">{% t 'price_per_month' %}</dt><dd class="font-bold">{{ property.price_display }}</dd></div>
+        <div class="flex items-center gap-2.5">{% icon "map-pin" 15 %}<dt class="flex-1 text-ink-3">{% t 'location' %}</dt><dd class="font-bold">{{ property.location }}</dd></div>
+        <div class="flex items-center gap-2.5">{% icon "clock" 15 %}<dt class="flex-1 text-ink-3">{% t 'created_at' %}</dt><dd class="font-bold">{{ property.created_at|pretty_date }}</dd></div>
+      </dl>
+    </section>
+  </div>
+</div>
+{% endblock %}

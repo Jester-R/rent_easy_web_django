@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% t 'superadmin_dashboard' %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% t 'superadmin_dashboard' %}{% endblock %}
+{% block page_subtitle %}<p class="truncate text-[12px] text-ink-3">{% t 'slogan' %}</p>{% endblock %}
+
+
+
+{% block topbar_actions %}
+<a href="{% url 'console:user_create' %}" class="btn btn-primary btn-sm">{% icon "user-plus" 15 %} {% t 'new_user' %}</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  {# ---------------- KPI row ---------------- #}
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    {% include "partials/_stat_card.html" with icon="users" label='stat_users'|t value=stats.users hint='renters'|t %}
+    {% include "partials/_stat_card.html" with icon="building" label='stat_properties'|t value=stats.properties hint='favorites_saved'|t %}
+    {% include "partials/_stat_card.html" with icon="clipboard" label='stat_bookings'|t value=stats.bookings hint='pending_approvals'|t %}
+    {% include "partials/_stat_card.html" with icon="dollar" label='stat_revenue'|t value=stats.revenue|usd hint='refunded_amount'|t %}
+  </div>
+
+  {# ---------------- booking funnel + revenue chart ---------------- #}
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+
+    <section class="app-card p-5">
+      <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">{% icon "chart" 17 %} {% t 'bookings' %}</h2>
+      <div class="space-y-3">
+        {% for label, value, css, key in funnel_rows %}
+          <div>
+            <div class="mb-1 flex items-center justify-between text-[12px] font-bold">
+              <span class="text-ink-2">{{ label }}</span>
+              <span class="tabular-nums">{{ value }}</span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+              <div class="h-full rounded-full {{ css }}" style="width: {% widthratio value stats.bookings 100 %}%"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="divider my-4"></div>
+
+      <h3 class="mb-3 text-[12px] font-extrabold uppercase tracking-wide text-ink-3">{% t 'role' %}</h3>
+      <div class="flex flex-wrap gap-2">
+        {% for row in role_breakdown %}
+          {% role_label row.role as rl %}
+          <span class="pill {% if row.role == 'superadmin' %}pill-approved{% elif row.role == 'owner' %}pill-neutral{% else %}pill-cancelled{% endif %}">
+            {{ rl.label }} · {{ row.n }}
+          </span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="app-card p-5">
+      <div class="mb-4 flex items-center gap-2">
+        <h2 class="text-[15px] font-extrabold tracking-tight">{% icon "trending-up" 17 %} {% t 'stat_revenue' %}</h2>
+        <span class="ms-auto text-[12px] text-ink-3">{% t 'average_price' %}: {{ stats.avg_rent|usd }}</span>
+      </div>
+
+      {% if monthly_rows %}
+        <div class="flex h-40 items-end gap-2">
+          {% for row in monthly_rows %}
+            <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+              <span class="text-[10px] font-bold text-ink-3 tabular-nums">{{ row.total|usd }}</span>
+              <div class="w-full rounded-t-lg bg-primary/85 transition-all hover:bg-primary"
+                   style="height: {% widthratio row.total max_total 100 %}%"></div>
+              <span class="truncate text-[10px] font-semibold text-ink-3">{{ row.month|date:"M y" }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% include "partials/_empty.html" with icon="chart" title='no_payments_yet'|t subtitle='revenue_note'|t %}
+      {% endif %}
+
+      <div class="mt-4 grid grid-cols-3 gap-2 border-t border-hairline pt-4 text-center">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{% t 'stat_pending_requests' %}</p>
+          <p class="mt-0.5 text-[17px] font-extrabold text-warning">{{ pending_count }}</p>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{% t 'stat_approved_deals' %}</p>
+          <p class="mt-0.5 text-[17px] font-extrabold text-primary">{{ approved_count }}</p>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{% t 'refunds' %}</p>
+          <p class="mt-0.5 text-[17px] font-extrabold">{{ stats.refunds }}</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  {# ---------------- top properties ---------------- #}
+  <section class="app-card p-5">
+    <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">{% icon "building" 17 %} {% t 'properties' %}</h2>
+    {% if top_properties %}
+      <div class="table-wrap overflow-x-auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="text-start">{% t 'title_label' %}</th>
+              <th class="text-start">{% t 'property_owner' %}</th>
+              <th class="text-end">{% t 'bookings' %}</th>
+              <th class="text-end">{% t 'favorites' %}</th>
+              <th class="text-end">{% t 'stat_revenue' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for property in top_properties %}
+              <tr>
+                <td class="min-w-[12rem]">
+                  <a href="{% url 'console:property_edit' property.pk %}" class="block truncate font-bold hover:text-primary">{{ property.title }}</a>
+                  <span class="block text-[11px] text-ink-3">{{ property.location }}</span>
+                </td>
+                <td class="whitespace-nowrap text-ink-2">{{ property.owner.display_name }}</td>
+                <td class="text-end text-ink-2 tabular-nums">{{ property.bookings_total|default:0 }}</td>
+                <td class="text-end text-ink-2 tabular-nums">{{ property.favorites_total|default:0 }}</td>
+                <td class="whitespace-nowrap text-end font-extrabold text-primary">{{ property.revenue|default:0|usd }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {% url 'console:property_create' as create_url %}
+      {% include "partials/_empty.html" with icon="building" title='no_properties_yet'|t subtitle='new_property'|t action_url=create_url action_label='add_property'|t action_icon="plus" %}
+    {% endif %}
+  </section>
+
+  {# ---------------- activity: bookings / users / audit ---------------- #}
+  <div class="grid gap-5 lg:grid-cols-3">
+
+    <section class="app-card p-5">
+      <div class="mb-4 flex items-center gap-2">
+        <h2 class="text-[15px] font-extrabold tracking-tight">{% icon "clipboard" 17 %} {% t 'recent_booking_activity' %}</h2>
+        <a href="{% url 'console:bookings' %}" class="btn btn-ghost btn-xs ms-auto">{% t 'more' %} →</a>
+      </div>
+      <div class="space-y-2">
+        {% for booking in recent_bookings %}
+          <a href="{% url 'console:booking_edit' booking.pk %}" class="flex items-center gap-3 rounded-xl border border-hairline p-2.5 transition-colors hover:border-primary">
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[12px] font-bold">{{ booking.property_title }}</span>
+              <span class="block truncate text-[11px] text-ink-3">{{ booking.renter.display_name }} · {{ booking.reference }}</span>
+            </span>
+            {% booking_status booking as st %}
+            <span class="pill {{ st.css }}">{{ st.label }}</span>
+          </a>
+        {% empty %}
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{% t 'no_booking_activity' %}</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="app-card p-5">
+      <div class="mb-4 flex items-center gap-2">
+        <h2 class="text-[15px] font-extrabold tracking-tight">{% icon "user-plus" 17 %} {% t 'new_user' %}</h2>
+        <a href="{% url 'console:users' %}" class="btn btn-ghost btn-xs ms-auto">{% t 'more' %} →</a>
+      </div>
+      <div class="space-y-2">
+        {% for account in recent_users %}
+          <a href="{% url 'console:user_edit' account.pk %}" class="flex items-center gap-3 rounded-xl border border-hairline p-2.5 transition-colors hover:border-primary">
+            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-extrabold"
+                  style="background-color: hsl({{ account.avatar_hue }} 42% 92%); color: hsl({{ account.avatar_hue }} 55% 28%);">
+              {{ account.display_name|initials }}
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[12px] font-bold">{{ account.display_name }}</span>
+              <span class="block truncate text-[11px] text-ink-3">{{ account.email }}</span>
+            </span>
+            {% role_label account.role as rl %}<span class="pill pill-neutral shrink-0">{{ rl.label }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="app-card p-5">
+      <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">{% icon "document" 17 %} {% t 'audit' %}</h2>
+      <div class="space-y-2">
+        {% for log in audit_logs %}
+          <div class="rounded-xl border border-hairline p-2.5">
+            <p class="flex items-center gap-2 text-[12px] font-bold">
+              <span class="pill {% if log.action == 'delete' %}pill-rejected{% elif log.action == 'create' %}pill-approved{% else %}pill-neutral{% endif %}">{{ log.action }}</span>
+              <span class="min-w-0 truncate">{{ log.entity }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</span>
+            </p>
+            <p class="mt-1 truncate text-[11px] text-ink-3">
+              {{ log.actor.display_name|default:'system' }} · {{ log.created_at|pretty_date }}
+            </p>
+          </div>
+        {% empty %}
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{% t 'no_booking_activity' %}</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

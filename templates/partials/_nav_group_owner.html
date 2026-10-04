@@ -1,0 +1,7 @@
+{% load ui %}
+<p class="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">{% t 'property_owner' %}</p>
+<a href="{% url 'owner_home' %}" class="nav-item {% nav_active 'owner_home' %}">{% icon "dashboard" 18 %}<span class="flex-1">{% t 'home' %}</span></a>
+<a href="{% url 'listings:owner_list' %}" class="nav-item {% nav_active 'listings:owner_list' 'listings:owner_create' 'listings:owner_edit' %}">{% icon "store" 18 %}<span class="flex-1">{% t 'my_properties' %}</span></a>
+<a href="{% url 'bookings:owner_list' %}" class="nav-item {% nav_active 'bookings:owner_list' 'bookings:owner_detail' %}">{% icon "clipboard" 18 %}<span class="flex-1">{% t 'bookings' %}</span></a>
+<a href="{% url 'payments:owner_list' %}" class="nav-item {% nav_active 'payments:owner_list' 'payments:owner_detail' 'payments:process_refund' %}">{% icon "wallet" 18 %}<span class="flex-1">{% t 'payments' %}</span></a>
+<a href="{% url 'profile' %}" class="nav-item {% nav_active 'profile' %}">{% icon "user" 18 %}<span class="flex-1">{% t 'profile' %}</span></a>

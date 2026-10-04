@@ -1,0 +1,39 @@
+{% load ui %}
+<nav class="flex-1 overflow-y-auto px-3 py-4">
+  {% if user.is_renter %}
+    {% include "partials/_nav_group_renter.html" %}
+  {% elif user.is_owner %}
+    {% include "partials/_nav_group_owner.html" %}
+  {% elif user.is_superadmin_role %}
+    {% include "partials/_nav_group_console.html" %}
+  {% endif %}
+</nav>
+
+<div class="border-t border-hairline p-3">
+  <a href="{% url 'profile' %}" class="nav-item {% nav_active 'profile' 'role_select' %}">
+    {% icon "user" 18 %}
+    <span class="flex-1 truncate">{% t 'profile' %}</span>
+  </a>
+
+  <div class="mt-3 rounded-xl border border-hairline bg-surface-2 p-3">
+    <div class="flex items-center gap-2.5">
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-bold"
+            style="background-color: hsl({{ user.avatar_hue }} 42% 92%); color: hsl({{ user.avatar_hue }} 55% 28%);">
+        {{ user.display_name|initials }}
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-[13px] font-bold leading-tight">{{ user.display_name }}</span>
+        <span class="block truncate text-[11px] text-ink-3">{{ user.email }}</span>
+      </span>
+    </div>
+    <span class="pill pill-approved mt-2.5">{% role_label user.role as rl %}{{ rl.label }}</span>
+  </div>
+
+  <form method="post" action="{% url 'logout' %}" class="mt-2">
+    {% csrf_token %}
+    <button type="submit" class="nav-item w-full text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40">
+      {% icon "logout" 18 %}
+      <span>{% t 'logout' %}</span>
+    </button>
+  </form>
+</div>

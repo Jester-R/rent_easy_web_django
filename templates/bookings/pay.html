@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% t 'pay_now' %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% t 'pay_now' %}{% endblock %}
+{% block page_subtitle %}<p class="truncate text-[12px] text-ink-3">{{ booking.property_title }}</p>{% endblock %}
+
+
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-5">
+
+  {# ---------------- amount ---------------- #}
+  <section class="app-card hero-gradient p-6 text-center text-white">
+    <p class="text-[12px] font-bold uppercase tracking-wide text-white/70">{% t 'amount' %}</p>
+    <p class="mt-1.5 text-[34px] font-extrabold leading-none">{{ booking.monthly_rent|usd }}</p>
+    <p class="mt-2 truncate text-[13px] text-white/80">{{ booking.property_title }}</p>
+    <p class="mt-1 text-[11px] text-white/60">{{ booking.reference }} · {{ booking.lease_months }} {% t 'months' %}</p>
+  </section>
+
+  {# ---------------- method ---------------- #}
+  <section class="app-card p-5 sm:p-6">
+    <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold">{% icon "card" 17 %} {% t 'payment_method' %}</h2>
+
+    <form method="post" class="space-y-4" data-validate>
+      {% csrf_token %}
+
+      <fieldset class="space-y-2">
+        <legend class="sr-only">{% t 'payment_method' %}</legend>
+        {% for method in method_choices %}
+          <label class="chip w-full cursor-pointer justify-start py-3">
+            <input type="radio" name="method" value="{{ method.value }}" class="sr-only" data-chip-radio
+                   {% if method.checked %}checked{% endif %}>
+            {% icon method.icon 17 %}
+            <span class="flex-1 text-start text-[13px] font-bold">{{ method.label }}</span>
+          </label>
+        {% endfor %}
+      </fieldset>
+
+      <div>
+        <label class="form-label" for="id_simulate">{% t 'status' %} <span class="font-normal text-ink-3">({% t 'optional' %})</span></label>
+        <select name="simulate" id="id_simulate" class="form-input">
+          {% for value, label in form.fields.simulate.choices %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="form-hint">{% t 'demo_hint' %}</p>
+      </div>
+
+      <div class="flex flex-col-reverse gap-2 border-t border-hairline pt-4 sm:flex-row sm:justify-end">
+        <a href="{% url 'bookings:renter_detail' booking.pk %}" class="btn btn-ghost">{% t 'cancel' %}</a>
+        <button type="submit" class="btn btn-primary">{% icon "lock" 16 %} {% t 'pay_now' %}</button>
+      </div>
+    </form>
+  </section>
+
+  <p class="flex items-center justify-center gap-1.5 text-center text-[12px] text-ink-3">
+    {% icon "info" 13 %} {% t 'footer_note' %}
+  </p>
+</div>
+{% endblock %}

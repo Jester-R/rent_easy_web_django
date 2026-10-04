@@ -1,0 +1,15 @@
+{% load ui %}
+{% if messages %}
+<div class="mb-4 space-y-2" data-flash-group>
+  {% for message in messages %}
+    <div class="toast {% if message.level_tag == 'success' %}toast-success{% elif message.level_tag == 'error' %}toast-error{% elif message.level_tag == 'warning' %}toast-warning{% else %}toast-info{% endif %}"
+         data-flash role="status">
+      {% if message.level_tag == 'success' %}{% icon "check-circle" 18 %}
+      {% elif message.level_tag == 'error' %}{% icon "alert" 18 %}
+      {% else %}{% icon "info" 18 %}{% endif %}
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" data-flash-dismiss class="btn btn-ghost btn-xs -my-1 px-1.5" aria-label="{% t 'close' %}">{% icon "x" 14 %}</button>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}

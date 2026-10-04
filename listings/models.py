@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+from django.conf import settings
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.db.models import Count
+from django.urls import reverse
+from django.utils import timezone
+
+
+class PropertyQuerySet(models.QuerySet):
+    def for_renter(self, user):
+        """Exclude properties the renter already has an active booking on."""
+        from bookings.models import Booking, BookingStatus
+
+        if not user or not user.is_authenticated:
+            return self
+        blocked = Booking.objects.filter(
+            renter=user,
+            property__isnull=False,
+            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+        ).values_list("property_id", flat=True)
+        return self.exclude(id__in=list(blocked))
+
+    def available(self):
+        return self
+
+    def with_stats(self):
+        return self.annotate(
+            favorite_count=Count("favorites", distinct=True),
+            booking_count=Count("bookings", distinct=True),
+        )
+
+
+class Property(models.Model):
+    title = models.CharField(max_length=160)
+    location = models.CharField(max_length=160, db_index=True)
+    price_per_month = models.DecimalField(
+        max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], db_index=True
+    )
+    bedrooms = models.PositiveSmallIntegerField(default=1)
+    bathrooms = models.PositiveSmallIntegerField(default=1)
+    description = models.TextField(blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="properties")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = PropertyQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["owner", "-created_at"]),
+            models.Index(fields=["location", "price_per_month"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.location})"
+
+    def get_absolute_url(self) -> str:
+        if self.owner_id and self.owner.is_renter:
+            return reverse("listings:detail", args=[self.pk])
+        return reverse("listings:detail", args=[self.pk])
+
+    @property
+    def price_display(self) -> str:
+        return "${:,.0f}".format(float(self.price_per_month or 0))
+
+    @property
+    def location_label(self) -> str:
+        return self.location or "—"
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorites")
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="favorites")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["user", "property"], name="unique_favorite")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.property_id}"

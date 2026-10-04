@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% t 'properties' %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% t 'properties' %}{% endblock %}
+
+
+
+{% block content %}
+{% url 'listings:renter_browse' as reset_url %}
+<div class="space-y-5">
+
+  {# ================= search + filters ================= #}
+  <section class="app-card p-4 sm:p-5">
+    <form method="get" class="space-y-4" data-validate>
+
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <div class="relative flex-1">
+          <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 18 %}</span>
+          <input type="search" name="q" value="{{ query }}" class="form-input ps-11"
+                 placeholder="{% t 'search_placeholder' %}" aria-label="{% t 'search' %}">
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary flex-1 sm:flex-none">{% icon "search" 16 %} {% t 'search' %}</button>
+          <button type="button" class="btn btn-outline lg:hidden" data-sheet-open="filter-sheet">{% icon "sliders" 16 %}</button>
+        </div>
+      </div>
+
+      {# desktop filter row #}
+      <div class="hidden flex-wrap items-end gap-3 lg:flex">
+        <div class="min-w-[10rem]">
+          <label class="form-label" for="id_location">{% t 'select_location' %}</label>
+          <select name="location" id="id_location" class="form-input" data-auto-submit>
+            <option value="{{ all_locations_token }}">{% t 'all_locations' %}</option>
+            {% for loc in locations %}
+              <option value="{{ loc }}" {% if loc == selected_location %}selected{% endif %}>{{ loc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="min-w-[9rem]">
+          <label class="form-label" for="id_min_bedrooms">{% t 'bedrooms_min' %}</label>
+          <select name="min_bedrooms" id="id_min_bedrooms" class="form-input" data-auto-submit>
+            <option value="0">{% t 'any' %}</option>
+            <option value="1" {% if min_bedrooms == 1 %}selected{% endif %}>1+</option>
+            <option value="2" {% if min_bedrooms == 2 %}selected{% endif %}>2+</option>
+            <option value="3" {% if min_bedrooms == 3 %}selected{% endif %}>3+</option>
+            <option value="4" {% if min_bedrooms == 4 %}selected{% endif %}>4+</option>
+          </select>
+        </div>
+        <div class="min-w-[9rem]">
+          <label class="form-label" for="id_max_price">{% t 'max_price' %}</label>
+          <input type="number" name="max_price" id="id_max_price" class="form-input" min="0" step="10"
+                 value="{{ max_price|default_if_none:'' }}" placeholder="{{ max_ceiling|floatformat:0 }}">
+        </div>
+        <div class="min-w-[11rem]">
+          <label class="form-label" for="id_sort">{% t 'sort_by' %}</label>
+          <select name="sort" id="id_sort" class="form-input" data-auto-submit>
+            <option value="recommended" {% if selected_sort == 'recommended' %}selected{% endif %}>{% t 'sort_recommended' %}</option>
+            <option value="price_low" {% if selected_sort == 'price_low' %}selected{% endif %}>{% t 'sort_price_low' %}</option>
+            <option value="price_high" {% if selected_sort == 'price_high' %}selected{% endif %}>{% t 'sort_price_high' %}</option>
+            <option value="bedrooms" {% if selected_sort == 'bedrooms' %}selected{% endif %}>{% t 'sort_bedrooms' %}</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">{% icon "filter" 15 %} {% t 'apply_filters' %}</button>
+        {% if query or min_bedrooms or max_price or selected_location or selected_sort != 'recommended' %}
+          <a href="{% url 'listings:renter_browse' %}" class="btn btn-ghost">{% icon "x" 15 %} {% t 'reset' %}</a>
+        {% endif %}
+      </div>
+    </form>
+
+    {# mobile / tablet filter sheet #}
+    <div id="filter-sheet" class="fixed inset-0 z-50 hidden lg:hidden" aria-hidden="true">
+      <div class="absolute inset-0 bg-black/50" data-sheet-backdrop></div>
+      <div class="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-surface p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-[15px] font-extrabold">{% icon "sliders" 17 %} {% t 'filter_properties' %}</h2>
+          <button type="button" class="btn btn-ghost btn-icon" data-sheet-close aria-label="{% t 'close' %}">{% icon "x" 18 %}</button>
+        </div>
+        <form method="get" class="space-y-4">
+          <input type="hidden" name="q" value="{{ query }}">
+          <input type="hidden" name="sort" value="{{ selected_sort }}">
+          <div>
+            <label class="form-label" for="ms_location">{% t 'select_location' %}</label>
+            <select name="location" id="ms_location" class="form-input">
+              <option value="{{ all_locations_token }}">{% t 'all_locations' %}</option>
+              {% for loc in locations %}<option value="{{ loc }}" {% if loc == selected_location %}selected{% endif %}>{{ loc }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="ms_beds">{% t 'bedrooms_min' %}</label>
+            <select name="min_bedrooms" id="ms_beds" class="form-input">
+              <option value="0">{% t 'any' %}</option>
+              <option value="1" {% if min_bedrooms == 1 %}selected{% endif %}>1+</option>
+              <option value="2" {% if min_bedrooms == 2 %}selected{% endif %}>2+</option>
+              <option value="3" {% if min_bedrooms == 3 %}selected{% endif %}>3+</option>
+              <option value="4" {% if min_bedrooms == 4 %}selected{% endif %}>4+</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="ms_price">{% t 'max_price' %}</label>
+            <input type="number" name="max_price" id="ms_price" class="form-input" min="0" step="10"
+                   value="{{ max_price|default_if_none:'' }}" placeholder="{{ max_ceiling|floatformat:0 }}">
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="submit" class="btn btn-primary flex-1">{% icon "filter" 15 %} {% t 'apply_filters' %}</button>
+            <a href="{% url 'listings:renter_browse' %}" class="btn btn-ghost">{% icon "x" 15 %} {% t 'reset' %}</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  {# ================= result summary ================= #}
+  <div class="flex flex-wrap items-center gap-2 text-[13px]">
+    <span class="pill pill-approved">{% icon "building" 12 %} {{ properties|length }} {% t 'properties_found' %}</span>
+    {% if properties %}
+      <span class="pill pill-neutral">{% icon "dollar" 12 %} {% t 'average_price' %}: {{ avg_price|usd }}</span>
+    {% endif %}
+    {% if query %}<span class="pill pill-neutral">{% icon "search" 12 %} "{{ query }}"</span>{% endif %}
+    {% if selected_location %}<span class="pill pill-neutral">{% icon "map-pin" 12 %} {{ selected_location }}</span>{% endif %}
+  </div>
+
+  {# ================= results ================= #}
+  {% if properties %}
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-favorites-list>
+      {% for property in properties %}
+        {% include "partials/_property_card.html" with favorite_ids=favorite_ids active_booking_property_ids=active_booking_property_ids show_favorite=True %}
+      {% endfor %}
+    </div>
+  {% else %}
+    {% include "partials/_empty.html" with icon="search" title='no_properties_match'|t subtitle='filter_properties'|t action_url=reset_url action_label='reset'|t %}
+  {% endif %}
+</div>
+{% endblock %}

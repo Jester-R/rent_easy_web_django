@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% if mode == 'edit' %}{{ 'edit'|t }} {{ payment.reference }}{% else %}{{ 'new_payment'|t }}{% endif %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% if mode == "edit" %}{{ 'edit'|t }}{% else %}{{ 'new_payment'|t }}{% endif %}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'console:payments' %}" class="btn btn-ghost btn-sm">{% icon "arrow-left" 15 %} {{ 'back'|t }}</a>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <section class="app-card p-5 sm:p-6">
+    <div class="mb-5 flex items-start gap-3">
+      <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary-dark">{% icon "receipt" 20 %}</span>
+      <div class="min-w-0">
+        <h2 class="text-[16px] font-extrabold tracking-tight">{{ payment.reference|default:'new_payment'|t }}</h2>
+        <p class="text-[13px] text-ink-3">{% t 'mock_payment_note' %}</p>
+      </div>
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="toast toast-error mb-4" role="alert">{% icon "alert" 18 %}<span class="flex-1">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</span></div>
+    {% endif %}
+
+    <form method="post" class="space-y-4" data-validate>
+      {% csrf_token %}
+
+      {% if form.fields.property %}
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="form-label" for="id_property">{{ 'property'|t }}</label>
+            <select name="property" id="id_property" class="form-input">
+              <option value="">{% t 'not_specified' %}</option>
+              {% for property in form.fields.property.queryset %}
+                <option value="{{ property.pk }}" {% if form.property.value|stringformat:"s" == property.pk|stringformat:"s" %}selected{% endif %}>{{ property.title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="id_booking">{{ 'booking'|t if form.fields.booking else 'booking_id'|t %}</label>
+            <select name="booking" id="id_booking" class="form-input">
+              <option value="">{% t 'not_specified' %}</option>
+              {% for booking in form.fields.booking.queryset %}
+                <option value="{{ booking.pk }}" {% if form.booking.value|stringformat:"s" == booking.pk|stringformat:"s" %}selected{% endif %}>{{ booking.reference }} — {{ booking.property_title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="id_user">{{ 'user'|t }} <span class="text-danger">*</span></label>
+          <select name="user" id="id_user" class="form-input" required>
+            <option value="">{% t 'select' %}</option>
+            {% for account in form.fields.user.queryset %}
+              <option value="{{ account.pk }}" {% if form.user.value|stringformat:"s" == account.pk|stringformat:"s" %}selected{% endif %}>{{ account.display_name }} · {{ account.email }}</option>
+            {% endfor %}
+          </select>
+          {% for e in form.user.errors %}<p class="form-error">{% t 'field_required' field='@user' %}</p>{% endfor %}
+        </div>
+      {% else %}
+        <div class="rounded-xl bg-surface-2 p-3.5 text-[12px] text-ink-3">
+          <p><strong class="text-ink-2">{{ 'user'|t }}:</strong> {{ payment.user.display_name }}</p>
+          <p class="mt-0.5"><strong class="text-ink-2">{{ 'property'|t }}:</strong> {{ payment.property_title }}</p>
+          <p class="mt-0.5"><strong class="text-ink-2">{{ 'created_at'|t }}:</strong> {{ payment.created_at|pretty_date }}</p>
+        </div>
+      {% endif %}
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class="form-label" for="id_amount">{{ 'amount'|t }} <span class="text-danger">*</span></label>
+          <input type="number" name="amount" id="id_amount" class="form-input" min="0" step="1" required value="{{ form.amount.value|default:'' }}">
+          {% for e in form.amount.errors %}<p class="form-error">{% t 'price_required' %}</p>{% endfor %}
+        </div>
+        <div>
+          <label class="form-label" for="id_method">{{ 'payment_method'|t }}</label>
+          <select name="method" id="id_method" class="form-input">
+            {% for value, label in form.fields.method.choices %}
+              <option value="{{ value }}" {% if form.method.value == value %}selected{% endif %}>{% method_label value %}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label class="form-label" for="id_status">{{ 'status'|t }}</label>
+          <select name="status" id="id_status" class="form-input">
+            {% for value, label in form.fields.status.choices %}
+              <option value="{{ value }}" {% if form.status.value == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if form.fields.refund_status %}
+          <div>
+            <label class="form-label" for="id_refund_status">{{ 'refund_status'|t }}</label>
+            <select name="refund_status" id="id_refund_status" class="form-input">
+              {% for value, label in form.fields.refund_status.choices %}
+                <option value="{{ value }}" {% if form.refund_status.value == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="id_refunded_amount">{{ 'refunded_amount'|t }}</label>
+            <input type="number" name="refunded_amount" id="id_refunded_amount" class="form-input" min="0" step="1" value="{{ form.refunded_amount.value|default:0 }}">
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-col-reverse gap-2 border-t border-hairline pt-5 sm:flex-row sm:justify-end">
+        <a href="{% url 'console:payments' %}" class="btn btn-ghost">{{ 'cancel'|t }}</a>
+        <button type="submit" class="btn btn-primary">{% icon "check" 16 %} {{ 'save'|t }}</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}403 · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-lg py-16 text-center">
+  <span class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-pill-rejected text-danger">{% icon "lock" 30 %}</span>
+  <h1 class="text-xl font-extrabold tracking-tight">{% t 'not_authorized' %}</h1>
+  <a href="/" class="btn btn-primary mt-6">{% icon "arrow-left" 16 %} {% t 'back' %}</a>
+</div>
+{% endblock %}

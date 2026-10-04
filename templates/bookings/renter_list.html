@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% t 'my_bookings' %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% t 'my_bookings' %}{% endblock %}
+
+
+
+{% block content %}
+{% url 'bookings:renter_list' as reset_url %}
+<div class="space-y-5">
+
+  {# status filter chips #}
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'bookings:renter_list' %}" class="chip {% if flt.status == 'all' %}is-active{% endif %}">
+      {% icon "list" 13 %} {% t 'all' %} <span class="chip-count">{{ counts.all|default:0 }}</span>
+    </a>
+    {% for key in filter_keys %}
+      <a href="?status={{ key|urlencode }}" class="chip {% if flt.status == key %}is-active{% endif %}">
+        {% status_label key as pill %}
+        {{ pill.label }} <span class="chip-count">{{ counts|get_item:key|default:0 }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  {% if bookings %}
+    <div class="table-wrap app-card overflow-hidden">
+      <table class="data-table" data-bulk-scope>
+        <thead>
+          <tr>
+            <th class="text-start">{% t 'property_detail' %}</th>
+            <th class="text-start">{% t 'monthly_rent' %}</th>
+            <th class="text-start">{% t 'lease_months' %}</th>
+            <th class="text-start">{% t 'status' %}</th>
+            <th class="text-start">{% t 'requested_at' %}</th>
+            <th class="text-end w-px">{% t 'actions' %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for booking in bookings %}
+            <tr {% if booking.pk == focus %}data-focus-id class="is-selected"{% endif %}>
+              <td class="min-w-[13rem]">
+                <div class="flex items-center gap-2.5">
+                  <span class="property-thumb !h-9 !w-9">{% icon "home" 17 %}</span>
+                  <span class="min-w-0">
+                    <a href="{% url 'bookings:renter_detail' booking.pk %}" class="block truncate font-bold hover:text-primary">{{ booking.property_title }}</a>
+                    <span class="block text-[11px] text-ink-3">{{ booking.reference }}</span>
+                  </span>
+                </div>
+              </td>
+              <td class="whitespace-nowrap font-extrabold text-primary">{{ booking.monthly_rent|usd }}</td>
+              <td class="whitespace-nowrap text-ink-2">{{ booking.lease_months }} {% t 'months' %}</td>
+              <td>{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
+              <td class="whitespace-nowrap text-ink-2">{{ booking.created_at|short_date }}</td>
+              <td class="w-px">
+                <div class="flex items-center justify-end gap-1">
+                  <a href="{% url 'bookings:renter_detail' booking.pk %}" class="btn btn-ghost btn-icon" title="{% t 'details' %}">{% icon "eye" 16 %}</a>
+                  {% if booking.status == "Approved" and not booking.payment_id %}
+                    <a href="{% url 'bookings:renter_pay' booking.pk %}" class="btn btn-primary btn-xs">{% icon "dollar" 13 %} {% t 'pay_now' %}</a>
+                  {% endif %}
+                  {% if booking.can_cancel %}
+                    <form method="post" action="{% url 'bookings:renter_cancel' booking.pk %}"
+                          data-confirm
+                          data-confirm-title="{% t 'confirm_cancel_booking' %}"
+                          data-confirm-body="{{ booking.property_title }}"
+                          data-confirm-label="{% t 'cancel_request' %}"
+                          data-confirm-tone="danger"
+                          data-next="{{ request.get_full_path }}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-ghost btn-icon text-danger" title="{% t 'cancel_request' %}">{% icon "x-circle" 16 %}</button>
+                    </form>
+                  {% endif %}
+                  {% if booking.payment_id %}
+                    <a href="{% url 'payments:renter_detail' booking.payment_id %}" class="btn btn-ghost btn-icon" title="{% t 'payment_details' %}">{% icon "receipt" 16 %}</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% url 'listings:renter_browse' as browse_url %}
+    {% if flt.status != 'all' %}
+      {% include "partials/_empty.html" with icon="search" title='no_bookings_found'|t subtitle='bookings'|t action_url=reset_url action_label='reset'|t %}
+    {% else %}
+      {% include "partials/_empty.html" with icon="clipboard" title='no_bookings_yet'|t subtitle='cta_browse'|t action_url=browse_url action_label='cta_browse'|t %}
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

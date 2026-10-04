@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% t 'bookings' %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% t 'bookings' %}{% endblock %}
+
+
+
+{% block topbar_actions %}
+<a href="{% url 'console:booking_create' %}" class="btn btn-primary btn-sm">{% icon "plus" 15 %} {% t 'new_booking' %}</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4" data-bulk-scope>
+
+  <section class="app-card p-4">
+    <form method="get" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+      <div class="relative">
+        <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 16 %}</span>
+        <input type="search" name="q" value="{{ query }}" class="form-input ps-11" placeholder="{% t 'search_bookings' %}">
+      </div>
+      <select name="status" class="form-input" data-auto-submit>
+        <option value="all">{% t 'all' %} ({{ status_counts.all }})</option>
+        {% for value, label in statuses %}
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }} ({{ status_counts|get_item:value|default:0 }})</option>
+        {% endfor %}
+      </select>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary flex-1">{% icon "filter" 15 %} {% t 'filter' %}</button>
+        <a href="{% url 'console:bookings' %}" class="btn btn-ghost">{% icon "refresh" 15 %}</a>
+      </div>
+    </form>
+  </section>
+
+  <div class="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
+    <span class="pill pill-neutral">{% icon "clipboard" 12 %} {{ bookings|length }} / {{ total }} {% t 'bookings' %}</span>
+    {% if query %}<span class="pill pill-neutral">{% icon "search" 12 %} "{{ query }}"</span>{% endif %}
+  </div>
+
+  {% if bookings %}
+    <form method="post" action="{% url 'console:bookings_bulk_delete' %}" data-bulk-form>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="table-wrap app-card overflow-hidden">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="w-px"><input type="checkbox" data-bulk-all class="form-checkbox" aria-label="{% t 'select_all' %}"></th>
+              <th class="text-start">{% t 'booking_ref' %}</th>
+              <th class="text-start">{% t 'property' %}</th>
+              <th class="text-start">{% t 'renter' %}</th>
+              <th class="text-end">{% t 'rent' %}</th>
+              <th class="text-start">{% t 'move_in_date' %}</th>
+              <th class="text-start">{% t 'status' %}</th>
+              <th class="text-end w-px">{% t 'actions' %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for booking in bookings %}
+              <tr>
+                <td class="w-px">
+                  <input type="checkbox" name="ids" value="{{ booking.pk }}" data-bulk-item class="form-checkbox" aria-label="{{ booking.reference }}">
+                </td>
+                <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ booking.reference }}</td>
+                <td class="min-w-[11rem]"><a href="{% url 'console:booking_edit' booking.pk %}" class="block truncate font-bold hover:text-primary">{{ booking.property_title }}</a></td>
+                <td class="whitespace-nowrap text-ink-2">
+                  {{ booking.renter.display_name }}
+                  <span class="block text-[11px] text-ink-3">{% t 'lease_term' %}: {{ booking.lease_months }} {% t 'months' %}</span>
+                </td>
+                <td class="whitespace-nowrap text-end font-bold text-primary">{{ booking.monthly_rent|usd }}</td>
+                <td class="whitespace-nowrap text-ink-2">{{ booking.move_in_date|short_date }}</td>
+                <td>{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
+                <td class="w-px">
+                  <div class="flex items-center justify-end gap-1">
+                    <a href="{% url 'console:booking_edit' booking.pk %}" class="btn btn-ghost btn-icon" title="{% t 'edit' %}">{% icon "edit" 16 %}</a>
+                    <button type="submit" form="delete-booking-{{ booking.pk }}" class="btn btn-ghost btn-icon text-danger" title="{% t 'delete' %}">{% icon "trash" 16 %}</button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+
+    {% for booking in bookings %}
+      <form id="delete-booking-{{ booking.pk }}" method="post" action="{% url 'console:booking_delete' booking.pk %}"
+            data-confirm
+            data-confirm-title="{% t 'confirm_delete_booking' %}"
+            data-confirm-body="{{ booking.reference }}"
+            data-confirm-label="{% t 'delete' %}"
+            data-confirm-tone="danger"
+            data-next="{{ request.get_full_path }}" class="hidden">
+        {% csrf_token %}
+      </form>
+    {% endfor %}
+
+    {% include "partials/_bulk_bar.html" with confirm_title='confirm_delete_booking'|t confirm_body='records_deleted'|t %}
+  {% else %}
+    {% url 'console:booking_create' as create_url %}
+    {% include "partials/_empty.html" with icon="clipboard" title='no_bookings_found'|t subtitle='new_booking'|t action_url=create_url action_label='new_booking'|t action_icon="plus" %}
+  {% endif %}
+</div>
+{% endblock %}

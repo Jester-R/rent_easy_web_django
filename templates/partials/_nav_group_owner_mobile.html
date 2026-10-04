@@ -1,0 +1,6 @@
+{% load ui %}
+<a href="{% url 'owner_home' %}" data-nav="owner_home" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "dashboard" 20 %}<span>{% t 'home' %}</span></a>
+<a href="{% url 'listings:owner_list' %}" data-nav="owner_list" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "store" 20 %}<span>{% t 'properties' %}</span></a>
+<a href="{% url 'bookings:owner_list' %}" data-nav="owner_list_book" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "clipboard" 20 %}<span>{% t 'bookings' %}</span></a>
+<a href="{% url 'payments:owner_list' %}" data-nav="owner_pay" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "wallet" 20 %}<span>{% t 'payments' %}</span></a>
+<a href="{% url 'profile' %}" data-nav="profile" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "user" 20 %}<span>{% t 'profile' %}</span></a>

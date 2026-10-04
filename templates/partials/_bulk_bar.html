@@ -1,0 +1,21 @@
+{% load ui %}
+{# Sticky bulk-action bar for console tables. Expects `bulk_url`, `next` and optional `confirm_*`. #}
+<div class="sticky bottom-3 z-30 mt-3 hidden" data-bulk-bar>
+  <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
+    <span class="flex items-center gap-2 text-[13px] font-bold">
+      <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white" data-bulk-count>0</span>
+      {% t 'selected_count' %}
+    </span>
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      <button type="button" class="btn btn-ghost btn-sm" data-bulk-clear>{% t 'reset' %}</button>
+      <button type="button" class="btn btn-danger btn-sm"
+              data-bulk-submit
+              data-confirm-title="{{ confirm_title|default:'confirm_delete_property'|t }}"
+              data-confirm-body="{{ confirm_body|default:'records_deleted'|t }}"
+              data-confirm-label="{% t 'delete' %}"
+              data-confirm-tone="danger">
+        {% icon "trash" 15 %} {% t 'delete' %}
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,8 @@
+{% load ui %}
+<p class="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">{% t 'renter' %}</p>
+<a href="{% url 'renter_home' %}" class="nav-item {% nav_active 'renter_home' %}">{% icon "home" 18 %}<span class="flex-1">{% t 'home' %}</span></a>
+<a href="{% url 'listings:renter_browse' %}" class="nav-item {% nav_active 'listings:renter_browse' 'listings:detail' %}">{% icon "building" 18 %}<span class="flex-1">{% t 'properties' %}</span></a>
+<a href="{% url 'listings:renter_favorites' %}" class="nav-item {% nav_active 'listings:renter_favorites' %}">{% icon "heart" 18 %}<span class="flex-1">{% t 'favorites' %}</span></a>
+<a href="{% url 'bookings:renter_list' %}" class="nav-item {% nav_active 'bookings:renter_list' 'bookings:renter_detail' 'bookings:renter_pay' 'bookings:renter_cancel' %}">{% icon "clipboard" 18 %}<span class="flex-1">{% t 'my_bookings' %}</span></a>
+<a href="{% url 'payments:renter_list' %}" class="nav-item {% nav_active 'payments:renter_list' 'payments:renter_detail' %}">{% icon "receipt" 18 %}<span class="flex-1">{% t 'payments' %}</span></a>
+<a href="{% url 'profile' %}" class="nav-item {% nav_active 'profile' 'role_select' %}">{% icon "user" 18 %}<span class="flex-1">{% t 'profile' %}</span></a>

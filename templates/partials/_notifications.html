@@ -1,0 +1,32 @@
+{% load ui %}
+<div class="relative" data-dropdown data-notifications>
+  <button type="button" data-dropdown-toggle
+          class="btn btn-ghost btn-icon relative" aria-haspopup="true" aria-expanded="false"
+          title="{% t 'notifications' %}" aria-label="{% t 'notifications' %}">
+    {% icon "bell" 18 %}
+    <span data-bell-badge
+          class="{% if not unread_count %}hidden {% endif %}absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-extrabold text-white">{{ unread_count }}</span>
+  </button>
+
+  <div data-dropdown-panel class="dropdown-panel hidden">
+    <div class="flex items-center justify-between gap-2 border-b border-hairline px-4 py-3">
+      <p class="text-[13px] font-extrabold">{% t 'notifications' %}</p>
+      <form method="post" action="{% url 'notifications:mark_seen' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="text-[12px] font-bold text-primary hover:underline">{% t 'mark_all_read' %}</button>
+      </form>
+    </div>
+
+    <div data-bell-list class="max-h-[26rem] overflow-y-auto p-2">
+      <div class="flex items-center justify-center gap-2 px-4 py-8 text-[13px] text-ink-3">
+        <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-hairline border-t-primary"></span>
+        {% t 'loading' %}
+      </div>
+    </div>
+
+    <div class="border-t border-hairline p-2">
+      <a href="{% url 'notifications:feed' %}" class="nav-item justify-center text-[13px]">{% icon "bell" 16 %}<span>{% t 'notifications' %}</span></a>
+    </div>
+  </div>
+</div>

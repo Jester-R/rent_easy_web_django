@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}{% t 'signup_headline' %} · {{ SITE_NAME }}{% endblock %}
+{% block content_wrapper %}
+<div class="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10 sm:px-6">
+  <div class="w-full max-w-[30rem]">
+    <div class="mb-7 flex flex-col items-center gap-3 text-center lg:hidden">
+      <span class="grid h-14 w-14 place-items-center rounded-2xl hero-gradient text-white shadow-lg">{% icon "user-plus" 28 %}</span>
+      <div>
+        <p class="text-xl font-extrabold tracking-tight">{{ SITE_NAME }}</p>
+        <p class="text-[13px] text-ink-3">{% t 'slogan' %}</p>
+      </div>
+    </div>
+
+    <div class="app-card p-6 sm:p-7">
+      <div class="mb-5 flex items-center gap-3">
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl hero-gradient text-white shadow-sm">{% icon "user-plus" 20 %}</span>
+        <div class="min-w-0">
+          <h1 class="truncate text-[19px] font-extrabold tracking-tight">{% t 'signup_headline' %}</h1>
+          <p class="truncate text-[13px] text-ink-3">{% t 'select_role_hint' %}</p>
+        </div>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="toast toast-error mb-4" role="alert">
+          {% icon "alert" 18 %}<span class="flex-1">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</span>
+        </div>
+      {% endif %}
+
+      <form method="post" novalidate data-validate class="space-y-4">
+        {% csrf_token %}
+
+        <div>
+          <label class="form-label" for="id_full_name">{% t 'full_name' %}</label>
+          <input type="text" id="id_full_name" name="full_name" class="form-input" value="{{ form.full_name.value|default:'' }}" autocomplete="name" required>
+          {% if form.full_name.errors %}<p class="form-error">{% t 'field_required' field='@full_name' %}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="form-label" for="id_username">{% t 'username' %}</label>
+          <input type="text" id="id_username" name="username" class="form-input" value="{{ form.username.value|default:'' }}" autocomplete="username" required>
+          <p class="form-hint">{% t 'username_rule' %}</p>
+          {% if form.username.errors %}
+            <p class="form-error">{% for e in form.username.errors %}{% if e.code == 'username_invalid' %}{% t 'username_rule' %}{% else %}{% t 'email_taken' %}{% endif %}{% endfor %}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="form-label" for="id_email">{% t 'email' %}</label>
+          <input type="email" id="id_email" name="email" class="form-input" value="{{ form.email.value|default:'' }}" autocomplete="email" required>
+          {% if form.email.errors %}<p class="form-error">{% t 'email_taken' %}</p>{% endif %}
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="form-label" for="id_password">{% t 'password' %}</label>
+            <div class="relative" data-password-field>
+              <input type="password" id="id_password" name="password" class="form-input pe-11" autocomplete="new-password" required>
+              <button type="button" data-password-toggle class="absolute end-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-3 hover:text-primary">{% icon "eye" 17 %}</button>
+            </div>
+            {% if form.password.errors %}<p class="form-error">{% t 'password' %}</p>{% endif %}
+          </div>
+          <div>
+            <label class="form-label" for="id_password_confirm">{% t 'password_confirm' %}</label>
+            <input type="password" id="id_password_confirm" name="password_confirm" class="form-input" autocomplete="new-password" required>
+            {% if form.password_confirm.errors %}<p class="form-error">{% t 'passwords_dont_match' %}</p>{% endif %}
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full">{% t 'register' %}</button>
+      </form>
+
+      <div class="divider my-5"></div>
+
+      <p class="text-center text-[13px] text-ink-2">
+        {% t 'login' %}?
+        <a href="{% url 'login' %}" class="font-bold text-primary hover:underline">{% t 'login' %}</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

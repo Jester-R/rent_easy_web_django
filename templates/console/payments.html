@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load ui humanize %}
+
+{% block title %}{% t 'payments' %} · {{ SITE_NAME }}{% endblock %}
+{% block page_title %}{% t 'payments' %}{% endblock %}
+
+
+
+{% block topbar_actions %}
+<a href="{% url 'console:payment_create' %}" class="btn btn-primary btn-sm">{% icon "plus" 15 %} {% t 'new_payment' %}</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+    {% include "partials/_stat_card.html" with icon="dollar" label='stat_revenue'|t value=revenue|usd %}
+    {% include "partials/_stat_card.html" with icon="clock" label='refund_status_pending'|t value=status_counts|get_item:'Pending'|default:0 %}
+    {% include "partials/_stat_card.html" with icon="users" label='stat_payments'|t value=total hint='mock_payment_note'|t %}
+  </div>
+
+  <div class="space-y-4" data-bulk-scope>
+    <section class="app-card p-4">
+      <form method="get" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+        <div class="relative">
+          <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 16 %}</span>
+          <input type="search" name="q" value="{{ query }}" class="form-input ps-11" placeholder="{% t 'search_payments' %}">
+        </div>
+        <select name="status" class="form-input" data-auto-submit>
+          <option value="all">{% t 'all' %} ({{ status_counts.all }})</option>
+          {% for value, label in statuses %}
+            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }} ({{ status_counts|get_item:value|default:0 }})</option>
+          {% endfor %}
+        </select>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary flex-1">{% icon "filter" 15 %} {% t 'filter' %}</button>
+          <a href="{% url 'console:payments' %}" class="btn btn-ghost">{% icon "refresh" 15 %}</a>
+        </div>
+      </form>
+    </section>
+
+    {% if payments %}
+      <form method="post" action="{% url 'console:payments_bulk_delete' %}" data-bulk-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="table-wrap app-card overflow-hidden">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="w-px"><input type="checkbox" data-bulk-all class="form-checkbox" aria-label="{% t 'select_all' %}"></th>
+                <th class="text-start">{% t 'payment_ref' %}</th>
+                <th class="text-start">{% t 'property' %}</th>
+                <th class="text-start">{% t 'user' %}</th>
+                <th class="text-end">{% t 'amount' %}</th>
+                <th class="text-start">{% t 'method' %}</th>
+                <th class="text-start">{% t 'status' %}</th>
+                <th class="text-end w-px">{% t 'actions' %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for payment in payments %}
+                <tr>
+                  <td class="w-px">
+                    <input type="checkbox" name="ids" value="{{ payment.pk }}" data-bulk-item class="form-checkbox" aria-label="{{ payment.reference }}">
+                  </td>
+                  <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ payment.reference }}</td>
+                  <td class="min-w-[11rem]"><span class="block truncate font-bold">{{ payment.property_title|default:'—' }}</span></td>
+                  <td class="whitespace-nowrap text-ink-2">{{ payment.user.display_name }}</td>
+                  <td class="whitespace-nowrap text-end font-bold text-primary">{{ payment.amount|usd }}</td>
+                  <td class="whitespace-nowrap text-ink-2">{% method_label payment.method %}</td>
+                  <td>
+                    {% payment_status payment as ps %}
+                    <span class="pill {{ ps.css }}">{{ ps.label }}</span>
+                    {% refund_status payment as rs %}
+                    {% if payment.refund_status != 'None' %}<span class="pill pill-neutral ms-1">{{ rs.label }}</span>{% endif %}
+                  </td>
+                  <td class="w-px">
+                    <div class="flex items-center justify-end gap-1">
+                      {% if payment.refund_status == 'None' %}
+                        <button type="submit" form="refund-payment-{{ payment.pk }}" class="btn btn-ghost btn-icon text-warning" title="{% t 'issue_refund' %}">{% icon "rotate-ccw" 16 %}</button>
+                      {% endif %}
+                      <a href="{% url 'console:payment_edit' payment.pk %}" class="btn btn-ghost btn-icon" title="{% t 'edit' %}">{% icon "edit" 16 %}</a>
+                      <button type="submit" form="delete-payment-{{ payment.pk }}" class="btn btn-ghost btn-icon text-danger" title="{% t 'delete' %}">{% icon "trash" 16 %}</button>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+
+      {% for payment in payments %}
+        {% if payment.refund_status == 'None' %}
+          <form id="refund-payment-{{ payment.pk }}" method="post" action="{% url 'console:refund_create' %}"
+                data-confirm
+                data-confirm-title="{% t 'issue_refund' %}"
+                data-confirm-body="{{ payment.reference }} — {{ payment.amount|usd }}"
+                data-confirm-label="{% t 'issue_refund' %}"
+                data-confirm-tone="warning" class="hidden">
+            {% csrf_token %}
+            <input type="hidden" name="payment" value="{{ payment.pk }}">
+            <input type="hidden" name="reason" value="Other">
+          </form>
+        {% endif %}
+        <form id="delete-payment-{{ payment.pk }}" method="post" action="{% url 'console:payment_delete' payment.pk %}"
+              data-confirm
+              data-confirm-title="{% t 'confirm_delete_booking' %}"
+              data-confirm-body="{{ payment.reference }}"
+              data-confirm-label="{% t 'delete' %}"
+              data-confirm-tone="danger"
+              data-next="{{ request.get_full_path }}" class="hidden">
+          {% csrf_token %}
+        </form>
+      {% endfor %}
+
+      {% include "partials/_bulk_bar.html" with confirm_title='confirm_delete_booking'|t confirm_body='records_deleted'|t %}
+    {% else %}
+      {% url 'console:payment_create' as create_url %}
+      {% include "partials/_empty.html" with icon="dollar" title='no_payments_found'|t subtitle='new_payment'|t action_url=create_url action_label='new_payment'|t action_icon="plus" %}
+    {% endif %}
+  </div>
+
+  {# ---------------- recent refunds ---------------- #}
+  <section class="app-card p-5">
+    <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">{% icon "rotate-ccw" 17 %} {% t 'refunds' %}</h2>
+    {% if refunds %}
+      <div class="table-wrap overflow-x-auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="text-start">{% t 'payment_ref' %}</th>
+              <th class="text-start">{% t 'booking_ref' %}</th>
+              <th class="text-end">{% t 'amount' %}</th>
+              <th class="text-start">{% t 'reason' %}</th>
+              <th class="text-start">{% t 'status' %}</th>
+              <th class="text-start">{% t 'created_at' %}</th>
+              <th class="text-end w-px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for refund in refunds %}
+              <tr>
+                <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ refund.payment.reference }}</td>
+                <td class="whitespace-nowrap font-mono text-[12px] text-ink-2">{{ refund.booking.reference }}</td>
+                <td class="whitespace-nowrap text-end font-bold">{{ refund.amount|usd }}</td>
+                <td class="whitespace-nowrap text-ink-2">{% refund_reason refund.reason %}</td>
+                <td>{% status_label refund.status 'refund' as rs %}<span class="pill {{ rs.css }}">{{ rs.label }}</span></td>
+                <td class="whitespace-nowrap text-ink-2">{{ refund.created_at|short_date }}</td>
+                <td class="w-px text-end">
+                  {% if refund.status == 'Pending' %}
+                    <form method="post" action="{% url 'console:refund_process' refund.pk %}" class="inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-ghost btn-icon text-primary" title="{% t 'process_refund' %}">{% icon "check" 16 %}</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="px-1 py-3 text-center text-[12px] text-ink-3">{% t 'no_refunds_yet' %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
