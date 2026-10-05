@@ -18,7 +18,7 @@
     <form method="get" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
       <div class="relative">
         <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 16 %}</span>
-        <input type="search" name="q" value="{{ query }}" class="form-input ps-11" placeholder="{% t 'search_users' %}">
+        <input type="search" name="q" value="{{ query }}" class="form-input ps-11" data-auto-submit-debounce placeholder="{% t 'search_users' %}">
       </div>
       <select name="role" class="form-input" data-auto-submit>
         <option value="all">{% t 'all' %}</option>
@@ -61,11 +61,11 @@
           <tbody>
             {% for account in users %}
               <tr>
-                <td class="w-px">
+                <td data-label="" class="w-px">
                   <input type="checkbox" name="ids" value="{{ account.pk }}" data-bulk-item class="form-checkbox"
                          aria-label="{{ account.email }}">
                 </td>
-                <td class="min-w-[13rem]">
+                <td data-label="{% t 'users' %}" class="min-w-[13rem]">
                   <div class="flex items-center gap-2.5">
                     <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
                           style="background-color: hsl({{ account.avatar_hue }} 42% 92%); color: hsl({{ account.avatar_hue }} 55% 28%);">
@@ -80,11 +80,11 @@
                     </span>
                   </div>
                 </td>
-                <td>{% role_label account.role as rl %}<span class="pill {% if account.role == 'superadmin' %}pill-approved{% elif account.role == 'owner' %}pill-neutral{% else %}pill-cancelled{% endif %}">{{ rl.label }}</span></td>
-                <td class="text-end text-ink-2 tabular-nums">{{ account.property_count|default:0 }}</td>
-                <td class="text-end text-ink-2 tabular-nums">{{ account.booking_count|default:0 }}</td>
-                <td class="whitespace-nowrap text-ink-2">{{ account.date_joined|short_date }}</td>
-                <td class="w-px">
+                <td data-label="{% t 'role' %}">{% role_label account.role as rl %}<span class="pill {% if account.role == 'superadmin' %}pill-approved{% elif account.role == 'owner' %}pill-neutral{% else %}pill-cancelled{% endif %}">{{ rl.label }}</span></td>
+                <td data-label="{% t 'properties' %}" class="text-end text-ink-2 tabular-nums">{{ account.property_count|default:0 }}</td>
+                <td data-label="{% t 'bookings' %}" class="text-end text-ink-2 tabular-nums">{{ account.booking_count|default:0 }}</td>
+                <td data-label="{% t 'created_at' %}" class="whitespace-nowrap text-ink-2">{{ account.date_joined|short_date }}</td>
+                <td data-label="" class="w-px">
                   <div class="flex items-center justify-end gap-1">
                     <a href="{% url 'console:user_edit' account.pk %}" class="btn btn-ghost btn-icon" title="{% t 'edit' %}">{% icon "edit" 16 %}</a>
                     {% if account.pk != user.pk %}

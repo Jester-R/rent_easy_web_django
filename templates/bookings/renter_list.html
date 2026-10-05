@@ -39,7 +39,7 @@
         <tbody>
           {% for booking in bookings %}
             <tr {% if booking.pk == focus %}data-focus-id class="is-selected"{% endif %}>
-              <td class="min-w-[13rem]">
+              <td data-label="" class="min-w-[13rem]">
                 <div class="flex items-center gap-2.5">
                   <span class="property-thumb !h-9 !w-9">{% icon "home" 17 %}</span>
                   <span class="min-w-0">
@@ -48,11 +48,11 @@
                   </span>
                 </div>
               </td>
-              <td class="whitespace-nowrap font-extrabold text-primary">{{ booking.monthly_rent|usd }}</td>
-              <td class="whitespace-nowrap text-ink-2">{{ booking.lease_months }} {% t 'months' %}</td>
-              <td>{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
-              <td class="whitespace-nowrap text-ink-2">{{ booking.created_at|short_date }}</td>
-              <td class="w-px">
+              <td data-label="{% t 'monthly_rent' %}" class="whitespace-nowrap font-extrabold text-primary">{{ booking.monthly_rent|usd }}</td>
+              <td data-label="{% t 'lease_months' %}" class="whitespace-nowrap text-ink-2">{{ booking.lease_months }} {% t 'months' %}</td>
+              <td data-label="{% t 'status' %}">{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
+              <td data-label="{% t 'requested_at' %}" class="whitespace-nowrap text-ink-2">{{ booking.created_at|short_date }}</td>
+              <td data-label="" class="w-px">
                 <div class="flex items-center justify-end gap-1">
                   <a href="{% url 'bookings:renter_detail' booking.pk %}" class="btn btn-ghost btn-icon" title="{% t 'details' %}">{% icon "eye" 16 %}</a>
                   {% if booking.status == "Approved" and not booking.payment_id %}

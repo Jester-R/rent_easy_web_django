@@ -1,6 +1,6 @@
 {% load ui %}
-<a href="{% url 'console:dashboard' %}" data-nav="console_dashboard" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "shield-admin" 20 %}<span>{% t 'dashboard' %}</span></a>
-<a href="{% url 'console:users' %}" data-nav="console_users" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "users" 20 %}<span>{% t 'users' %}</span></a>
-<a href="{% url 'console:properties' %}" data-nav="console_properties" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "building" 20 %}<span>{% t 'properties' %}</span></a>
-<a href="{% url 'console:bookings' %}" data-nav="console_bookings" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "clipboard" 20 %}<span>{% t 'bookings' %}</span></a>
-<a href="{% url 'console:payments' %}" data-nav="console_payments" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold">{% icon "receipt" 20 %}<span>{% t 'payments' %}</span></a>
+<a href="{% url 'console:dashboard' %}" data-nav="console_dashboard" class="app-tab">{% icon "shield-admin" 20 css_class="app-tab__icon" %}<span>{% t 'dashboard' %}</span></a>
+<a href="{% url 'console:users' %}" data-nav="console_users" class="app-tab">{% icon "users" 20 css_class="app-tab__icon" %}<span>{% t 'users' %}</span></a>
+<a href="{% url 'console:properties' %}" data-nav="console_properties" class="app-tab">{% icon "building" 20 css_class="app-tab__icon" %}<span>{% t 'properties' %}</span></a>
+<a href="{% url 'console:bookings' %}" data-nav="console_bookings" class="app-tab">{% icon "clipboard" 20 css_class="app-tab__icon" %}<span>{% t 'bookings' %}</span></a>
+<a href="{% url 'console:payments' %}" data-nav="console_payments" class="app-tab">{% icon "receipt" 20 css_class="app-tab__icon" %}<span>{% t 'payments' %}</span></a>

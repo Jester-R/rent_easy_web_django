@@ -24,6 +24,19 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
+# A TLS-terminating tunnel (ngrok, cloudflared) forwards plain HTTP and sets
+# X-Forwarded-Proto: https. Without trusting that header Django builds an
+# http:// origin, the browser sends https://, and every POST is rejected with
+# "Origin checking failed". run.sh exports both variables when a tunnel is up.
+if os.environ.get("TRUST_FORWARDED_PROTO") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+CSRF_TRUSTED_ORIGINS += [
+    origin.strip()
+    for origin in os.environ.get("EXTRA_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

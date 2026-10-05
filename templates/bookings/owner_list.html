@@ -36,7 +36,7 @@
         <tbody>
           {% for booking in bookings %}
             <tr {% if booking.pk == focus %}data-focus-id class="is-selected"{% endif %}>
-              <td class="min-w-[11rem]">
+              <td data-label="" class="min-w-[11rem]">
                 <div class="flex items-center gap-2.5">
                   <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
                         style="background-color: hsl({{ booking.renter.avatar_hue }} 42% 92%); color: hsl({{ booking.renter.avatar_hue }} 55% 28%);">
@@ -48,13 +48,13 @@
                   </span>
                 </div>
               </td>
-              <td class="min-w-[11rem]">
+              <td data-label="{% t 'property_detail' %}" class="min-w-[11rem]">
                 <span class="block truncate font-semibold">{{ booking.property_title }}</span>
                 <span class="block truncate text-[11px] text-ink-3">{{ booking.created_at|short_date }} · {{ booking.lease_months }} {% t 'months' %}</span>
               </td>
-              <td class="whitespace-nowrap font-extrabold text-primary">{{ booking.monthly_rent|usd }}</td>
-              <td>{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
-              <td class="w-px">
+              <td data-label="{% t 'monthly_rent' %}" class="whitespace-nowrap font-extrabold text-primary">{{ booking.monthly_rent|usd }}</td>
+              <td data-label="{% t 'status' %}">{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
+              <td data-label="" class="w-px">
                 <div class="flex items-center justify-end gap-1">
                   <a href="{% url 'bookings:owner_detail' booking.pk %}" class="btn btn-ghost btn-icon" title="{% t 'details' %}">{% icon "eye" 16 %}</a>
                   {% if booking.can_approve %}

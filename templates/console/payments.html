@@ -24,7 +24,7 @@
       <form method="get" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
         <div class="relative">
           <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 16 %}</span>
-          <input type="search" name="q" value="{{ query }}" class="form-input ps-11" placeholder="{% t 'search_payments' %}">
+          <input type="search" name="q" value="{{ query }}" class="form-input ps-11" data-auto-submit-debounce placeholder="{% t 'search_payments' %}">
         </div>
         <select name="status" class="form-input" data-auto-submit>
           <option value="all">{% t 'all' %} ({{ status_counts.all }})</option>
@@ -60,21 +60,21 @@
             <tbody>
               {% for payment in payments %}
                 <tr>
-                  <td class="w-px">
+                  <td data-label="" class="w-px">
                     <input type="checkbox" name="ids" value="{{ payment.pk }}" data-bulk-item class="form-checkbox" aria-label="{{ payment.reference }}">
                   </td>
-                  <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ payment.reference }}</td>
-                  <td class="min-w-[11rem]"><span class="block truncate font-bold">{{ payment.property_title|default:'—' }}</span></td>
-                  <td class="whitespace-nowrap text-ink-2">{{ payment.user.display_name }}</td>
-                  <td class="whitespace-nowrap text-end font-bold text-primary">{{ payment.amount|usd }}</td>
-                  <td class="whitespace-nowrap text-ink-2">{% method_label payment.method %}</td>
-                  <td>
+                  <td data-label="{% t 'payment_ref' %}" class="whitespace-nowrap font-mono text-[12px] font-bold">{{ payment.reference }}</td>
+                  <td data-label="{% t 'property' %}" class="min-w-[11rem]"><span class="block truncate font-bold">{{ payment.property_title|default:'—' }}</span></td>
+                  <td data-label="{% t 'user' %}" class="whitespace-nowrap text-ink-2">{{ payment.user.display_name }}</td>
+                  <td data-label="{% t 'amount' %}" class="whitespace-nowrap text-end font-bold text-primary">{{ payment.amount|usd }}</td>
+                  <td data-label="{% t 'method' %}" class="whitespace-nowrap text-ink-2">{% method_label payment.method as m %}<span class="inline-flex items-center gap-1.5">{% icon m.icon 14 %} {{ m.label }}</span></td>
+                  <td data-label="{% t 'status' %}">
                     {% payment_status payment as ps %}
                     <span class="pill {{ ps.css }}">{{ ps.label }}</span>
                     {% refund_status payment as rs %}
                     {% if payment.refund_status != 'None' %}<span class="pill pill-neutral ms-1">{{ rs.label }}</span>{% endif %}
                   </td>
-                  <td class="w-px">
+                  <td data-label="" class="w-px">
                     <div class="flex items-center justify-end gap-1">
                       {% if payment.refund_status == 'None' %}
                         <button type="submit" form="refund-payment-{{ payment.pk }}" class="btn btn-ghost btn-icon text-warning" title="{% t 'issue_refund' %}">{% icon "rotate-ccw" 16 %}</button>
@@ -141,13 +141,13 @@
           <tbody>
             {% for refund in refunds %}
               <tr>
-                <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ refund.payment.reference }}</td>
-                <td class="whitespace-nowrap font-mono text-[12px] text-ink-2">{{ refund.booking.reference }}</td>
-                <td class="whitespace-nowrap text-end font-bold">{{ refund.amount|usd }}</td>
-                <td class="whitespace-nowrap text-ink-2">{% refund_reason refund.reason %}</td>
-                <td>{% status_label refund.status 'refund' as rs %}<span class="pill {{ rs.css }}">{{ rs.label }}</span></td>
-                <td class="whitespace-nowrap text-ink-2">{{ refund.created_at|short_date }}</td>
-                <td class="w-px text-end">
+                <td data-label="" class="whitespace-nowrap font-mono text-[12px] font-bold">{{ refund.payment.reference }}</td>
+                <td data-label="{% t 'booking_ref' %}" class="whitespace-nowrap font-mono text-[12px] text-ink-2">{{ refund.booking.reference }}</td>
+                <td data-label="{% t 'amount' %}" class="whitespace-nowrap text-end font-bold">{{ refund.amount|usd }}</td>
+                <td data-label="{% t 'reason' %}" class="whitespace-nowrap text-ink-2">{% refund_reason refund.reason as rr %}{{ rr.label }}</td>
+                <td data-label="{% t 'status' %}">{% status_label refund.status 'refund' as rs %}<span class="pill {{ rs.css }}">{{ rs.label }}</span></td>
+                <td data-label="{% t 'created_at' %}" class="whitespace-nowrap text-ink-2">{{ refund.created_at|short_date }}</td>
+                <td data-label="" class="w-px text-end">
                   {% if refund.status == 'Pending' %}
                     <form method="post" action="{% url 'console:refund_process' refund.pk %}" class="inline">
                       {% csrf_token %}

@@ -240,6 +240,33 @@ class BookingLifecycleTests(SeededTestCase):
         renter.post(url, {"next": reverse("listings:renter_favorites")})
         self.assertFalse(Favorite.objects.filter(user=self.renter, property=prop).exists())
 
+    def test_favorite_toggle_returns_json_for_ajax(self):
+        """The heart button posts with X-Requested-With and expects JSON back."""
+        renter = self.login(RENTER)
+        prop = self.free_property_for_renter()
+        Favorite.objects.filter(user=self.renter, property=prop).delete()
+        url = reverse("listings:toggle_favorite", args=[prop.pk])
+        ajax = {"headers": {"x-requested-with": "XMLHttpRequest"}}
+
+        created = renter.post(url, **ajax)
+        self.assertEqual(created.status_code, 200)
+        self.assertEqual(created["Content-Type"], "application/json")
+        payload = created.json()
+        self.assertIs(payload["favorited"], True)
+        self.assertEqual(payload["count"], Favorite.objects.filter(property=prop).count())
+        self.assertTrue(Favorite.objects.filter(user=self.renter, property=prop).exists())
+
+        removed = renter.post(url, **ajax)
+        self.assertEqual(removed.status_code, 200)
+        self.assertIs(removed.json()["favorited"], False)
+        self.assertFalse(Favorite.objects.filter(user=self.renter, property=prop).exists())
+
+    def test_favorite_toggle_requires_login(self):
+        prop = self.free_property_for_renter()
+        response = self.client.post(reverse("listings:toggle_favorite", args=[prop.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/auth/login/", response["Location"])
+
 
 class ConsoleCrudTests(SeededTestCase):
     def setUp(self):
@@ -375,10 +402,14 @@ class ConsoleCrudTests(SeededTestCase):
 class PreferencesTests(SeededTestCase):
     def test_language_switch_renders_khmer(self):
         renter = self.login(RENTER)
-        response = renter.post(reverse("set_language"), {"language": "km", "next": reverse("renter_home")})
+        self.assertContains(renter.get(reverse("renter_home")), "ដើម")  # "home" in Khmer
+
+        response = renter.post(reverse("set_language"), {"lang": "km", "next": reverse("renter_home")})
         self.assertEqual(response.status_code, 302)
         html = renter.get(reverse("renter_home")).content.decode()
-        self.assertTrue(any("\u1780" <= char <= "\u17ff" for char in html), "expected Khmer glyphs")
+        # a real UI string, not just the embedded translation catalogue
+        self.assertIn("ដើម", html)
+        self.assertEqual(renter.cookies["renteasy_lang"].value, "km")
 
     def test_theme_switch_sets_cookie(self):
         renter = self.login(RENTER)

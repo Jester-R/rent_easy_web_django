@@ -1,5 +1,10 @@
-<nav class="lg:hidden sticky bottom-0 z-40 border-t border-hairline bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-  <div class="grid grid-cols-5 gap-0.5 px-1.5 py-1.5">
+{% load ui i18n %}{% comment %}
+Phone app bar. Fixed to the bottom like a native shell, blurred, safe-area aware.
+`is-active` is applied by app.js (longest href-prefix match) so the highlight is
+correct on every page without duplicating route names here.
+{% endcomment %}
+<nav class="app-tabbar lg:hidden" data-tabbar aria-label="{% t 'home' %}">
+  <div class="app-tabbar__row">
     {% if user.is_renter %}{% include "partials/_nav_group_renter_mobile.html" %}
     {% elif user.is_owner %}{% include "partials/_nav_group_owner_mobile.html" %}
     {% elif user.is_superadmin_role %}{% include "partials/_nav_group_console_mobile.html" %}

@@ -22,8 +22,16 @@ def site(request):
 
 def i18n_context(request):
     language = getattr(request, "LANGUAGE_CODE_UI", i18n.DEFAULT_LANGUAGE)
+    # Only two languages ship, so the UI is a single toggle instead of a picker.
+    other_code = next((code for code in i18n.LANGUAGES if code != language), i18n.DEFAULT_LANGUAGE)
+    other = i18n.LANGUAGES[other_code]
     return {
         "LANG": language,
+        "OTHER_LANGUAGE": {
+            "code": other["code"],
+            "label": other["label"],
+            "native_label": other["native_label"],
+        },
         "IS_KHMER": language == "km",
         "T": getattr(request, "translator", None) or i18n.Translator(language),
         "THEME": getattr(request, "theme", "light"),

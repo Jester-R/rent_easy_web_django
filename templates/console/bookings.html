@@ -17,7 +17,7 @@
     <form method="get" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
       <div class="relative">
         <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 16 %}</span>
-        <input type="search" name="q" value="{{ query }}" class="form-input ps-11" placeholder="{% t 'search_bookings' %}">
+        <input type="search" name="q" value="{{ query }}" class="form-input ps-11" data-auto-submit-debounce placeholder="{% t 'search_bookings' %}">
       </div>
       <select name="status" class="form-input" data-auto-submit>
         <option value="all">{% t 'all' %} ({{ status_counts.all }})</option>
@@ -58,19 +58,19 @@
           <tbody>
             {% for booking in bookings %}
               <tr>
-                <td class="w-px">
+                <td data-label="" class="w-px">
                   <input type="checkbox" name="ids" value="{{ booking.pk }}" data-bulk-item class="form-checkbox" aria-label="{{ booking.reference }}">
                 </td>
-                <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ booking.reference }}</td>
-                <td class="min-w-[11rem]"><a href="{% url 'console:booking_edit' booking.pk %}" class="block truncate font-bold hover:text-primary">{{ booking.property_title }}</a></td>
-                <td class="whitespace-nowrap text-ink-2">
+                <td data-label="{% t 'booking_ref' %}" class="whitespace-nowrap font-mono text-[12px] font-bold">{{ booking.reference }}</td>
+                <td data-label="{% t 'property' %}" class="min-w-[11rem]"><a href="{% url 'console:booking_edit' booking.pk %}" class="block truncate font-bold hover:text-primary">{{ booking.property_title }}</a></td>
+                <td data-label="{% t 'renter' %}" class="whitespace-nowrap text-ink-2">
                   {{ booking.renter.display_name }}
                   <span class="block text-[11px] text-ink-3">{% t 'lease_term' %}: {{ booking.lease_months }} {% t 'months' %}</span>
                 </td>
-                <td class="whitespace-nowrap text-end font-bold text-primary">{{ booking.monthly_rent|usd }}</td>
-                <td class="whitespace-nowrap text-ink-2">{{ booking.move_in_date|short_date }}</td>
-                <td>{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
-                <td class="w-px">
+                <td data-label="{% t 'rent' %}" class="whitespace-nowrap text-end font-bold text-primary">{{ booking.monthly_rent|usd }}</td>
+                <td data-label="{% t 'move_in_date' %}" class="whitespace-nowrap text-ink-2">{{ booking.move_in_date|short_date }}</td>
+                <td data-label="{% t 'status' %}">{% booking_status booking as st %}<span class="pill {{ st.css }}">{{ st.label }}</span></td>
+                <td data-label="" class="w-px">
                   <div class="flex items-center justify-end gap-1">
                     <a href="{% url 'console:booking_edit' booking.pk %}" class="btn btn-ghost btn-icon" title="{% t 'edit' %}">{% icon "edit" 16 %}</a>
                     <button type="submit" form="delete-booking-{{ booking.pk }}" class="btn btn-ghost btn-icon text-danger" title="{% t 'delete' %}">{% icon "trash" 16 %}</button>

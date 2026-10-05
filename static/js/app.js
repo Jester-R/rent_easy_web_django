@@ -154,40 +154,59 @@
     backdrop.querySelector("p").textContent = opts.body || "";
     backdrop.querySelector("[data-modal-close]").textContent = opts.cancelLabel || "Cancel";
     backdrop.querySelector("[data-confirm-yes]").textContent = opts.confirmLabel || "Confirm";
-    backdrop.querySelector("[data-confirm-yes]").on("click", function () {
-      closeModal();
-      if (opts.onConfirm) opts.onConfirm();
-    });
+    backdrop
+      .querySelector("[data-confirm-yes]")
+      .addEventListener("click", function () {
+        closeModal();
+        if (opts.onConfirm) opts.onConfirm();
+      });
     return backdrop;
   }
   RE.confirmDialog = confirmDialog;
 
-  /* Confirm-then-submit: <button data-confirm-title data-confirm-body ...> */
-  $(document).on("click", "[data-confirm]", function (e) {
-    e.preventDefault();
-    var btn = this;
-    var scope = btn.closest("[data-bulk-scope]");
-    var form = btn.form || (scope ? scope.querySelector("form[data-bulk-form]") : null);
+  /* Confirm-then-submit. `data-confirm` sits on the <form> itself in this app,
+     but a control inside a form, the console bulk bar and console row buttons
+     (`<button form="delete-booking-1">`, which live *outside* their form) all
+     have to end up here. */
+  function resolveConfirmForm(trigger) {
+    var formId = trigger.getAttribute ? trigger.getAttribute("form") : null;
+    var form = formId ? document.getElementById(formId) : null;
+    if (!form) form = trigger.closest("form");
+    if (!form) {
+      var scope = trigger.closest("[data-bulk-scope]");
+      form = scope ? scope.querySelector("form[data-bulk-form]") : null;
+    }
+    return form;
+  }
 
-    var confirmDialog({
-      title: btn.getAttribute("data-confirm-title") || "",
-      body: btn.getAttribute("data-confirm-body") || "",
-      confirmLabel: btn.getAttribute("data-confirm-label") || "OK",
-      cancelLabel: btn.getAttribute("data-confirm-cancel") || "Cancel",
-      tone: btn.getAttribute("data-confirm-tone") || "primary",
+  function hasConfirmMeta(el) {
+    return !!el && (el.hasAttribute("data-confirm") || el.hasAttribute("data-confirm-title"));
+  }
+
+  function openConfirm(trigger, form) {
+    function attr(name) {
+      var value = trigger.getAttribute(name);
+      if (value === null && form) value = form.getAttribute(name);
+      return value;
+    }
+
+    confirmDialog({
+      title: attr("data-confirm-title") || "",
+      body: attr("data-confirm-body") || "",
+      confirmLabel: attr("data-confirm-label") || "OK",
+      cancelLabel: attr("data-confirm-cancel") || "Cancel",
+      tone: attr("data-confirm-tone") || "primary",
       onConfirm: function () {
         if (!form) return;
-        if (btn.form) {
-          var name = btn.getAttribute("name");
-          if (name) {
-            var submitter = document.createElement("input");
-            submitter.type = "hidden";
-            submitter.name = name;
-            submitter.value = btn.getAttribute("value") || "";
-            form.appendChild(submitter);
-          }
+        // a submit button carrying name/value must survive requestSubmit()
+        if (trigger.form && trigger.name) {
+          var submitter = document.createElement("input");
+          submitter.type = "hidden";
+          submitter.name = trigger.name;
+          submitter.value = trigger.getAttribute("value") || "";
+          form.appendChild(submitter);
         }
-        var next = btn.getAttribute("data-next");
+        var next = attr("data-next");
         if (next && !form.querySelector('input[name="next"]')) {
           var hidden = document.createElement("input");
           hidden.type = "hidden";
@@ -199,6 +218,21 @@
         else form.submit();
       },
     });
+  }
+
+  $(document).on("click", "[data-confirm], [data-confirm-title]", function (e) {
+    if (this.tagName === "BUTTON" && this.hasAttribute("form") && !hasConfirmMeta(this)) return;
+    e.preventDefault();
+    openConfirm(this, resolveConfirmForm(this));
+  });
+
+  // console rows point at their form by id instead of nesting the button
+  $(document).on("click", "button[form]", function (e) {
+    if (hasConfirmMeta(this)) return;
+    var form = document.getElementById(this.getAttribute("form"));
+    if (!hasConfirmMeta(form)) return;
+    e.preventDefault();
+    openConfirm(this, form);
   });
 
   /* ======================================================================
@@ -330,8 +364,8 @@
     var loadBell = function () {
       if (loaded || !RE.urls.notificationsPreview) return;
       loaded = true;
-      $.getJSON(RE.urls.notificationsPreview)
-        .done(function (data) {
+      getJSON(RE.urls.notificationsPreview)
+        .then(function (data) {
           paint(data.items || []);
           var badge = $("[data-bell-badge]");
           if (!badge) return;
@@ -341,7 +375,7 @@
             badge.addClass("hidden");
           }
         })
-        .fail(function () {
+        .catch(function () {
           loaded = false;
           list.html('<p class="px-4 py-8 text-center text-[13px] text-ink-3">' + (RE.strings.loading || "") + "</p>");
         });
@@ -414,41 +448,84 @@
   $(syncRadioChips($(document)));
 
   /* ======================================================================
+     Tiny fetch helpers. The site ships jQuery *slim*, which has no AJAX, so
+     the two interactive endpoints are called with fetch directly.
+     ====================================================================== */
+  function csrfToken() {
+    var el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : "";
+  }
+
+  function postJSON(url, body) {
+    return fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrfToken(),
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      },
+      body: new URLSearchParams(body || {}).toString(),
+    }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    });
+  }
+
+  function getJSON(url) {
+    return fetch(url, {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
+    }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    });
+  }
+
+  /* ======================================================================
      Favicon toggle (AJAX)
      ====================================================================== */
   $(document).on("click", "[data-favorite-toggle]", function (e) {
     e.preventDefault();
     e.stopPropagation();
     var btn = $(this);
+    var url = btn.attr("data-url") || btn.attr("href");
+    if (!url) return;
     if (btn.data("busy")) return;
     btn.data("busy", 1);
-    $.post(btn.attr("href"), { next: window.location.pathname + window.location.search })
-      .done(function (data) {
-        var on = typeof data === "object" && data.favorited;
+    postJSON(url, { next: window.location.pathname + window.location.search })
+      .then(function (data) {
+        var on = !!data.favorited;
         var card = btn.closest("[data-property-id]");
-        if (card && typeof data === "object") card.attr("data-favorited", on ? "1" : "0");
-        btn.toggleClass("text-primary", !!on).toggleClass("text-ink-3", !on);
+        if (card) card.attr("data-favorited", on ? "1" : "0");
+        btn.attr("aria-pressed", on ? "true" : "false")
+          .toggleClass("text-primary", on)
+          .toggleClass("text-ink-3", !on)
+          .toggleClass("btn-primary", on)
+          .toggleClass("btn-outline", !on);
+        btn.find("[data-heart-on]").toggleClass("hidden", !on);
+        btn.find("[data-heart-off]").toggleClass("hidden", on);
         if (on) {
           toast(RE.strings.addedFavorite || "", "success");
         } else if (card && !btn.attr("data-keep-on-screen")) {
-          // Remove from favourites list
+          // Drop the card from the grid (jQuery slim has no .slideUp())
           window.setTimeout(function () {
-            var wrap = card.closest("[data-favorites-list]");
-            if (wrap) {
-              card.slideUp(160, function () {
-                card.remove();
-                var left = wrap.find("[data-property-id]").length;
-                var empty = document.getElementById("favorites-empty");
-                if (left === 0 && empty) empty.classList.remove("hidden");
-              });
-            }
-          }, 60);
+            var wrap = card.closest("[data-favorites-list]")[0];  // jQuery -> DOM node
+            if (!wrap) return;
+            card.addClass("is-leaving");
+            window.setTimeout(function () {
+              card.remove();
+              var left = wrap.querySelectorAll("[data-property-id]").length;
+              var empty = document.getElementById("favorites-empty");
+              if (left === 0 && empty) empty.classList.remove("hidden");
+            }, 180);
+          }, 40);
         }
       })
-      .fail(function () {
+      .catch(function () {
         toast(RE.strings.errorGeneric || "Error", "error");
       })
-      .always(function () {
+      .then(function () {
         btn.data("busy", 0);
       });
   });
@@ -456,18 +533,36 @@
   /* ======================================================================
      Auto-submit filter forms (chips, selects, sliders)
      ====================================================================== */
-  $(document).on("click", "[data-auto-submit]", function () {
-    var form = this.form || $(this).closest("form");
-    if (form) form.submit();
+  var autoSubmitting = false;
+
+  function submitFilterForm(source) {
+    var form = source && source.form ? source.form : $(source).closest("form")[0];
+    if (!form || autoSubmitting) return;
+    autoSubmitting = true;
+    form.submit();
+  }
+
+  // selects / checkboxes / radios announce a change, never a click
+  $(document).on(
+    "change",
+    "select[data-auto-submit], input[type=checkbox][data-auto-submit], input[type=radio][data-auto-submit]",
+    function () {
+      submitFilterForm(this);
+    }
+  );
+
+  // chips and buttons are clicked
+  $(document).on("click", "[data-auto-submit]:not(select):not(input)", function () {
+    submitFilterForm(this);
   });
 
+  // free-text search waits for a pause in typing
   var debounceTimer = null;
   $(document).on("input", "[data-auto-submit-debounce]", function () {
-    var form = this.form;
-    if (!form) return;
+    var self = this;
     window.clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(function () {
-      form.submit();
+      submitFilterForm(self);
     }, 550);
   });
 
@@ -592,12 +687,42 @@
         if (!best || href.length > best.getAttribute("href").length) best = this;
       }
     });
-    if (best) {
-      $(best).addClass("text-primary");
-      best.classList.remove("text-ink-2");
+    function markActive(el) {
+      if (!el) return;
+      el.classList.add("is-active");
+      el.classList.add("text-primary");
+      el.classList.remove("text-ink-2");
+      el.setAttribute("aria-current", "page");
     }
-    var profile = $("[data-nav='profile']");
-    if (!best && profile && path.indexOf("/auth/preferences") === 0) profile.addClass("text-primary");
+    markActive(best);
+    var profile = document.querySelector("[data-nav='profile']");
+    if (!best && profile && path.indexOf("/auth/preferences") === 0) markActive(profile);
+    if (!best && path.indexOf("/notifications") === 0) {
+      markActive(document.querySelector("[data-nav='notifications']"));
+    }
+  })();
+
+  /* ======================================================================
+     Topbar elevation once the page is scrolled (native app feel)
+     ====================================================================== */
+  (function () {
+    var bar = document.querySelector("[data-topbar]");
+    if (!bar) return;
+    var ticking = false;
+    function update() {
+      bar.setAttribute("data-scrolled", window.pageYOffset > 4 ? "true" : "false");
+      ticking = false;
+    }
+    window.addEventListener(
+      "scroll",
+      function () {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(update);
+      },
+      { passive: true }
+    );
+    update();
   })();
 
   /* ======================================================================

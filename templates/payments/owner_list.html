@@ -91,12 +91,12 @@
         <tbody>
           {% for payment in payments %}
             <tr>
-              <td class="whitespace-nowrap">
+              <td data-label="" class="whitespace-nowrap">
                 <button type="button" class="kbd hover:border-primary" data-copy="{{ payment.reference }}" title="{{ payment.reference }}">{{ payment.reference }}</button>
                 <span class="block text-[11px] text-ink-3">{{ payment.created_at|short_date }}</span>
               </td>
-              <td class="min-w-[11rem]"><span class="block truncate font-semibold">{{ payment.property_title }}</span></td>
-              <td class="min-w-[9rem]">
+              <td data-label="{% t 'property_detail' %}" class="min-w-[11rem]"><span class="block truncate font-semibold">{{ payment.property_title }}</span></td>
+              <td data-label="{% t 'renter_id' %}" class="min-w-[9rem]">
                 <span class="flex items-center gap-2">
                   <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10px] font-extrabold"
                         style="background-color: hsl({{ payment.user.avatar_hue }} 42% 92%); color: hsl({{ payment.user.avatar_hue }} 55% 28%);">
@@ -105,10 +105,10 @@
                   <span class="truncate font-semibold">{{ payment.user.display_name }}</span>
                 </span>
               </td>
-              <td class="whitespace-nowrap text-end font-extrabold text-primary">{{ payment.amount|usd }}</td>
-              <td>{% payment_status payment as ps %}<span class="pill {{ ps.css }}">{{ ps.label }}</span></td>
-              <td>{% refund_status payment as rs %}<span class="pill {{ rs.css }}">{{ rs.label }}</span></td>
-              <td class="w-px">
+              <td data-label="{% t 'amount' %}" class="whitespace-nowrap text-end font-extrabold text-primary">{{ payment.amount|usd }}</td>
+              <td data-label="{% t 'status' %}">{% payment_status payment as ps %}<span class="pill {{ ps.css }}">{{ ps.label }}</span></td>
+              <td data-label="{% t 'refund_status' %}">{% refund_status payment as rs %}<span class="pill {{ rs.css }}">{{ rs.label }}</span></td>
+              <td data-label="" class="w-px">
                 <div class="flex justify-end">
                   <a href="{% url 'payments:owner_detail' payment.pk %}" class="btn btn-ghost btn-icon" title="{% t 'details' %}">{% icon "eye" 16 %}</a>
                 </div>

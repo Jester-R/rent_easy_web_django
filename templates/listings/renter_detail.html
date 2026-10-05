@@ -22,10 +22,11 @@
         <button type="button"
                 class="btn {% if is_favorite %}btn-primary{% else %}btn-outline{% endif %} btn-icon bg-white/90 dark:bg-black/30"
                 data-favorite-toggle
-                href="{% url 'listings:toggle_favorite' property.pk %}"
+                data-url="{% url 'listings:toggle_favorite' property.pk %}"
                 aria-pressed="{% if is_favorite %}true{% else %}false{% endif %}"
                 aria-label="{% t 'favorite' %}">
-          {% if is_favorite %}{% icon "heart-filled" 19 %}{% else %}{% icon "heart" 19 %}{% endif %}
+          <span data-heart-on class="hidden">{% icon "heart-filled" 19 %}</span>
+          <span data-heart-off>{% icon "heart" 19 %}</span>
         </button>
       </span>
     </div>

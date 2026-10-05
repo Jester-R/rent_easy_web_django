@@ -75,7 +75,7 @@
           <label class="form-label" for="id_method">{{ 'payment_method'|t }}</label>
           <select name="method" id="id_method" class="form-input">
             {% for value, label in form.fields.method.choices %}
-              <option value="{{ value }}" {% if form.method.value == value %}selected{% endif %}>{% method_label value %}</option>
+              <option value="{{ value }}" {% if form.method.value == value %}selected{% endif %}>{% method_label value as m %}{{ m.label }}</option>
             {% endfor %}
           </select>
         </div>

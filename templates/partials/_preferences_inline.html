@@ -9,27 +9,14 @@
   </button>
 </form>
 
-{# Language switcher #}
-<div class="relative" data-dropdown>
-  <button type="button" data-dropdown-toggle
-          class="btn btn-ghost gap-1.5 px-2.5" aria-haspopup="true" aria-expanded="false" title="{% t 'change_language' %}">
+{# Language toggle — one click posts the other language, same as the theme #}
+<form method="post" action="{% url 'set_language' %}" class="contents">
+  {% csrf_token %}
+  <input type="hidden" name="lang" value="{{ OTHER_LANGUAGE.code }}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <button type="submit" class="btn btn-ghost gap-1.5 px-2.5"
+          title="{% t 'change_language' %}" aria-label="{% t 'change_language' %}">
     {% icon "globe" 18 %}
-    <span class="hidden text-[13px] font-bold sm:inline">{{ LANG|upper }}</span>
+    <span class="hidden text-[13px] font-bold sm:inline">{{ OTHER_LANGUAGE.native_label }}</span>
   </button>
-  <div data-dropdown-panel class="dropdown-panel hidden p-2">
-    <p class="px-3 pb-1.5 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">{% t 'language' %}</p>
-    {% for lang in SUPPORTED_LANGUAGES %}
-      <form method="post" action="{% url 'set_language' %}">
-        {% csrf_token %}
-        <input type="hidden" name="lang" value="{{ lang.code }}">
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button type="submit" class="nav-item w-full {% if lang.code == LANG %}is-active{% endif %}">
-          <span class="w-7 text-center text-[10px] font-extrabold text-ink-3">{{ lang.flag }}</span>
-          <span class="flex-1 text-start">{{ lang.native_label }}</span>
-          <span class="text-[11px] text-ink-3">{{ lang.label }}</span>
-          {% if lang.code == LANG %}{% icon "check" 15 %}{% endif %}
-        </button>
-      </form>
-    {% endfor %}
-  </div>
-</div>
+</form>

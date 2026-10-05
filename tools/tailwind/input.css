@@ -550,6 +550,7 @@
     /* ---------------- table ---------------- */
     .table-wrap {
         overflow-x: auto;
+        max-width: 100%;
         border: 1px solid var(--hairline);
         border-radius: var(--radius-card);
         background-color: var(--surface);
@@ -814,4 +815,344 @@
         font-size: 0.72rem;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
+}
+
+/* ---------------------------------------------------------------------------
+   Phone refinements (< 640px). Tailwind handles most of the layout, but data
+   tables, sheets and tap targets need real breakpoints.
+   --------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+    /* --- tables become stacked cards, labels supplied by data-label --- */
+    .table-wrap {
+        overflow-x: visible;
+        border: 0;
+        background-color: transparent;
+        border-radius: 0;
+    }
+
+    .data-table {
+        display: block;
+        width: 100%;
+    }
+
+    .data-table thead {
+        display: none;
+    }
+
+    .data-table tbody {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.6rem;
+    }
+
+    .data-table tbody tr {
+        display: block;
+        padding: 0.35rem 0;
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-card);
+        background-color: var(--surface);
+        box-shadow: var(--shadow-card);
+    }
+
+    .data-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        min-width: 0;
+        padding: 0.5rem 0.85rem;
+        border-bottom: 1px solid var(--hairline);
+        text-align: end;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* table cells are often the widest thing on the page: let every inner
+       box shrink instead of forcing the card to overflow */
+    .data-table tbody td > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    /* flex/grid children default to min-width:auto, which is what pushes
+       cards and panels past the viewport edge on narrow phones */
+    .grid > *,
+    .flex > * {
+        min-width: 0;
+    }
+
+    .data-table tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        max-width: 45%;
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        text-align: start;
+        color: var(--ink-3);
+    }
+
+    .data-table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    /* w-px collapses to nothing once the cell is a flex row */
+    .data-table tbody td.w-px {
+        width: auto;
+    }
+
+    /* checkbox + action columns carry no label and hug the end edge */
+    .data-table tbody td[data-label=""] {
+        justify-content: flex-end;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .data-table tbody td[data-label=""]::before {
+        content: none;
+    }
+
+    /* the identity cell leads the card, so it needs no label either */
+    .data-table tbody td[data-label=""]:first-child {
+        justify-content: space-between;
+    }
+
+    .data-table tbody td .min-w-\[11rem\],
+    .data-table tbody td .min-w-\[12rem\],
+    .data-table tbody td .min-w-\[13rem\],
+    .data-table tbody td .min-w-\[14rem\],
+    .data-table tbody td .whitespace-nowrap {
+        min-width: 0;
+        white-space: normal;
+    }
+
+    /* --- sheets slide up from the bottom edge like the mobile app --- */
+    .modal-backdrop {
+        align-items: end;
+        padding: 0;
+    }
+
+    .modal-panel {
+        max-height: 92vh;
+        border-radius: 1.15rem 1.15rem 0 0;
+        border-bottom: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* --- topbar actions collapse to their icon so nothing is clipped --- */
+    .app-topbar .btn-sm {
+        gap: 0;
+        padding-inline: 0.55rem;
+        font-size: 0;
+    }
+
+    .app-topbar .btn-sm svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* --- comfortable tap targets --- */
+    .nav-item {
+        min-height: 2.9rem;
+    }
+
+    .data-table tbody td .btn-icon {
+        min-height: 2.35rem;
+        width: 2.35rem;
+    }
+
+    /* --- keep the bulk toolbar clear of the sticky bottom nav --- */
+    [data-bulk-bar] {
+        bottom: 4.75rem;
+    }
+
+    .property-thumb {
+        width: 3rem;
+        height: 3rem;
+    }
+}
+
+/* Very narrow phones (iPhone SE and similar) get tighter chrome. */
+@media (max-width: 379px) {
+    .btn {
+        padding-inline: 0.7rem;
+    }
+
+    .data-table tbody td {
+        padding-inline: 0.7rem;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Native-app phone shell. Phones get the fixed blurred tab bar, safe-area
+   padding and press feedback; `lg` and up keep the desktop sidebar layout.
+   --------------------------------------------------------------------------- */
+html {
+    scroll-padding-top: calc(4.5rem + env(safe-area-inset-top));
+    -webkit-text-size-adjust: 100%;
+}
+
+.app-topbar {
+    padding-top: env(safe-area-inset-top);
+    transition: box-shadow 0.2s ease;
+}
+
+.app-topbar[data-scrolled] {
+    box-shadow: 0 8px 24px -16px rgb(17 17 17 / 0.45);
+}
+
+@media (min-width: 1024px) {
+    .app-topbar {
+        padding-top: 0;
+    }
+}
+
+/* ---- bottom tab bar ---- */
+.app-tabbar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 50;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--hairline);
+    background-color: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+}
+
+.app-tabbar__row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.1rem;
+    padding: 0.3rem 0.4rem 0.35rem;
+}
+
+.app-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    min-height: 3.1rem;
+    padding: 0.3rem 0.1rem;
+    border-radius: 0.9rem;
+    color: var(--ink-3);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    transition: color 0.18s ease, background-color 0.18s ease, transform 0.12s ease;
+}
+
+.app-tab__icon {
+    transition: transform 0.18s ease;
+}
+
+.app-tab.is-active {
+    color: var(--color-primary);
+    background-color: var(--color-primary-soft);
+}
+
+.app-tab.is-active .app-tab__icon {
+    transform: translateY(-1px) scale(1.08);
+}
+
+.dark .app-tab.is-active {
+    color: var(--color-accent);
+    background-color: var(--color-primary-soft-dark);
+}
+
+/* launched from the home screen: no translucency, no browser chrome */
+@media (display-mode: standalone) {
+    .app-tabbar {
+        background-color: var(--surface);
+    }
+
+    .app-topbar {
+        background-color: var(--surface);
+    }
+}
+
+/* keep the last card clear of the bar */
+@media (max-width: 1023px) {
+    main {
+        padding-bottom: calc(4.4rem + env(safe-area-inset-bottom));
+    }
+}
+
+/* ---- touch feel ---- */
+@media (hover: none) {
+    html {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        touch-action: manipulation;
+        overscroll-behavior-y: none;
+    }
+
+    .btn,
+    .app-tab {
+        transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+
+    .btn:active,
+    .app-card a:active,
+    .nav-item:active {
+        transform: scale(0.97);
+        opacity: 0.92;
+    }
+}
+
+/* iOS zooms any field under 16px, which breaks the "native" feel */
+@media (max-width: 639px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+        font-size: 1rem !important;
+    }
+}
+
+/* ---- gentle page transition, like a native screen push ---- */
+@keyframes app-screen-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 1023px) {
+    main > * {
+        animation: app-screen-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    }
+
+    .app-card {
+        border-radius: 1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    main > * {
+        animation: none;
+    }
+
+    .btn,
+    .app-tab,
+    .app-tab__icon,
+    .app-topbar {
+        transition: none;
+    }
+}
+
+/* favourite card leaving the grid */
+.property-card.is-leaving {
+    opacity: 0;
+    transform: scale(0.97);
+    transition: opacity 0.18s ease, transform 0.18s ease;
 }

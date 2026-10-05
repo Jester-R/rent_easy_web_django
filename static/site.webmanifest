@@ -1,0 +1,33 @@
+{
+  "name": "RentEasy — Rental Marketplace",
+  "short_name": "RentEasy",
+  "description": "Browse rentals, request bookings, manage listings and payments.",
+  "start_url": "/rent/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f4f6",
+  "theme_color": "#0e7a56",
+  "categories": ["business", "finance", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/static/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Properties", "url": "/rent/properties/" },
+    { "name": "Bookings", "url": "/rent/bookings/" },
+    { "name": "Payments", "url": "/rent/payments/" }
+  ]
+}

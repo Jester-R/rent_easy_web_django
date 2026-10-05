@@ -35,7 +35,7 @@
 
       <fieldset>
         <legend class="form-label">{% t 'lease_term' %}</legend>
-        <div class="grid grid-cols-4 gap-2">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {% for value, label in form.fields.lease_months.choices %}
             <label class="chip cursor-pointer justify-center">
               <input type="radio" name="lease_months" value="{{ value }}" class="sr-only"

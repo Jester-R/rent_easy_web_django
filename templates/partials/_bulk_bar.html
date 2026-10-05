@@ -10,6 +10,7 @@
       <button type="button" class="btn btn-ghost btn-sm" data-bulk-clear>{% t 'reset' %}</button>
       <button type="button" class="btn btn-danger btn-sm"
               data-bulk-submit
+              data-confirm
               data-confirm-title="{{ confirm_title|default:'confirm_delete_property'|t }}"
               data-confirm-body="{{ confirm_body|default:'records_deleted'|t }}"
               data-confirm-label="{% t 'delete' %}"

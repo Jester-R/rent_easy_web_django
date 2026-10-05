@@ -18,6 +18,7 @@
         <div class="relative flex-1">
           <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">{% icon "search" 18 %}</span>
           <input type="search" name="q" value="{{ query }}" class="form-input ps-11"
+                 data-auto-submit-debounce
                  placeholder="{% t 'search_placeholder' %}" aria-label="{% t 'search' %}">
         </div>
         <div class="flex gap-2">

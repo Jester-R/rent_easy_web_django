@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from django.contrib import admin
+from django.templatetags.static import static
 from django.urls import include, path
+from django.views.generic import RedirectView
 
 from accounts import dashboards
 from accounts.views import (
@@ -21,6 +23,7 @@ urlpatterns = [
     path("", home_router, name="home"),
     path("core/landing/", core_views.landing, name="landing"),
     path("core/health/", core_views.health, name="health"),
+    path("favicon.ico", RedirectView.as_view(url=static("img/favicon.svg"), permanent=True)),
     path("core/tour/", core_views.dismiss_tour, name="dismiss_tour"),
     # -- auth ---------------------------------------------------------
     path("auth/login/", login_view, name="login"),
