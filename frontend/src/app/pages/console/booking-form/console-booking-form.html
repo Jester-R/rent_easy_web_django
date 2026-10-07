@@ -1,0 +1,102 @@
+<div class="space-y-4">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ isEdit() ? 'Edit booking' : 'New booking' }}</h1>
+    </div>
+    <a routerLink="/console/bookings" class="btn btn-ghost btn-sm">
+      <app-icon name="x" [size]="15" /><span>Back to bookings</span>
+    </a>
+  </div>
+
+  @if (error(); as message) {
+    <div class="toast toast-error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="error.set(null)" aria-label="Dismiss">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="space-y-3" aria-hidden="true">
+      <div class="app-card skeleton h-14"></div>
+      <div class="app-card skeleton h-64"></div>
+    </div>
+  } @else {
+    <section class="app-card p-4">
+      <form [formGroup]="form" class="grid gap-4" (ngSubmit)="onSubmit()">
+        @if (!isEdit()) {
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="form-label" for="property">Property</label>
+              <select id="property" class="form-input" formControlName="property">
+                <option [ngValue]="null" disabled selected>Select property</option>
+                @for (p of properties(); track p.id) {
+                  <option [ngValue]="p.id">{{ p.title }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="renter">Renter</label>
+              <select id="renter" class="form-input" formControlName="renter">
+                <option [ngValue]="null" disabled selected>Select renter</option>
+                @for (u of renters(); track u.id) {
+                  <option [ngValue]="u.id">{{ u.display_name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="owner">Owner</label>
+              <select id="owner" class="form-input" formControlName="owner">
+                <option [ngValue]="null">(inferred from property)</option>
+                @for (u of owners(); track u.id) {
+                  <option [ngValue]="u.id">{{ u.display_name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+        } @else {
+          <div class="pill pill-neutral">
+            <app-icon name="clipboard" [size]="12" /> {{ booking()?.reference }}
+          </div>
+        }
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="form-label" for="status">Status</label>
+            <select id="status" class="form-input" formControlName="status">
+              @for (s of ['Pending', 'Approved', 'Rejected', 'Cancelled']; track s) {
+                <option [ngValue]="s">{{ s }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="monthly_rent">Monthly rent ($ USD)</label>
+            <input id="monthly_rent" type="number" min="0" class="form-input" formControlName="monthly_rent" />
+          </div>
+          <div>
+            <label class="form-label" for="lease_months">Lease (months)</label>
+            <input id="lease_months" type="number" min="1" max="120" class="form-input" formControlName="lease_months" />
+          </div>
+          <div>
+            <label class="form-label" for="move_in_date">Move-in date</label>
+            <input id="move_in_date" type="date" class="form-input" formControlName="move_in_date" />
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label" for="note">Note</label>
+          <textarea id="note" rows="3" class="form-input" placeholder="Optional note" formControlName="note"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t border-ink-5 pt-4">
+          <a routerLink="/console/bookings" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+            <app-icon name="check" [size]="15" /><span>{{ isSaving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create booking') }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+</div>

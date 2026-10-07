@@ -1,0 +1,75 @@
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="app-card overflow-hidden">
+    <div class="hero-gradient px-6 py-7 text-white">
+      <div class="flex flex-wrap items-center gap-4">
+        <span class="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/20 text-[22px] font-extrabold backdrop-blur uppercase">
+          {{ auth.currentUser()?.username?.substring(0, 2) || 'U' }}
+        </span>
+        <div class="min-w-0 flex-1">
+          <h1 class="truncate text-xl font-extrabold tracking-tight">{{ auth.currentUser()?.display_name }}</h1>
+          <p class="truncate text-[13px] text-white/80">&#64;{{ auth.currentUser()?.username }}</p>
+          <span class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[12px] font-bold capitalize">
+            {{ auth.currentUser()?.role }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-6 sm:p-8">
+      @if (successMessage()) {
+        <div class="toast toast-success mb-6" role="alert">
+          <span>{{ successMessage() }}</span>
+        </div>
+      }
+
+      @if (errorMessage()) {
+        <div class="toast toast-error mb-6" role="alert">
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4 max-w-xl">
+        <div>
+          <label class="form-label">Full Name</label>
+          <input
+            type="text"
+            formControlName="full_name"
+            class="form-input"
+          />
+        </div>
+
+        <div>
+          <label class="form-label">Username</label>
+          <input
+            type="text"
+            formControlName="username"
+            class="form-input"
+          />
+        </div>
+
+        <div>
+          <label class="form-label">Email</label>
+          <input
+            type="email"
+            formControlName="email"
+            class="form-input"
+          />
+        </div>
+
+        <div class="pt-2">
+          <button
+            type="submit"
+            [disabled]="form.invalid || isLoading()"
+            class="btn btn-primary"
+          >
+            @if (isLoading()) {
+              Saving Changes...
+            } @else {
+              Save Preferences
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

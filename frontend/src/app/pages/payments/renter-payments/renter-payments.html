@@ -1,0 +1,75 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Payment Receipts</h1>
+      <p class="text-xs text-ink-3 mt-1">Review your rent transaction history and payment receipts</p>
+    </div>
+
+    <!-- Filter -->
+    <div class="flex items-center gap-2">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="loadPayments()"
+        placeholder="Filter by ref, property..."
+        class="form-input text-xs max-w-xs"
+      />
+      <button (click)="loadPayments()" class="btn btn-primary btn-sm">
+        Filter
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="space-y-4">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton rounded-2xl h-20"></div>
+      }
+    </div>
+  } @else if (payments().length === 0) {
+    <div class="app-card border-dashed p-12 text-center max-w-md mx-auto">
+      <div class="w-12 h-12 rounded-full bg-primary-soft text-primary-dark mx-auto flex items-center justify-center mb-3">
+        <app-icon name="dollar" [size]="24" />
+      </div>
+      <h3 class="text-base font-bold text-ink">No payment receipts found</h3>
+      <p class="text-xs text-ink-3 mt-1">Completed lease payments will appear here.</p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Property</th>
+            <th>Method</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of payments(); track p.id) {
+            <tr>
+              <td class="font-mono font-medium text-ink">{{ p.reference }}</td>
+              <td class="font-medium text-ink">{{ p.property_title }}</td>
+              <td class="text-ink-2">{{ p.method }}</td>
+              <td class="font-extrabold text-primary text-sm">{{ p.amount_display }}</td>
+              <td>
+                <span class="pill"
+                  [ngClass]="{
+                    'pill-approved': p.status === 'Success',
+                    'pill-pending': p.status === 'Pending',
+                    'pill-rejected': p.status === 'Failed',
+                    'pill-refunded': p.status === 'Refunded'
+                  }">
+                  {{ p.status }}
+                </span>
+              </td>
+              <td class="text-ink-3">{{ p.created_at | date:'mediumDate' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

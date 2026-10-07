@@ -1,0 +1,124 @@
+@if (isLoading()) {
+  <div class="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <div class="app-card skeleton h-52"></div>
+    <div class="space-y-4">
+      <div class="stat-card skeleton h-40"></div>
+      <div class="stat-card skeleton h-40"></div>
+    </div>
+  </div>
+} @else if (payment(); as p) {
+  <div class="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+
+    <section class="app-card overflow-hidden">
+      <div class="hero-gradient px-5 py-6 text-white sm:px-6">
+        <p class="text-[11px] font-bold uppercase tracking-wide text-white/80">Payment details</p>
+        <p class="mt-1.5 text-[30px] font-extrabold leading-none">{{ usd(p.amount) }}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-[12px] font-bold">{{ paymentStatusLabel(p.status) }}</span>
+          <span class="rounded-full bg-white/20 px-2.5 py-0.5 text-[12px] font-bold">{{ refundStatusLabel(p.refund_status) }}</span>
+        </div>
+        <p class="mt-3 flex items-center gap-1.5 text-[12px] text-white/80">
+          <app-icon name="document" [size]="13" />
+          <button type="button" class="underline decoration-dotted hover:text-white" (click)="copyReference()">{{ p.reference }}</button>
+          @if (copied()) {
+            <span class="text-[11px] font-bold text-white">Copied</span>
+          }
+        </p>
+      </div>
+
+      <div class="p-5">
+        <h2 class="text-[16px] font-extrabold tracking-tight">{{ p.property_title }}</h2>
+        @if (p.property?.location) {
+          <p class="mt-1 flex items-center gap-1.5 text-[13px] text-ink-3">
+            <app-icon name="map-pin" [size]="14" />
+            <span>{{ p.property!.location }}</span>
+          </p>
+        }
+
+        <div class="divider my-5"></div>
+
+        <dl class="space-y-3 text-[13px]">
+          <div class="flex items-start gap-2.5">
+            <app-icon [name]="methodIcon(p.method)" [size]="16" />
+            <dt class="w-28 shrink-0 text-ink-3">Method</dt>
+            <dd class="flex-1 font-bold">{{ methodLabel(p.method) }}</dd>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <app-icon name="user" [size]="16" />
+            <dt class="w-28 shrink-0 text-ink-3">User</dt>
+            <dd class="flex-1 truncate font-bold">{{ p.user.display_name }} <span class="font-normal text-ink-3">#{{ p.user_id }}</span></dd>
+          </div>
+          @if (p.property) {
+            <div class="flex items-start gap-2.5">
+              <app-icon name="store" [size]="16" />
+              <dt class="w-28 shrink-0 text-ink-3">Owner</dt>
+              <dd class="flex-1 truncate font-bold">{{ p.property.owner.display_name }} <span class="font-normal text-ink-3">#{{ p.property.owner_id }}</span></dd>
+            </div>
+          }
+          <div class="flex items-start gap-2.5">
+            <app-icon name="clipboard" [size]="16" />
+            <dt class="w-28 shrink-0 text-ink-3">Booking</dt>
+            <dd class="flex-1 font-bold">{{ p.booking_id ? '#' + p.booking_id : 'Not set' }}</dd>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <app-icon name="clock" [size]="16" />
+            <dt class="w-28 shrink-0 text-ink-3">Created</dt>
+            <dd class="flex-1 font-bold">{{ prettyDate(p.created_at) }}</dd>
+          </div>
+          @if (p.refunded_at) {
+            <div class="flex items-start gap-2.5">
+              <app-icon name="refund" [size]="16" />
+              <dt class="w-28 shrink-0 text-ink-3">Refunded</dt>
+              <dd class="flex-1 font-bold">{{ prettyDate(p.refunded_at) }} · {{ usd(p.refunded_amount) }}</dd>
+            </div>
+          }
+        </dl>
+
+        <div class="mt-5 flex flex-wrap gap-2 border-t border-hairline pt-5">
+          @if (p.booking_id) {
+            <a [routerLink]="['/bookings', p.booking_id]" class="btn btn-outline">
+              <app-icon name="clipboard" [size]="16" />
+              <span>Booking details</span>
+            </a>
+          }
+          <a [routerLink]="audience() === 'owner' ? '/owner/payments' : '/payments'" class="btn btn-ghost">
+            <app-icon name="arrow-left" [size]="16" />
+            <span>Back</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <aside class="space-y-4">
+      @if (p.refund_status !== 'None') {
+        <section class="app-card p-5">
+          <h3 class="mb-4 flex items-center gap-2 text-[14px] font-extrabold">
+            <app-icon name="refund" [size]="17" />
+            <span>Refunds</span>
+          </h3>
+          <div class="rounded-xl border border-hairline bg-surface-2 p-3">
+            <div class="flex items-center gap-2">
+              <span class="min-w-0 flex-1 truncate text-[11px] text-ink-3">{{ shortDate(refund()?.created_at || p.refunded_at) }}</span>
+              <span [class]="'pill ' + refundPill(refund()?.status || p.refund_status)">{{ refundStatusLabel(refund()?.status || p.refund_status) }}</span>
+              <span class="shrink-0 text-[13px] font-extrabold">{{ usd(p.refunded_amount || refund()?.amount) }}</span>
+            </div>
+            @if (audience() === 'owner' && refund()?.status === 'Pending') {
+              <button type="button" class="btn btn-primary btn-xs mt-2.5 w-full" [disabled]="isProcessing()" (click)="processRefund()">
+                <app-icon name="check" [size]="13" />
+                <span>Process refund</span>
+              </button>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="app-card p-5">
+        <h3 class="mb-3 flex items-center gap-2 text-[14px] font-extrabold">
+          <app-icon name="info" [size]="17" />
+          <span>Details</span>
+        </h3>
+        <p class="prose-note text-[13px]">RentEasy Web — web platform edition of the RentEasy mobile app.</p>
+      </section>
+    </aside>
+  </div>
+}

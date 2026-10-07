@@ -1,0 +1,207 @@
+<div class="space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">Payments</h1>
+    </div>
+    <a routerLink="/console/payments/new" class="btn btn-primary btn-sm">
+      <app-icon name="plus" [size]="15" /><span>New payment</span>
+    </a>
+  </div>
+
+  @if (error(); as message) {
+    <div class="toast toast-error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="error.set(null)" aria-label="Dismiss">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Revenue</span>
+        <span class="block truncate text-[19px] font-extrabold leading-tight">{{ usd(revenue()) }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="clock" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Pending Refunds</span>
+        <span class="block truncate text-[19px] font-extrabold leading-tight">{{ pendingRefunds() }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="wallet" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Payments</span>
+        <span class="block truncate text-[19px] font-extrabold leading-tight">{{ total() }}</span>
+        <span class="block truncate text-[11px] text-ink-3">Mock payments — no real money moves.</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <section class="app-card p-4">
+      <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
+        <div class="relative">
+          <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
+            <app-icon name="search" [size]="16" />
+          </span>
+          <input #q type="search" class="form-input ps-11" placeholder="Search by reference, property or email" [value]="query()" (input)="onSearch(q.value)" />
+        </div>
+        <select class="form-input" [value]="status()" #s (change)="onStatusChange(s.value)">
+          @for (o of statusOptions(); track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary flex-1">
+            <app-icon name="filter" [size]="15" /><span>Filter</span>
+          </button>
+          <button type="button" class="btn btn-ghost" (click)="refresh()" title="Refresh" aria-label="Refresh">
+            <app-icon name="refresh" [size]="15" />
+          </button>
+        </div>
+      </form>
+    </section>
+
+    @if (isLoading()) {
+      <div class="space-y-3" aria-hidden="true">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="app-card skeleton h-14"></div>
+        }
+      </div>
+    } @else if (payments().length) {
+      <div class="table-wrap app-card overflow-hidden">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="w-px">
+                <input type="checkbox" class="form-checkbox" [checked]="allSelected()" (change)="toggleAll()" aria-label="Select all" />
+              </th>
+              <th class="text-start">Payment Ref</th>
+              <th class="text-start">Property</th>
+              <th class="text-start">User</th>
+              <th class="text-end">Amount</th>
+              <th class="text-start">Method</th>
+              <th class="text-start">Status</th>
+              <th class="text-end w-px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of payments(); track p.id) {
+              <tr>
+                <td class="w-px">
+                  <input type="checkbox" class="form-checkbox" [checked]="isSelected(p.id)" (change)="toggle(p.id)" [attr.aria-label]="p.reference" />
+                </td>
+                <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ p.reference }}</td>
+                <td class="min-w-[11rem]"><span class="block truncate font-bold">{{ p.property_title || '—' }}</span></td>
+                <td class="whitespace-nowrap text-ink-2">{{ p.user.display_name }}</td>
+                <td class="whitespace-nowrap text-end font-bold text-primary">{{ usd(p.amount) }}</td>
+                <td class="whitespace-nowrap text-ink-2">
+                  <span class="inline-flex items-center gap-1.5">
+                    <app-icon [name]="methodIcon(p.method)" [size]="14" /> {{ methodLabel(p.method) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="pill {{ paymentPill(p.status, p.refund_status) }}">{{ paymentStatusLabel(p.status) }}</span>
+                  @if (p.refund_status !== 'None') {
+                    <span class="pill {{ refundPill(p.refund_status) }} ms-1">{{ refundStatusLabel(p.refund_status) }}</span>
+                  }
+                </td>
+                <td class="w-px">
+                  <div class="flex items-center justify-end gap-1">
+                    @if (p.refund_status === 'None') {
+                      <button type="button" class="btn btn-ghost btn-icon text-amber-600" title="Issue refund" (click)="refund(p)">
+                        <app-icon name="rotate-ccw" [size]="16" />
+                      </button>
+                    }
+                    <a [routerLink]="['/console/payments', p.id, 'edit']" class="btn btn-ghost btn-icon" title="Edit">
+                      <app-icon name="edit" [size]="16" />
+                    </a>
+                    <button type="button" class="btn btn-ghost btn-icon text-danger" title="Delete" (click)="removePayment(p)">
+                      <app-icon name="trash" [size]="16" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (selected().length) {
+        <div class="sticky bottom-3 z-30 mt-3">
+          <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
+            <span class="flex items-center gap-2 text-[13px] font-bold">
+              <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">{{ selected().length }}</span>
+              selected
+            </span>
+            <div class="ms-auto flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="clearSelection()">Reset</button>
+              <button type="button" class="btn btn-danger btn-sm" (click)="bulkDelete()">
+                <app-icon name="trash" [size]="15" /><span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    } @else {
+      <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
+        <span class="empty-state-icon"><app-icon name="dollar" [size]="30" /></span>
+        <p class="text-[15px] font-bold text-ink">No payments found</p>
+        <p class="max-w-sm text-[13px] leading-relaxed text-ink-3">New payment</p>
+        <a routerLink="/console/payments/new" class="btn btn-primary btn-sm mt-1">
+          <app-icon name="plus" [size]="15" /><span>New payment</span>
+        </a>
+      </div>
+    }
+  </div>
+
+  <section class="app-card p-5">
+    <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
+      <app-icon name="rotate-ccw" [size]="17" /> Recent Refunds
+    </h2>
+    @if (refunds().length) {
+      <div class="table-wrap overflow-x-auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="text-start">Payment ref</th>
+              <th class="text-end">Amount</th>
+              <th class="text-start">Reason</th>
+              <th class="text-start">Status</th>
+              <th class="text-start">Created</th>
+              <th class="text-end w-px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of refunds(); track r.id) {
+              <tr>
+                <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ r.payment?.reference }}</td>
+                <td class="whitespace-nowrap text-end font-bold">{{ usd(r.amount) }}</td>
+                <td class="whitespace-nowrap text-ink-2">{{ refundReasonLabel(r.reason) }}</td>
+                <td>
+                  <span class="pill {{ refundPill(r.status) }}">{{ r.status }}</span>
+                </td>
+                <td class="whitespace-nowrap text-ink-2">{{ shortDate(r.created_at) }}</td>
+                <td class="w-px text-end">
+                  @if (r.status === 'Pending') {
+                    <button type="button" class="btn btn-primary btn-xs" (click)="process(r)">
+                      <app-icon name="check" [size]="14" /><span>Process</span>
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="px-1 py-3 text-center text-[12px] text-ink-3">No refunds yet</p>
+    }
+  </section>
+</div>

@@ -1,0 +1,127 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Revenue & Financials</h1>
+    <p class="text-xs text-ink-3 mt-1">Review rent payouts, received payments, and pending tenant refunds</p>
+  </div>
+
+  @if (actionMessage()) {
+    <div class="toast toast-success mb-6" role="alert">
+      <span>{{ actionMessage() }}</span>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton rounded-2xl h-24"></div>
+      }
+    </div>
+  } @else if (data(); as d) {
+    <!-- Stats Row -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="stat-card">
+        <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
+        <div>
+          <span class="text-xs font-medium text-ink-3">Net Revenue Collected</span>
+          <div class="text-2xl font-extrabold text-primary mt-0.5">${{ d.totals.revenue | number:'1.0-2' }}</div>
+          <span class="text-[11px] text-ink-3">{{ d.totals.count }} successful transactions</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon bg-rose-50 text-danger"><app-icon name="rotate-ccw" [size]="20" /></span>
+        <div>
+          <span class="text-xs font-medium text-ink-3">Refunded Amount</span>
+          <div class="text-2xl font-extrabold text-danger mt-0.5">${{ d.totals.refunded | number:'1.0-2' }}</div>
+          <span class="text-[11px] text-ink-3">Total processed refunds</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon"><app-icon name="users" [size]="20" /></span>
+        <div>
+          <span class="text-xs font-medium text-ink-3">Active Paying Tenants</span>
+          <div class="text-2xl font-extrabold text-primary mt-0.5">{{ d.renter_count }}</div>
+          <span class="text-[11px] text-ink-3">Unique tenants paying rent</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Refunds Section if any -->
+    @if (d.pending_refunds.length > 0) {
+      <div class="bg-rose-50/50 rounded-3xl border border-rose-100 p-6 mb-8">
+        <h2 class="text-base font-bold text-danger mb-1">Action Required: Pending Refunds</h2>
+        <p class="text-xs text-rose-600 mb-4">You have refund requests awaiting your authorization.</p>
+
+        <div class="space-y-3">
+          @for (r of d.pending_refunds; track r.id) {
+            <div class="app-card p-4 border-rose-100 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-mono text-ink-3">#{{ r.reference }}</span>
+                <div class="text-sm font-bold text-ink mt-0.5">{{ r.amount_display }}</div>
+                <p class="text-xs text-ink-3">Reason: {{ r.reason }}</p>
+              </div>
+              <button
+                (click)="processRefund(r.id)"
+                class="btn btn-danger btn-sm"
+              >
+                Approve & Refund
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Payment Records Table -->
+    <div class="table-wrap">
+      <div class="p-5 border-b border-hairline">
+        <h2 class="text-base font-bold text-ink">Payment Transactions</h2>
+        <p class="text-xs text-ink-3">Complete record of rent collected on your properties</p>
+      </div>
+
+      @if (d.payments.length === 0) {
+        <div class="p-10 text-center text-xs text-ink-3">
+          No payments recorded yet.
+        </div>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ref</th>
+              <th>Property</th>
+              <th>Tenant</th>
+              <th>Method</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of d.payments; track p.id) {
+              <tr>
+                <td class="font-mono font-medium text-ink">{{ p.reference }}</td>
+                <td class="font-medium text-ink">{{ p.property_title }}</td>
+                <td class="text-ink-2">{{ p.user.display_name }}</td>
+                <td class="text-ink-2">{{ p.method }}</td>
+                <td class="font-extrabold text-primary text-sm">{{ p.amount_display }}</td>
+                <td>
+                  <span class="pill"
+                    [ngClass]="{
+                      'pill-approved': p.status === 'Success',
+                      'pill-pending': p.status === 'Pending',
+                      'pill-rejected': p.status === 'Failed',
+                      'pill-refunded': p.status === 'Refunded'
+                    }">
+                    {{ p.status }}
+                  </span>
+                </td>
+                <td class="text-ink-3">{{ p.created_at | date:'mediumDate' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+</div>

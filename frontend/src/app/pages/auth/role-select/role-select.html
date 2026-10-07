@@ -1,0 +1,70 @@
+<div class="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10 sm:px-6">
+  <div class="w-full max-w-[35rem]">
+    <div class="app-card p-6 sm:p-7">
+      <div class="mb-6 text-center">
+        <span class="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl hero-gradient text-white shadow-sm">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3 5 5.5v5.8c0 4.3 2.9 7.7 7 9.7 4.1-2 7-5.4 7-9.7V5.5L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>
+        </span>
+        <h1 class="text-[20px] font-extrabold tracking-tight">Select your platform role</h1>
+        <p class="mt-1 text-[13px] text-ink-3">Choose whether you are looking to rent or lease properties</p>
+      </div>
+
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label
+          (click)="selectRole('renter')"
+          class="group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all"
+          [class.border-primary]="selectedRole() === 'renter'"
+          [class.bg-primary-soft]="selectedRole() === 'renter'"
+          [class.border-hairline]="selectedRole() !== 'renter'"
+          [class.bg-surface-2]="selectedRole() !== 'renter'"
+        >
+          <span class="flex items-center gap-3">
+            <span class="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary-dark transition-transform group-hover:scale-105">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="10" cy="8" r="3.75"/><path d="M3 20.5a7 7 0 0 1 10.9-5.8"/><circle cx="17" cy="16" r="3"/><path d="m19.4 18.4 2.1 2.1"/></svg>
+            </span>
+            <span>
+              <span class="block text-[15px] font-extrabold text-ink">Tenant / Renter</span>
+              <span class="block text-[12px] leading-snug text-ink-3">Browse listings, request leases, pay rent.</span>
+            </span>
+          </span>
+          @if (selectedRole() === 'renter') {
+            <span class="absolute end-3 top-3 text-primary">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.5"/></svg>
+            </span>
+          }
+        </label>
+
+        <label
+          (click)="selectRole('owner')"
+          class="group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all"
+          [class.border-primary]="selectedRole() === 'owner'"
+          [class.bg-primary-soft]="selectedRole() === 'owner'"
+          [class.border-hairline]="selectedRole() !== 'owner'"
+          [class.bg-surface-2]="selectedRole() !== 'owner'"
+        >
+          <span class="flex items-center gap-3">
+            <span class="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary-dark transition-transform group-hover:scale-105">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 9.5 5 4h14l1.5 5.5"/><path d="M3.5 9.5a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5 11.5V20h14v-8.5"/><path d="M9.5 20v-4.5h5V20"/></svg>
+            </span>
+            <span>
+              <span class="block text-[15px] font-extrabold text-ink">Property Owner</span>
+              <span class="block text-[12px] leading-snug text-ink-3">List units, accept tenants, track revenue.</span>
+            </span>
+          </span>
+          @if (selectedRole() === 'owner') {
+            <span class="absolute end-3 top-3 text-primary">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.5"/></svg>
+            </span>
+          }
+        </label>
+
+        <div class="sm:col-span-2 mt-2">
+          <button type="button" (click)="submitRole()" [disabled]="isLoading()" class="btn btn-primary w-full">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4.5 12.5 5 5 10-11"/></svg>
+            <span>{{ isLoading() ? 'Saving role...' : 'Confirm Role' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

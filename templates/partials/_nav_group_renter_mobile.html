@@ -1,6 +1,0 @@
-{% load ui %}
-<a href="{% url 'renter_home' %}" data-nav="renter_home" class="app-tab">{% icon "home" 20 css_class="app-tab__icon" %}<span>{% t 'home' %}</span></a>
-<a href="{% url 'listings:renter_browse' %}" data-nav="renter_browse" class="app-tab">{% icon "building" 20 css_class="app-tab__icon" %}<span>{% t 'properties' %}</span></a>
-<a href="{% url 'listings:renter_favorites' %}" data-nav="renter_favorites" class="app-tab">{% icon "heart" 20 css_class="app-tab__icon" %}<span>{% t 'favorites' %}</span></a>
-<a href="{% url 'bookings:renter_list' %}" data-nav="renter_list" class="app-tab">{% icon "clipboard" 20 css_class="app-tab__icon" %}<span>{% t 'bookings' %}</span></a>
-<a href="{% url 'payments:renter_list' %}" data-nav="renter_list_pay" class="app-tab">{% icon "receipt" 20 css_class="app-tab__icon" %}<span>{% t 'payments' %}</span></a>
