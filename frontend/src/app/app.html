@@ -1,0 +1,118 @@
+<div class="min-h-screen bg-canvas text-ink font-sans antialiased">
+  <div class="flex min-h-screen items-stretch">
+    <!-- Desktop Sidebar for Authenticated Users (from backend base.html) -->
+    @if (auth.isAuthenticated(); as user) {
+      <aside class="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 xl:w-72 lg:self-start shrink-0 flex-col border-r border-hairline bg-surface">
+        <div class="flex h-16 items-center gap-2.5 border-b border-hairline px-5">
+          <span class="grid h-9 w-9 place-items-center rounded-xl hero-gradient text-white shadow-sm">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 11.2 12 4l9 7.2"/><path d="M5.5 10v10h13V10"/><path d="M9.5 20v-5.5h5V20"/>
+            </svg>
+          </span>
+          <span class="flex flex-col leading-tight">
+            <span class="text-[15px] font-extrabold tracking-tight">RentEasy</span>
+            <span class="text-[11px] font-semibold text-ink-3">Rental Platform</span>
+          </span>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          @if (auth.isRenter()) {
+            <p class="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">Renter</p>
+            <a routerLink="/rent" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.6V21h13V9.6"/><path d="M9.75 21v-5.5h4.5V21"/></svg>
+              <span class="flex-1">Home</span>
+            </a>
+            <a routerLink="/browse" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 21h18"/><path d="M5 21V5.5A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.5V21"/><path d="M15 10h3.5A1.5 1.5 0 0 1 20 11.5V21"/><path d="M8 8h4M8 12h4M8 16h4M17.5 14h.01M17.5 17.5h.01"/></svg>
+              <span class="flex-1">Properties</span>
+            </a>
+            <a routerLink="/favorites" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <span class="flex-1">Favorites</span>
+            </a>
+            <a routerLink="/bookings" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6a1.5 1.5 0 0 0-1.5-1.5H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/><path d="M9 11h6M9 14.5h4"/></svg>
+              <span class="flex-1">My Bookings</span>
+            </a>
+            <a routerLink="/payments" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 3.5h14v17l-2.3-1.6-2.35 1.6-2.35-1.6-2.35 1.6L7.3 18.9 5 20.5v-17Z"/><path d="M8.5 8.5h7M8.5 12.5h7"/></svg>
+              <span class="flex-1">Payments</span>
+            </a>
+          }
+
+          @if (auth.isOwner()) {
+            <p class="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">Landlord</p>
+            <a routerLink="/owner" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.6V21h13V9.6"/><path d="M9.75 21v-5.5h4.5V21"/></svg>
+              <span class="flex-1">Home</span>
+            </a>
+            <a routerLink="/owner/properties" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 9.5 5 4h14l1.5 5.5"/><path d="M3.5 9.5a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5 11.5V20h14v-8.5"/><path d="M9.5 20v-4.5h5V20"/></svg>
+              <span class="flex-1">My Properties</span>
+            </a>
+            <a routerLink="/owner/bookings" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6a1.5 1.5 0 0 0-1.5-1.5H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/><path d="M9 11h6M9 14.5h4"/></svg>
+              <span class="flex-1">Booking Requests</span>
+            </a>
+            <a routerLink="/owner/payments" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 7.5A2 2 0 0 1 5.5 5.5H18a2 2 0 0 1 2 2v1"/><rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M20.5 12.5H16a2 2 0 0 0 0 4h4.5"/></svg>
+              <span class="flex-1">Revenue</span>
+            </a>
+          }
+
+          @if (auth.isAdmin()) {
+            <p class="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">Admin</p>
+            <a routerLink="/console" routerLinkActive="is-active" class="nav-item">
+              <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7.5" height="8.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="5.5" rx="1.5"/><rect x="13.5" y="11.5" width="7.5" height="9.5" rx="1.5"/><rect x="3" y="14.5" width="7.5" height="6.5" rx="1.5"/></svg>
+              <span class="flex-1">Console</span>
+            </a>
+          }
+
+          <div class="divider my-2"></div>
+          <a routerLink="/notifications" routerLinkActive="is-active" class="nav-item">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/></svg>
+            <span class="flex-1">Notifications</span>
+          </a>
+          <a routerLink="/profile" routerLinkActive="is-active" class="nav-item">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
+            <span class="flex-1">Profile</span>
+          </a>
+        </nav>
+
+        <!-- Sidebar User Card + Logout -->
+        <div class="border-t border-hairline p-3">
+          <div class="rounded-xl border border-hairline bg-surface-2 p-3">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-bold"
+                [style.background-color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 42% 92%)'"
+                [style.color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 55% 28%)'">
+                {{ auth.currentUser()?.display_name?.substring(0, 2) || 'U' }}
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-[13px] font-bold leading-tight">{{ auth.currentUser()?.display_name }}</span>
+                <span class="block truncate text-[11px] text-ink-3">{{ auth.currentUser()?.email }}</span>
+              </span>
+            </div>
+            <span class="pill pill-approved mt-2.5 capitalize">{{ auth.currentUser()?.role }}</span>
+          </div>
+
+          <button (click)="logout()" class="nav-item w-full text-rose-600 hover:bg-rose-50 hover:text-rose-700 mt-2">
+            <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 8V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h8a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M10 12h11"/><path d="m17.5 8.5 3.5 3.5-3.5 3.5"/></svg>
+            <span>Log out</span>
+          </button>
+        </div>
+      </aside>
+    }
+
+    <!-- Main Content Column -->
+    <div class="flex min-w-0 flex-1 flex-col">
+      <app-navbar />
+      <main id="main" class="flex-1 p-4 sm:p-6 lg:p-8">
+        <router-outlet />
+      </main>
+      @if (!auth.isAuthenticated()) {
+        <app-footer />
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+<div class="mx-auto max-w-lg py-10">
+  <div class="app-card px-6 py-10 text-center">
+    <span class="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-surface-2 text-ink-3">
+      <app-icon name="lock" [size]="24" />
+    </span>
+    <p class="mt-4 text-[15px] font-bold">You are not allowed to perform this action.</p>
+    <p class="mt-2 text-[13px] text-ink-3">Superadmin access required</p>
+    <a [routerLink]="auth.currentUser()?.home_url || '/'" class="btn btn-primary btn-sm mt-6">
+      <span>Back</span>
+      <app-icon name="arrow-right" [size]="15" />
+    </a>
+  </div>
+</div>

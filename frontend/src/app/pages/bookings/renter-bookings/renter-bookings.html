@@ -1,0 +1,168 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">My Rental Applications</h1>
+      <p class="text-xs text-ink-3 mt-1">Manage your active and completed lease proposals</p>
+    </div>
+    <a routerLink="/browse" class="btn btn-primary btn-sm self-start sm:self-auto">
+      <app-icon name="plus" [size]="14" /> Browse More Rentals
+    </a>
+  </div>
+
+  <!-- Status Tabs -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-hairline mb-6">
+    @for (tab of ['all', 'Pending', 'Approved', 'Rejected', 'Cancelled']; track tab) {
+      <button
+        (click)="loadBookings(tab)"
+        class="chip capitalize"
+        [class.is-active]="activeTab() === tab"
+      >
+        <span>{{ tab }}</span>
+        <span class="chip-count">{{ counts()[tab] || 0 }}</span>
+      </button>
+    }
+  </div>
+
+  <!-- Bookings List -->
+  @if (isLoading()) {
+    <div class="space-y-4">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="skeleton rounded-3xl h-36"></div>
+      }
+    </div>
+  } @else if (bookings().length === 0) {
+    <div class="app-card border-dashed p-12 text-center max-w-md mx-auto">
+      <div class="w-12 h-12 rounded-full bg-primary-soft text-primary-dark mx-auto flex items-center justify-center mb-3">
+        <app-icon name="clipboard" [size]="24" />
+      </div>
+      <h3 class="text-base font-bold text-ink">No applications in this category</h3>
+      <p class="text-xs text-ink-3 mt-1">Explore available listings to start renting.</p>
+    </div>
+  } @else {
+    <div class="space-y-4">
+      @for (b of bookings(); track b.id) {
+        <div class="app-card p-6 hover:shadow-card-hover transition-shadow">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-2xl bg-primary-soft text-primary-dark flex items-center justify-center shrink-0">
+                <app-icon name="home" [size]="24" />
+              </div>
+
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono text-ink-3">#{{ b.reference }}</span>
+                  <span class="pill"
+                    [ngClass]="{
+                      'pill-pending': b.status === 'Pending',
+                      'pill-approved': b.status === 'Approved',
+                      'pill-rejected': b.status === 'Rejected',
+                      'pill-cancelled': b.status === 'Cancelled'
+                    }">
+                    {{ b.status }}
+                  </span>
+                  @if (b.is_paid) {
+                    <span class="pill pill-approved">
+                      Paid
+                    </span>
+                  }
+                </div>
+
+                <a [routerLink]="['/properties', b.property.id]" class="text-base font-bold text-ink hover:text-primary transition-colors block mt-1">
+                  {{ b.property.title }}
+                </a>
+
+                <div class="flex flex-wrap items-center gap-4 text-xs text-ink-3 mt-2">
+                  <span>📍 {{ b.property.location }}</span>
+                  <span>📅 Move-in: {{ b.move_in_date || 'Flexible' }}</span>
+                  <span>⏳ Lease: {{ b.lease_months }} months</span>
+                  <span>👤 Owner: {{ b.owner.display_name }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-hairline gap-3">
+              <div class="text-right">
+                <span class="text-xl font-extrabold text-primary">{{ b.rent_display }}</span>
+                <span class="text-[11px] text-ink-3 block">/month</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                @if (b.status === 'Approved' && !b.is_paid) {
+                  <button
+                    (click)="openPayModal(b)"
+                    class="btn btn-primary btn-sm"
+                  >
+                    Pay Rent
+                  </button>
+                }
+
+                @if (b.status === 'Pending') {
+                  <button
+                    (click)="cancelBooking(b.id)"
+                    class="btn btn-ghost btn-sm text-danger hover:bg-rose-50"
+                  >
+                    Cancel
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Payment Modal -->
+  @if (selectedBookingForPay(); as b) {
+    <div class="modal-backdrop">
+      <div class="modal-panel max-w-md p-6 sm:p-8 relative">
+        <button (click)="closePayModal()" class="btn btn-ghost btn-icon absolute top-4 right-4">
+          <app-icon name="x" [size]="18" />
+        </button>
+
+        <h3 class="text-xl font-extrabold text-ink">Complete Rent Payment</h3>
+        <p class="text-xs text-ink-3 mt-1">Paying for: {{ b.property.title }}</p>
+
+        <div class="bg-primary-soft p-4 rounded-2xl my-4 text-center">
+          <span class="text-xs text-primary-dark font-semibold uppercase tracking-wider">Total Due</span>
+          <div class="text-3xl font-extrabold text-primary-dark mt-1">{{ b.rent_display }}</div>
+        </div>
+
+        @if (paySuccessMessage()) {
+          <div class="toast toast-success mb-4" role="alert">
+            <span>{{ paySuccessMessage() }}</span>
+          </div>
+        }
+
+        @if (payErrorMessage()) {
+          <div class="toast toast-error mb-4" role="alert">
+            <span>{{ payErrorMessage() }}</span>
+          </div>
+        }
+
+        <div class="space-y-4">
+          <div>
+            <label class="form-label">Payment Method</label>
+            <select [(ngModel)]="selectedPaymentMethod" class="form-input">
+              <option value="ABA">ABA Pay (Mock)</option>
+              <option value="Bakong KHQR">Bakong KHQR (Mock)</option>
+              <option value="Credit Card">Credit Card (Mock)</option>
+            </select>
+          </div>
+
+          <button
+            (click)="submitPayment()"
+            [disabled]="isPaying()"
+            class="btn btn-primary w-full"
+          >
+            @if (isPaying()) {
+              Processing Payment...
+            } @else {
+              Pay Now ({{ b.rent_display }})
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

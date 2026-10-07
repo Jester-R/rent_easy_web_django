@@ -1,0 +1,154 @@
+<div class="space-y-4">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">Properties</h1>
+      <p class="text-[12px] text-ink-3">Manage platform listings and owners</p>
+    </div>
+    <a routerLink="/console/properties/new" class="btn btn-primary btn-sm">
+      <app-icon name="plus" [size]="15" /><span>Add property</span>
+    </a>
+  </div>
+
+  @if (error(); as message) {
+    <div class="toast toast-error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="error.set(null)" aria-label="Dismiss">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+
+  <section class="app-card p-4">
+    <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
+      <div class="relative">
+        <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
+          <app-icon name="search" [size]="16" />
+        </span>
+        <input #q type="search" class="form-input ps-11" placeholder="Search by title, location or owner" [value]="query()" (input)="onSearch(q.value)" />
+      </div>
+      <select class="form-input" [value]="owner()" #o (change)="onOwnerChange(o.value)">
+        <option value="">All owners</option>
+        @for (item of owners(); track item.id) {
+          <option [value]="item.id">{{ item.display_name }}</option>
+        }
+      </select>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary flex-1">
+          <app-icon name="filter" [size]="15" /><span>Filter</span>
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="refresh()" title="Refresh" aria-label="Refresh">
+          <app-icon name="refresh" [size]="15" />
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <div class="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
+    <span class="pill pill-neutral">
+      <app-icon name="building" [size]="12" /> {{ properties().length }} / {{ total() }} Properties
+    </span>
+    @if (query()) {
+      <span class="pill pill-neutral">
+        <app-icon name="search" [size]="12" /> "{{ query() }}"
+      </span>
+    }
+  </div>
+
+  @if (isLoading() && properties().length === 0) {
+    <div class="space-y-3" aria-hidden="true">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="app-card skeleton h-24"></div>
+      }
+    </div>
+  } @else if (properties().length === 0) {
+    <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
+      <span class="empty-state-icon"><app-icon [name]="hasFilters() ? 'search' : 'building'" [size]="30" /></span>
+      <p class="text-[15px] font-bold text-ink">No properties found</p>
+      <p class="max-w-sm text-[13px] leading-relaxed text-ink-3">
+        {{ hasFilters() ? 'No listings match your search or owner filter.' : 'Add property' }}
+      </p>
+      @if (!hasFilters()) {
+        <a routerLink="/console/properties/new" class="btn btn-primary btn-sm mt-1">
+          <app-icon name="plus" [size]="15" /><span>Add property</span>
+        </a>
+      } @else {
+        <button type="button" class="btn btn-primary btn-sm mt-1" (click)="refresh()">
+          <app-icon name="refresh" [size]="15" /><span>Reset</span>
+        </button>
+      }
+    </div>
+  } @else {
+    <div class="table-wrap app-card overflow-hidden">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="w-px">
+              <input type="checkbox" class="form-checkbox" [checked]="allSelected()" (change)="toggleAll()" aria-label="Select all" />
+            </th>
+            <th class="text-start">Title</th>
+            <th class="text-start">Property Owner</th>
+            <th class="text-end">Rent</th>
+            <th class="text-end">Bookings</th>
+            <th class="text-end">Favorites</th>
+            <th class="text-end w-px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of properties(); track item.id) {
+            <tr>
+              <td data-label="" class="w-px">
+                <input type="checkbox" class="form-checkbox" [checked]="isSelected(item.id)" (change)="toggle(item.id)" [attr.aria-label]="item.title" />
+              </td>
+              <td data-label="Title" class="min-w-[14rem]">
+                <div class="flex items-center gap-2.5">
+                  <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary-dark">
+                    <app-icon name="building" [size]="16" />
+                  </span>
+                  <span class="min-w-0">
+                    <a [routerLink]="['/console/properties', item.id, 'edit']" class="block truncate font-bold hover:text-primary">{{ item.title }}</a>
+                    <span class="block truncate text-[11px] text-ink-3">{{ item.location }} · {{ item.bedrooms }}bd/{{ item.bathrooms }}ba</span>
+                  </span>
+                </div>
+              </td>
+              <td data-label="Property Owner" class="whitespace-nowrap text-ink-2">{{ item.owner.display_name }}</td>
+              <td data-label="Rent" class="whitespace-nowrap text-end font-bold text-primary">{{ usd(item.price_per_month) }}</td>
+              <td data-label="Bookings" class="text-end text-ink-2 tabular-nums">{{ item.booking_count ?? 0 }}</td>
+              <td data-label="Favorites" class="text-end text-ink-2 tabular-nums">{{ item.favorite_count ?? 0 }}</td>
+              <td data-label="" class="w-px">
+                <div class="flex items-center justify-end gap-1">
+                  <a [routerLink]="['/properties', item.id]" class="btn btn-ghost btn-icon" title="View">
+                    <app-icon name="external" [size]="16" />
+                  </a>
+                  <a [routerLink]="['/console/properties', item.id, 'edit']" class="btn btn-ghost btn-icon" title="Edit">
+                    <app-icon name="edit" [size]="16" />
+                  </a>
+                  <button type="button" class="btn btn-ghost btn-icon text-danger" title="Delete" (click)="remove(item)">
+                    <app-icon name="trash" [size]="16" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (selected().length) {
+      <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl">
+        <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
+          <span class="flex items-center gap-2 text-[13px] font-bold">
+            <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">{{ selected().length }}</span>
+            selected
+          </span>
+          <div class="ms-auto flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="clearSelection()">Reset</button>
+            <button type="button" class="btn btn-danger btn-sm" (click)="bulkDelete()">
+              <app-icon name="trash" [size]="15" /><span>Delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>

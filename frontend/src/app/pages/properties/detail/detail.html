@@ -1,0 +1,184 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  @if (isLoading()) {
+    <div class="animate-pulse space-y-6">
+      <div class="h-8 bg-surface-2 rounded w-1/3"></div>
+      <div class="h-64 bg-surface-2 rounded-3xl"></div>
+    </div>
+  } @else if (property(); as prop) {
+    <!-- Breadcrumb -->
+    <div class="flex items-center gap-2 text-xs text-ink-3 mb-6">
+      <a routerLink="/browse" class="hover:text-primary transition-colors">Rentals</a>
+      <span>/</span>
+      <span class="text-ink font-medium truncate">{{ prop.title }}</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left Column: Details -->
+      <div class="lg:col-span-2 space-y-8">
+        <!-- Hero Header -->
+        <div class="app-card overflow-hidden">
+          <div class="h-72 sm:h-96 hero-gradient-soft flex items-center justify-center relative">
+            <span class="grid h-28 w-28 place-items-center rounded-3xl bg-white/70 text-primary shadow-sm dark:bg-white/10 dark:text-white">
+              <app-icon name="home" [size]="48" />
+            </span>
+
+            <!-- Location Badge -->
+            <span class="absolute bottom-4 left-4 bg-white/90 backdrop-blur text-ink text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+              📍 {{ prop.location }}
+            </span>
+
+            @if (auth.isRenter()) {
+              <button
+                (click)="toggleFavorite()"
+                class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-ink-3 hover:text-rose-500 hover:scale-110 shadow-sm transition-all"
+                [class.text-rose-500]="prop.is_favorite"
+                aria-label="Favorite"
+              >
+                <app-icon [name]="prop.is_favorite ? 'heart-filled' : 'heart'" [size]="20" />
+              </button>
+            }
+          </div>
+
+          <div class="p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 border-b border-hairline pb-6">
+              <div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ prop.title }}</h1>
+                <p class="text-sm text-ink-3 mt-1">Listed by <span class="font-semibold text-ink-2">{{ prop.owner.display_name }}</span></p>
+              </div>
+              <div class="text-left sm:text-right">
+                <span class="text-3xl font-extrabold text-primary">{{ prop.price_display }}</span>
+                <span class="text-xs text-ink-3 block">per month</span>
+              </div>
+            </div>
+
+            <!-- Key Amenities / Specs -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-b border-hairline">
+              <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
+                <span class="text-xs text-ink-3 block font-medium">Bedrooms</span>
+                <span class="text-lg font-bold text-ink">{{ prop.bedrooms }}</span>
+              </div>
+              <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
+                <span class="text-xs text-ink-3 block font-medium">Bathrooms</span>
+                <span class="text-lg font-bold text-ink">{{ prop.bathrooms }}</span>
+              </div>
+              <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
+                <span class="text-xs text-ink-3 block font-medium">Total Bookings</span>
+                <span class="text-lg font-bold text-ink">{{ prop.booking_count }}</span>
+              </div>
+              <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
+                <span class="text-xs text-ink-3 block font-medium">Favorites</span>
+                <span class="text-lg font-bold text-ink">{{ prop.favorite_count }}</span>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="pt-6">
+              <h2 class="text-base font-bold text-ink mb-3">About this rental</h2>
+              <p class="text-sm text-ink-2 leading-relaxed whitespace-pre-line">
+                {{ prop.description || 'No description provided by the owner.' }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Booking Box -->
+      <div class="space-y-6">
+        @if (auth.isRenter()) {
+          @if (prop.has_active_booking) {
+            <div class="app-card p-6 border-emerald-200 bg-emerald-50/40">
+              <div class="flex items-center gap-3 text-emerald-800 font-bold mb-2">
+                <app-icon name="check-circle" [size]="20" />
+                <span>Active Booking Exists</span>
+              </div>
+              <p class="text-xs text-emerald-700 leading-relaxed mb-4">
+                You already have an active or pending lease request for this property.
+              </p>
+              <a routerLink="/bookings" class="btn btn-primary w-full text-xs">
+                View My Bookings
+              </a>
+            </div>
+          } @else {
+            <div class="app-card p-6">
+              <h3 class="text-base font-extrabold text-ink mb-1">Request a Lease</h3>
+              <p class="text-xs text-ink-3 mb-6">Choose your intended move-in date and duration.</p>
+
+              @if (bookingSuccess()) {
+                <div class="toast toast-success mb-4" role="alert">
+                  <span>{{ bookingSuccess() }}</span>
+                </div>
+              }
+
+              @if (bookingError()) {
+                <div class="toast toast-error mb-4" role="alert">
+                  <span>{{ bookingError() }}</span>
+                </div>
+              }
+
+              <form [formGroup]="bookingForm" (ngSubmit)="onRequestBooking()" class="space-y-4">
+                <div>
+                  <label class="form-label">Target Move-in Date</label>
+                  <input
+                    type="date"
+                    formControlName="move_in_date"
+                    class="form-input"
+                  />
+                </div>
+
+                <div>
+                  <label class="form-label">Lease Duration (Months)</label>
+                  <input
+                    type="number"
+                    formControlName="lease_months"
+                    min="1"
+                    max="60"
+                    class="form-input"
+                  />
+                </div>
+
+                <div>
+                  <label class="form-label">Message / Note to Landlord</label>
+                  <textarea
+                    formControlName="note"
+                    rows="3"
+                    placeholder="Tell the owner about yourself..."
+                    class="form-input"
+                  ></textarea>
+                </div>
+
+                <button
+                  type="submit"
+                  [disabled]="bookingForm.invalid || isBookingSubmitting()"
+                  class="btn btn-primary w-full"
+                >
+                  @if (isBookingSubmitting()) {
+                    <span>Submitting Request...</span>
+                  } @else {
+                    <span>Submit Lease Request</span>
+                  }
+                </button>
+              </form>
+            </div>
+          }
+        } @else if (!auth.isAuthenticated()) {
+          <div class="app-card p-6 text-center">
+            <h3 class="text-base font-bold text-ink">Interested in this property?</h3>
+            <p class="text-xs text-ink-3 mt-1 mb-4">Log in as a renter to send booking requests and chat with the landlord.</p>
+            <a routerLink="/login" class="btn btn-primary text-xs">
+              Log in to Request
+            </a>
+          </div>
+        } @else if (auth.isOwner()) {
+          <div class="app-card p-6 text-center">
+            <h3 class="text-sm font-bold text-ink">You are logged in as an Owner</h3>
+            <p class="text-xs text-ink-3 mt-1">Switch to a renter account to request bookings on other listings.</p>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="app-card p-12 text-center text-ink-3">
+      Property not found.
+    </div>
+  }
+</div>

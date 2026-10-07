@@ -1,9 +1,0 @@
-{% load ui %}
-<p class="px-3 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">{% t 'super_admin' %}</p>
-<a href="{% url 'console:dashboard' %}" class="nav-item {% nav_active 'console:dashboard' %}">{% icon "shield-admin" 18 %}<span class="flex-1">{% t 'dashboard' %}</span></a>
-<a href="{% url 'console:users' %}" class="nav-item {% nav_active 'console:users' 'console:user_create' 'console:user_edit' %}">{% icon "users" 18 %}<span class="flex-1">{% t 'users' %}</span></a>
-<p class="px-3 pb-1 pt-4 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">{% t 'manage' %}</p>
-<a href="{% url 'console:properties' %}" class="nav-item {% nav_active 'console:properties' 'console:property_create' 'console:property_edit' %}">{% icon "building" 18 %}<span class="flex-1">{% t 'properties' %}</span></a>
-<a href="{% url 'console:bookings' %}" class="nav-item {% nav_active 'console:bookings' 'console:booking_create' 'console:booking_edit' %}">{% icon "clipboard" 18 %}<span class="flex-1">{% t 'bookings' %}</span></a>
-<a href="{% url 'console:payments' %}" class="nav-item {% nav_active 'console:payments' 'console:payment_create' 'console:payment_edit' %}">{% icon "receipt" 18 %}<span class="flex-1">{% t 'payments' %}</span></a>
-<a href="{% url 'profile' %}" class="nav-item {% nav_active 'profile' %}">{% icon "user" 18 %}<span class="flex-1">{% t 'profile' %}</span></a>

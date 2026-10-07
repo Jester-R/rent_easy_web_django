@@ -1,0 +1,23 @@
+{
+  "/api": {
+    "target": "http://127.0.0.1:8123",
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/api": "" }
+  },
+  "/auth": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/core": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/property": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/rent/properties": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/rent/property": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/rent/bookings": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/rent/favorites": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/rent/payments": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/owner/properties": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/owner/bookings": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/owner/payments": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/console/": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/notifications/": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/refunds": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" },
+  "/users": { "target": "http://127.0.0.1:8123", "changeOrigin": true, "logLevel": "warn" }
+}

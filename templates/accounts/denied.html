@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-{% load ui %}
-{% block title %}{% t 'not_authorized' %} · {{ SITE_NAME }}{% endblock %}
-{% block content %}
-<div class="mx-auto max-w-lg py-10">
-  {% include "partials/_empty.html" with icon="lock" title='not_authorized'|t subtitle='admin_only'|t action_url=user.home_url action_label='back'|t %}
-</div>
-{% endblock %}

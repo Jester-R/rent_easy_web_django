@@ -1,0 +1,68 @@
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Notifications</h1>
+      <p class="text-xs text-ink-3 mt-1">Activity alerts, booking updates, and messages</p>
+    </div>
+    @if (notifications().length > 0) {
+      <button (click)="markAllRead()" class="btn btn-outline btn-sm">
+        Mark all as read
+      </button>
+    }
+  </div>
+
+  @if (isLoading()) {
+    <div class="space-y-3">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="skeleton rounded-2xl h-20"></div>
+      }
+    </div>
+  } @else if (notifications().length === 0) {
+    <div class="app-card border-dashed p-12 text-center max-w-md mx-auto">
+      <div class="w-12 h-12 rounded-full bg-primary-soft text-primary-dark mx-auto flex items-center justify-center mb-3">
+        <app-icon name="bell" [size]="22" />
+      </div>
+      <h3 class="text-base font-bold text-ink">No notifications</h3>
+      <p class="text-xs text-ink-3 mt-1">You are all caught up!</p>
+    </div>
+  } @else {
+    <div class="app-card overflow-hidden divide-y divide-hairline">
+      @for (n of notifications(); track n.id) {
+        <div
+          class="p-5 flex items-start justify-between gap-4 transition-colors"
+          [class.bg-primary-soft/30]="!n.read"
+          [class.hover:bg-surface-2]="n.read"
+        >
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+              [class.bg-primary-soft]="!n.read"
+              [class.text-primary-dark]="!n.read"
+              [class.bg-surface-2]="n.read"
+              [class.text-ink-3]="n.read"
+            >
+              <app-icon name="bell" [size]="18" />
+            </div>
+
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-bold text-ink">{{ n.title_key }}</h4>
+                @if (!n.read) {
+                  <span class="w-2 h-2 rounded-full bg-primary"></span>
+                }
+              </div>
+              <p class="text-xs text-ink-2 mt-1 leading-relaxed">{{ n.body_key }}</p>
+              <span class="text-[11px] text-ink-3 mt-2 block">{{ n.created_at | date:'medium' }}</span>
+            </div>
+          </div>
+
+          <button
+            (click)="toggleRead(n.id)"
+            class="text-xs text-ink-3 hover:text-primary shrink-0 font-medium cursor-pointer"
+          >
+            {{ n.read ? 'Mark unread' : 'Mark read' }}
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>
