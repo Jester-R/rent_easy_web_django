@@ -1,14 +1,14 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
     <div>
-      <h1 class="text-2xl sm:text-3xl font-black text-ink tracking-tight">My Properties</h1>
-      <p class="text-xs text-ink-2 mt-1">Manage all listings published under your owner profile</p>
+      <h1 class="text-2xl sm:text-3xl font-black text-ink tracking-tight">{{ language.t('My Properties', 'អចលនទ្រព្យរបស់ខ្ញុំ') }}</h1>
+      <p class="text-xs text-ink-2 mt-1">{{ language.t('Manage all listings published under your owner profile', 'គ្រប់គ្រងអចលនទ្រព្យទាំងអស់ដែលបានចុះផ្សាយក្នុងគណនីម្ចាស់ផ្ទះរបស់អ្នក') }}</p>
     </div>
     <a routerLink="/owner/properties/new" class="btn btn-primary inline-flex items-center gap-1.5 self-start sm:self-auto">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
       </svg>
-      Add New Listing
+      {{ language.t('Add New Listing', 'បន្ថែមអចលនទ្រព្យថ្មី') }}
     </a>
   </div>
 
@@ -31,10 +31,10 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
         </svg>
       </div>
-      <h3 class="text-base font-bold text-ink">No properties added yet</h3>
-      <p class="text-xs text-ink-2 mt-1">Get started by listing your apartment or house.</p>
+      <h3 class="text-base font-bold text-ink">{{ language.t('No properties added yet', 'មិនទាន់មានអចលនទ្រព្យទេ') }}</h3>
+      <p class="text-xs text-ink-2 mt-1">{{ language.t('Get started by listing your apartment or house.', 'ចាប់ផ្តើមដោយចុះផ្សាយអាផាតមិន ឬផ្ទះរបស់អ្នក។') }}</p>
       <a routerLink="/owner/properties/new" class="mt-4 btn btn-primary inline-block">
-        Create Listing
+        {{ language.t('Create Listing', 'បង្កើតការចុះផ្សាយ') }}
       </a>
     </div>
   } @else {
@@ -53,8 +53,8 @@
             </p>
 
             <div class="flex items-center gap-4 text-xs text-ink-2 mt-4 py-3 border-y border-hairline font-medium">
-              <span>🛏️ {{ p.bedrooms }} Bedrooms</span>
-              <span>🚿 {{ p.bathrooms }} Bathrooms</span>
+              <span>🛏️ {{ p.bedrooms }} {{ language.t('Bedrooms', 'បន្ទប់គេង') }}</span>
+              <span>🚿 {{ p.bathrooms }} {{ language.t('Bathrooms', 'បន្ទប់ទឹក') }}</span>
             </div>
 
             <p class="text-xs text-ink-2 mt-3 line-clamp-2">{{ p.description }}</p>
@@ -62,14 +62,14 @@
 
           <div class="bg-surface-2/70 px-6 py-3 border-t border-hairline flex items-center justify-between">
             <a [routerLink]="['/properties', p.id]" class="text-xs font-medium text-ink-2 hover:text-primary">
-              View Public
+              {{ language.t('View Public', 'មើលជាសាធារណៈ') }}
             </a>
             <div class="flex items-center gap-3">
               <a [routerLink]="['/owner/properties', p.id, 'edit']" class="text-xs font-semibold text-primary hover:text-primary-dark">
-                Edit
+                {{ language.t('Edit', 'កែសម្រួល') }}
               </a>
               <button (click)="deleteProperty(p.id)" class="text-xs font-semibold text-rose-600 hover:text-rose-800 cursor-pointer">
-                Delete
+                {{ language.t('Delete', 'លុប') }}
               </button>
             </div>
           </div>

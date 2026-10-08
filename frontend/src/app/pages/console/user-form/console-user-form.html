@@ -1,11 +1,11 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">{{ isEdit() ? 'Edit User' : 'New user' }}</h1>
-      <p class="text-[12px] text-ink-3">Users</p>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ isEdit() ? language.t('Edit User', 'កែសម្រួលអ្នកប្រើប្រាស់') : language.t('New user', 'អ្នកប្រើប្រាស់ថ្មី') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('Users', 'អ្នកប្រើប្រាស់') }}</p>
     </div>
     <a routerLink="/console/users" class="btn btn-ghost btn-sm">
-      <app-icon name="arrow-left" [size]="15" /><span>Back</span>
+      <app-icon name="arrow-left" [size]="15" /><span>{{ language.t('Back', 'ត្រឡប់ក្រោយ') }}</span>
     </a>
   </div>
 
@@ -29,50 +29,50 @@
             <app-icon name="user" [size]="20" />
           </span>
           <div class="min-w-0">
-            <h2 class="text-[16px] font-extrabold tracking-tight">{{ isEdit() ? 'Edit ' + (user()?.display_name ?? '') : 'New user' }}</h2>
-            <p class="text-[13px] text-ink-3">Users</p>
+            <h2 class="text-[16px] font-extrabold tracking-tight">{{ isEdit() ? language.t('Edit', 'កែសម្រួល') + ' ' + (user()?.display_name ?? '') : language.t('New user', 'អ្នកប្រើប្រាស់ថ្មី') }}</h2>
+            <p class="text-[13px] text-ink-3">{{ language.t('Users', 'អ្នកប្រើប្រាស់') }}</p>
           </div>
         </div>
 
         <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
-              <label class="form-label" for="full_name">Full Name</label>
+              <label class="form-label" for="full_name">{{ language.t('Full Name', 'ឈ្មោះពេញ') }}</label>
               <input id="full_name" type="text" formControlName="full_name" class="form-input" maxlength="120" />
             </div>
             <div>
-              <label class="form-label" for="username">Username <span class="text-danger">*</span></label>
+              <label class="form-label" for="username">{{ language.t('Username', 'ឈ្មោះអ្នកប្រើ') }} <span class="text-danger">*</span></label>
               <input id="username" type="text" formControlName="username" class="form-input" maxlength="30" />
-              <p class="text-[11px] text-ink-3 mt-1">Use 3-30 chars: letters, numbers, ., _, -</p>
+              <p class="text-[11px] text-ink-3 mt-1">{{ language.t('Use 3-30 chars: letters, numbers, ., _, -', 'ប្រើ ៣–៣០ តួអក្សរ៖ អក្សរ លេខ . _ -') }}</p>
               @if (showError('username')) {
-                <p class="form-error">Username is required.</p>
+                <p class="form-error">{{ language.t('Username is required.', 'ត្រូវបញ្ចូលឈ្មោះអ្នកប្រើ។') }}</p>
               }
             </div>
           </div>
 
           <div>
-            <label class="form-label" for="email">Email <span class="text-danger">*</span></label>
+            <label class="form-label" for="email">{{ language.t('Email', 'អ៊ីមែល') }} <span class="text-danger">*</span></label>
             <input id="email" type="email" formControlName="email" class="form-input" />
             @if (showError('email')) {
-              <p class="form-error">Enter a valid email address.</p>
+              <p class="form-error">{{ language.t('Enter a valid email address.', 'សូមបញ្ចូលអាសយដ្ឋានអ៊ីមែលត្រឹមត្រូវ។') }}</p>
             }
           </div>
 
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
-              <label class="form-label" for="role">Role <span class="text-danger">*</span></label>
+              <label class="form-label" for="role">{{ language.t('Role', 'តួនាទី') }} <span class="text-danger">*</span></label>
               <select id="role" class="form-input" formControlName="role">
                 @for (option of roleOptions; track option) {
-                  <option [value]="option">{{ roleLabel(option) }}</option>
+                  <option [value]="option">{{ roleLabelTranslated(option) }}</option>
                 }
               </select>
             </div>
             <div>
-              <label class="form-label" for="password">Password</label>
+              <label class="form-label" for="password">{{ language.t('Password', 'ពាក្យសម្ងាត់') }}</label>
               <input id="password" type="password" formControlName="password" class="form-input" autocomplete="new-password" />
-              <p class="text-[11px] text-ink-3 mt-1">{{ isEdit() ? 'Leave blank to keep the current password' : 'Required' }}</p>
+              <p class="text-[11px] text-ink-3 mt-1">{{ isEdit() ? language.t('Leave blank to keep the current password', 'ទុកចន្លោះទទេ ដើម្បីរក្សាពាក្យសម្ងាត់បច្ចុប្បន្ន') : language.t('Required', 'ត្រូវបញ្ចូល') }}</p>
               @if (showError('password')) {
-                <p class="form-error">Password must be at least 6 characters.</p>
+                <p class="form-error">{{ language.t('Password must be at least 6 characters.', 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ។') }}</p>
               }
             </div>
           </div>
@@ -80,27 +80,27 @@
           <label class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-hairline bg-surface-2 px-3.5 py-3">
             <input id="is_active" type="checkbox" formControlName="is_active" class="form-checkbox" />
             <span>
-              <span class="block text-[13px] font-bold">Active</span>
-              <span class="block text-[11px] text-ink-3">Allow sign-in for this account</span>
+              <span class="block text-[13px] font-bold">{{ language.t('Active', 'សកម្ម') }}</span>
+              <span class="block text-[11px] text-ink-3">{{ language.t('Allow sign-in for this account', 'អនុញ្ញាតឱ្យគណនីនេះចូលប្រើ') }}</span>
             </span>
           </label>
 
           @if (isEdit() && user(); as account) {
             <div class="rounded-xl bg-surface-2 p-3.5 text-[12px] text-ink-3">
               <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span><strong class="text-ink-2">User ID:</strong> #{{ account.id }}</span>
-                <span><strong class="text-ink-2">Created:</strong> {{ prettyDate(account.date_joined) }}</span>
+                <span><strong class="text-ink-2">{{ language.t('User ID', 'លេខសម្គាល់អ្នកប្រើ') }}:</strong> #{{ account.id }}</span>
+                <span><strong class="text-ink-2">{{ language.t('Created', 'បានបង្កើត') }}:</strong> {{ prettyDate(account.date_joined) }}</span>
                 @if (account.last_login_at) {
-                  <span><strong class="text-ink-2">Last login:</strong> {{ prettyDate(account.last_login_at) }}</span>
+                  <span><strong class="text-ink-2">{{ language.t('Last login', 'ចូលប្រើចុងក្រោយ') }}:</strong> {{ prettyDate(account.last_login_at) }}</span>
                 }
               </p>
             </div>
           }
 
           <div class="flex flex-col-reverse gap-2 border-t border-hairline pt-5 sm:flex-row sm:justify-end">
-            <a routerLink="/console/users" class="btn btn-ghost">Cancel</a>
+            <a routerLink="/console/users" class="btn btn-ghost">{{ language.t('Cancel', 'បោះបង់') }}</a>
             <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
-              <app-icon name="check" [size]="16" /><span>Save</span>
+              <app-icon name="check" [size]="16" /><span>{{ language.t('Save', 'រក្សាទុក') }}</span>
             </button>
           </div>
         </form>

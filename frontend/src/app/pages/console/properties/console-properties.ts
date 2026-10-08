@@ -1,7 +1,8 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
 import { ConsoleService } from '../../../services/console.service';
+import { LanguageService } from '../../../services/language.service';
 import { ConsolePropertyItem, User } from '../../../models';
 import { usd } from '../../../shared/ui';
 
@@ -10,35 +11,21 @@ import { usd } from '../../../shared/ui';
   imports: [RouterLink, IconComponent],
   templateUrl: './console-properties.html',
 })
-export class ConsolePropertiesComponent implements OnInit, OnDestroy {
+export class ConsolePropertiesComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly console = inject(ConsoleService);
-
   readonly usd = usd;
 
   properties = signal<ConsolePropertyItem[]>([]);
-  total = signal(0);
   owners = signal<User[]>([]);
+  total = signal(0);
   query = signal('');
   owner = signal('');
   isLoading = signal(true);
   error = signal<string | null>(null);
-  selected = signal<number[]>([]);
-
-  private timer: ReturnType<typeof setTimeout> | null = null;
-
-  allSelected = computed(() => {
-    const list = this.properties();
-    return list.length > 0 && list.every((p) => this.selected().includes(p.id));
-  });
-
-  hasFilters = computed(() => this.query() !== '' || this.owner() !== '');
 
   ngOnInit(): void {
     this.load();
-  }
-
-  ngOnDestroy(): void {
-    if (this.timer) clearTimeout(this.timer);
   }
 
   load(): void {
@@ -46,97 +33,27 @@ export class ConsolePropertiesComponent implements OnInit, OnDestroy {
     this.console.getProperties({ q: this.query(), owner: this.owner() }).subscribe({
       next: (res) => {
         this.properties.set(res.properties);
-        this.total.set(res.total);
         this.owners.set(res.owners);
-        this.selected.set([]);
+        this.total.set(res.total);
         this.error.set(null);
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false),
+      error: () => {
+        this.error.set(this.language.t('Could not load properties.', 'មិនអាចផ្ទុកបញ្ជីអចលនទ្រព្យបានទេ។'));
+        this.isLoading.set(false);
+      },
     });
-  }
-
-  onSearch(value: string): void {
-    this.query.set(value);
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.load(), 550);
-  }
-
-  onOwnerChange(value: string): void {
-    this.owner.set(value);
-    if (this.timer) clearTimeout(this.timer);
-    this.load();
-  }
-
-  applyFilter(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.load();
-  }
-
-  refresh(): void {
-    this.query.set('');
-    this.owner.set('');
-    if (this.timer) clearTimeout(this.timer);
-    this.load();
-  }
-
-  isSelected(id: number): boolean {
-    return this.selected().includes(id);
-  }
-
-  toggle(id: number): void {
-    const cur = this.selected();
-    this.selected.set(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
-  }
-
-  toggleAll(): void {
-    this.selected.set(this.allSelected() ? [] : this.properties().map((p) => p.id));
-  }
-
-  clearSelection(): void {
-    this.selected.set([]);
   }
 
   remove(item: ConsolePropertyItem): void {
-    if (!confirm(`Delete this record? This cannot be undone.\n\n${item.title}`)) return;
-    this.console.deleteProperty(item.id).subscribe({
-      next: () => {
-        this.clearSelection();
-        this.load();
-      },
-      error: (err) => this.setError(err, 'Failed to delete property.'),
+    if (!item.is_active || !confirm(this.language.t(
+      `Remove “${item.title}” from renter browsing? The record will be retained.`,
+      `តើលាក់ “${item.title}” ពីអ្នកជួលមែនទេ? ទិន្នន័យនឹងនៅតែរក្សាទុក។`
+    ))) return;
+
+    this.console.softDeleteProperty(item.id).subscribe({
+      next: () => this.load(),
+      error: () => this.error.set(this.language.t('Could not remove this listing.', 'មិនអាចលាក់ការចុះផ្សាយនេះបានទេ។')),
     });
-  }
-
-  bulkDelete(): void {
-    const ids = this.selected();
-    if (!ids.length) return;
-    if (!confirm(`Delete this record? This cannot be undone.\n\n${ids.length} selected`)) return;
-    this.console.bulkDeleteProperties(ids).subscribe({
-      next: () => {
-        this.clearSelection();
-        this.load();
-      },
-      error: (err) => this.setError(err, 'Failed to delete properties.'),
-    });
-  }
-
-  private setError(err: unknown, fallback: string): void {
-    this.error.set(this.friendlyError(err, fallback));
-  }
-
-  private friendlyError(err: unknown, fallback: string): string {
-    const detail = (err as { error?: { detail?: string } }).error?.detail;
-    if (!detail) return fallback;
-    const messages: Record<string, string> = {
-      email_taken: 'Email or username already in use',
-      password_too_short: 'Password must be at least 6 characters.',
-      username_invalid: 'Username must be 3-30 characters using letters, numbers, ., _ or -',
-      title_required: 'Title is required',
-      location_required: 'Location is required',
-      price_required: 'Enter a valid price',
-      owner_required: 'Select an owner with the Property Owner role.',
-    };
-    return messages[detail] || detail;
   }
 }

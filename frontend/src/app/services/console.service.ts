@@ -9,7 +9,6 @@ import {
   ConsolePropertiesResponse,
   ConsoleUsersResponse,
   Payment,
-  Property,
   Refund,
   User,
 } from '../models';
@@ -19,7 +18,7 @@ import {
 })
 export class ConsoleService {
   private readonly http = inject(HttpClient);
-  private readonly base = '/console';
+  private readonly base = '/api/console';
 
   private readonly opts = { withCredentials: true };
 
@@ -84,34 +83,10 @@ export class ConsoleService {
     });
   }
 
-  createProperty(data: Record<string, unknown>): Observable<{ property: Property }> {
-    return this.http.post<{ property: Property }>(
-      `${this.base}/properties/new/`,
-      data,
-      this.opts
-    );
-  }
-
-  updateProperty(id: number, data: Record<string, unknown>): Observable<{ property: Property }> {
-    return this.http.post<{ property: Property }>(
-      `${this.base}/properties/${id}/edit/`,
-      data,
-      this.opts
-    );
-  }
-
-  deleteProperty(id: number): Observable<{ ok: boolean; deleted: number }> {
-    return this.http.post<{ ok: boolean; deleted: number }>(
+  softDeleteProperty(id: number): Observable<{ ok: boolean; deleted: number; is_active: boolean }> {
+    return this.http.post<{ ok: boolean; deleted: number; is_active: boolean }>(
       `${this.base}/properties/${id}/delete/`,
       {},
-      this.opts
-    );
-  }
-
-  bulkDeleteProperties(ids: number[]): Observable<{ ok: boolean }> {
-    return this.http.post<{ ok: boolean }>(
-      `${this.base}/properties/bulk-delete/`,
-      { ids },
       this.opts
     );
   }
@@ -128,34 +103,6 @@ export class ConsoleService {
     });
   }
 
-  createBooking(data: Record<string, unknown>): Observable<{ booking: Booking }> {
-    return this.http.post<{ booking: Booking }>(`${this.base}/bookings/new/`, data, this.opts);
-  }
-
-  updateBooking(id: number, data: Record<string, unknown>): Observable<{ booking: Booking }> {
-    return this.http.post<{ booking: Booking }>(
-      `${this.base}/bookings/${id}/edit/`,
-      data,
-      this.opts
-    );
-  }
-
-  deleteBooking(id: number): Observable<{ ok: boolean; deleted: number }> {
-    return this.http.post<{ ok: boolean; deleted: number }>(
-      `${this.base}/bookings/${id}/delete/`,
-      {},
-      this.opts
-    );
-  }
-
-  bulkDeleteBookings(ids: number[]): Observable<{ ok: boolean }> {
-    return this.http.post<{ ok: boolean }>(
-      `${this.base}/bookings/bulk-delete/`,
-      { ids },
-      this.opts
-    );
-  }
-
   /* -------------------------------- payments -------------------------------- */
 
   getPayments(filters?: { q?: string; status?: string }): Observable<ConsolePaymentsResponse> {
@@ -166,14 +113,6 @@ export class ConsoleService {
       params,
       withCredentials: true,
     });
-  }
-
-  createPayment(data: Record<string, unknown>): Observable<{ payment: Payment }> {
-    return this.http.post<{ payment: Payment }>(
-      `${this.base}/payments/new/`,
-      data,
-      this.opts
-    );
   }
 
   updatePayment(id: number, data: Record<string, unknown>): Observable<{ payment: Payment }> {

@@ -33,7 +33,14 @@ def create_booking(
     *, property_obj, renter, move_in_date=None, lease_months: int = 12, note: str = ""
 ):
     """Create a pending booking request, guarding the active-booking rule."""
+    from listings.models import Property
+
+    Property.objects.select_for_update().get(pk=property_obj.pk)
     if has_active_booking(renter, property_obj):
+        return None
+    if Booking.objects.filter(
+        property=property_obj, status=BookingStatus.CONFIRMED
+    ).exists():
         return None
     booking = Booking.objects.create(
         property=property_obj,
@@ -61,7 +68,7 @@ def has_active_booking(renter, property_obj) -> bool:
     return Booking.objects.filter(
         renter=renter,
         property=property_obj,
-        status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+        status__in=[BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CONFIRMED],
     ).exists()
 
 
@@ -70,8 +77,23 @@ def transition_booking(
     booking: Booking, new_status: str, actor=None
 ) -> tuple[bool, str]:
     """Apply a validated booking transition and notify both parties."""
+    if (
+        new_status == BookingStatus.CANCELLED
+        and booking.status == BookingStatus.CONFIRMED
+        and booking.payment_id
+    ):
+        return False, "already_paid"
     if not booking.can_transition_to(new_status):
         return False, "invalid_transition"
+
+    if new_status in (BookingStatus.APPROVED, BookingStatus.CONFIRMED):
+        from listings.models import Property
+
+        Property.objects.select_for_update().get(pk=booking.property_id)
+        if Booking.objects.filter(
+            property_id=booking.property_id, status=BookingStatus.CONFIRMED
+        ).exclude(pk=booking.pk).exists():
+            return False, "property_already_confirmed"
 
     previous = booking.status
     ok = booking.transition(new_status)
@@ -86,7 +108,16 @@ def transition_booking(
             "notif_booking_approved_body",
             params={"title": booking.property_title},
             link=booking.get_absolute_url(),
-            action="renter_pay_now",
+            action="renter_confirm",
+        )
+    elif new_status == BookingStatus.CONFIRMED:
+        notify(
+            booking.owner,
+            Notification.Kind.BOOKING_UPDATE,
+            "notif_renter_confirmed",
+            "notif_renter_confirmed_body",
+            params={"title": booking.property_title, "renter": booking.renter.display_name},
+            link=booking.get_absolute_url(),
         )
     elif new_status == BookingStatus.REJECTED:
         notify(

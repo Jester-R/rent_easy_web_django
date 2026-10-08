@@ -3,12 +3,12 @@
     <div class="flex items-center justify-between pb-6 border-b border-hairline mb-6">
       <div>
         <h1 class="text-2xl font-black text-ink">
-          {{ isEdit() ? 'Edit Listing' : 'Publish New Rental Listing' }}
+          {{ isEdit() ? language.t('Edit Listing', 'កែសម្រួលការចុះផ្សាយ') : language.t('Publish New Rental Listing', 'ចុះផ្សាយផ្ទះជួលថ្មី') }}
         </h1>
-        <p class="text-xs text-ink-3 mt-1">Provide clear and accurate details for potential tenants</p>
+        <p class="text-xs text-ink-3 mt-1">{{ language.t('Provide clear and accurate details for potential tenants', 'ផ្តល់ព័ត៌មានច្បាស់លាស់ និងត្រឹមត្រូវសម្រាប់អ្នកជួលដែលមានចំណាប់អារម្មណ៍') }}</p>
       </div>
       <a routerLink="/owner/properties" class="text-xs font-semibold text-ink-2 hover:text-primary transition-colors">
-        &larr; Back to properties
+        &larr; {{ language.t('Back to properties', 'ត្រឡប់ទៅអចលនទ្រព្យ') }}
       </a>
     </div>
 
@@ -20,28 +20,28 @@
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-6">
       <div>
-        <label class="form-label">Property Title</label>
+        <label class="form-label">{{ language.t('Property Title', 'ចំណងជើងអចលនទ្រព្យ') }}</label>
         <input
           type="text"
           formControlName="title"
-          placeholder="e.g. Modern 2-Bedroom Condo with Balcony"
+          [placeholder]="language.t('e.g. Modern 2-Bedroom Condo with Balcony', 'ឧ. ខុនដូទំនើបមាន ២ បន្ទប់គេង និងយ៉រ')"
           class="form-input"
         />
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="form-label">Location / District</label>
+          <label class="form-label">{{ language.t('Location / District', 'ទីតាំង / ខណ្ឌ') }}</label>
           <input
             type="text"
             formControlName="location"
-            placeholder="e.g. Phnom Penh - Toul Kork"
+            [placeholder]="language.t('e.g. Phnom Penh - Toul Kork', 'ឧ. ភ្នំពេញ - ទួលគោក')"
             class="form-input"
           />
         </div>
 
         <div>
-          <label class="form-label">Monthly Rent ($ USD)</label>
+          <label class="form-label">{{ language.t('Monthly Rent ($ USD)', 'ថ្លៃជួលប្រចាំខែ ($ USD)') }}</label>
           <input
             type="number"
             formControlName="price_per_month"
@@ -53,7 +53,7 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="form-label">Bedrooms</label>
+          <label class="form-label">{{ language.t('Bedrooms', 'បន្ទប់គេង') }}</label>
           <input
             type="number"
             formControlName="bedrooms"
@@ -63,7 +63,7 @@
         </div>
 
         <div>
-          <label class="form-label">Bathrooms</label>
+          <label class="form-label">{{ language.t('Bathrooms', 'បន្ទប់ទឹក') }}</label>
           <input
             type="number"
             formControlName="bathrooms"
@@ -74,18 +74,18 @@
       </div>
 
       <div>
-        <label class="form-label">Full Description</label>
+        <label class="form-label">{{ language.t('Full Description', 'ការពិពណ៌នាពេញលេញ') }}</label>
         <textarea
           formControlName="description"
           rows="5"
-          placeholder="Describe property features, utilities, neighborhood, parking, internet, pet policy..."
+          [placeholder]="language.t('Describe property features, utilities, neighborhood, parking, internet, pet policy...', 'ពិពណ៌នាអំពីលក្ខណៈពិសេស សេវាកម្ម តំបន់ជុំវិញ ចំណត អ៊ីនធឺណិត និងគោលការណ៍សត្វចិញ្ចឹម...')"
           class="form-input"
         ></textarea>
       </div>
 
       <div class="flex items-center justify-end gap-3 pt-4 border-t border-hairline">
         <a routerLink="/owner/properties" class="btn btn-ghost">
-          Cancel
+          {{ language.t('Cancel', 'បោះបង់') }}
         </a>
         <button
           type="submit"
@@ -93,9 +93,9 @@
           class="btn btn-primary"
         >
           @if (isLoading()) {
-            Saving...
+            {{ language.t('Saving...', 'កំពុងរក្សាទុក...') }}
           } @else {
-            {{ isEdit() ? 'Save Changes' : 'Publish Listing' }}
+            {{ isEdit() ? language.t('Save Changes', 'រក្សាទុកការផ្លាស់ប្តូរ') : language.t('Publish Listing', 'ចុះផ្សាយអចលនទ្រព្យ') }}
           }
         </button>
       </div>

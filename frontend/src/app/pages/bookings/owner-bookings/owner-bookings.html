@@ -1,8 +1,8 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
     <div>
-      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Booking Inquiries</h1>
-      <p class="text-xs text-ink-3 mt-1">Review tenant lease requests and approve or decline them</p>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ language.t('Booking Inquiries', 'សំណើសុំជួល') }}</h1>
+      <p class="text-xs text-ink-3 mt-1">{{ language.t('Review tenant lease requests and approve or decline them', 'ពិនិត្យសំណើជួលរបស់អ្នកជួល ហើយអនុម័ត ឬបដិសេធ') }}</p>
     </div>
   </div>
 
@@ -14,13 +14,13 @@
 
   <!-- Status Tabs -->
   <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-hairline mb-6">
-    @for (tab of ['all', 'Pending', 'Approved', 'Rejected', 'Cancelled']; track tab) {
+    @for (tab of ['all', 'Pending', 'Approved', 'Confirmed', 'Rejected', 'Cancelled']; track tab) {
       <button
         (click)="loadBookings(tab)"
-        class="chip capitalize"
+        class="chip shrink-0 whitespace-nowrap capitalize"
         [class.is-active]="activeTab() === tab"
       >
-        <span>{{ tab }}</span>
+        <span>{{ label(tab) }}</span>
         <span class="chip-count">{{ counts()[tab] || 0 }}</span>
       </button>
     }
@@ -37,8 +37,8 @@
       <div class="w-12 h-12 rounded-full bg-primary-soft text-primary-dark mx-auto flex items-center justify-center mb-3">
         <app-icon name="clipboard" [size]="24" />
       </div>
-      <h3 class="text-base font-bold text-ink">No requests in this category</h3>
-      <p class="text-xs text-ink-3 mt-1">Incoming lease inquiries will appear here.</p>
+      <h3 class="text-base font-bold text-ink">{{ language.t('No requests in this category', 'មិនមានសំណើក្នុងប្រភេទនេះទេ') }}</h3>
+      <p class="text-xs text-ink-3 mt-1">{{ language.t('Incoming lease inquiries will appear here.', 'សំណើជួលថ្មីៗនឹងបង្ហាញនៅទីនេះ។') }}</p>
     </div>
   } @else {
     <div class="space-y-4">
@@ -56,15 +56,15 @@
                   <span class="pill"
                     [ngClass]="{
                       'pill-pending': b.status === 'Pending',
-                      'pill-approved': b.status === 'Approved',
+                      'pill-approved': b.status === 'Approved' || b.status === 'Confirmed',
                       'pill-rejected': b.status === 'Rejected',
                       'pill-cancelled': b.status === 'Cancelled'
                     }">
-                    {{ b.status }}
+                    {{ label(b.status) }}
                   </span>
                   @if (b.is_paid) {
                     <span class="pill pill-approved">
-                      Paid
+                      {{ language.t('Paid', 'បានបង់ប្រាក់') }}
                     </span>
                   }
                 </div>
@@ -74,9 +74,9 @@
                 </a>
 
                 <div class="flex flex-wrap items-center gap-4 text-xs text-ink-3 mt-2">
-                  <span>👤 Tenant: <strong class="text-ink-2">{{ b.renter.display_name }}</strong> ({{ b.renter.email }})</span>
-                  <span>📅 Target Move-in: {{ b.move_in_date || 'Flexible' }}</span>
-                  <span>⏳ {{ b.lease_months }} Months Lease</span>
+                  <span>👤 {{ language.t('Tenant', 'អ្នកជួល') }}: <strong class="text-ink-2">{{ b.renter.display_name }}</strong> ({{ b.renter.email }})</span>
+                  <span>📅 {{ language.t('Target Move-in', 'ថ្ងៃចូលនៅគោលដៅ') }}: {{ b.move_in_date || language.t('Flexible', 'អាចបត់បែន') }}</span>
+                  <span>⏳ {{ b.lease_months }} {{ language.t('Months Lease', 'ខែជួល') }}</span>
                 </div>
 
                 @if (b.note) {
@@ -90,7 +90,7 @@
             <div class="flex md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-hairline gap-3">
               <div class="text-right">
                 <span class="text-xl font-extrabold text-primary">{{ b.rent_display }}</span>
-                <span class="text-[11px] text-ink-3 block">/month</span>
+                <span class="text-[11px] text-ink-3 block">/{{ language.t('month', 'ខែ') }}</span>
               </div>
 
               <div class="flex items-center gap-2">
@@ -99,13 +99,13 @@
                     (click)="approveBooking(b.id)"
                     class="btn btn-primary btn-sm"
                   >
-                    Approve
+                    {{ language.t('Approve', 'អនុម័ត') }}
                   </button>
                   <button
                     (click)="rejectBooking(b.id)"
                     class="btn btn-ghost btn-sm text-danger hover:bg-rose-50"
                   >
-                    Reject
+                    {{ language.t('Reject', 'បដិសេធ') }}
                   </button>
                 }
               </div>

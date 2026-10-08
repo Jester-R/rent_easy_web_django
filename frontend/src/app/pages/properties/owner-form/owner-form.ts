@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { PropertyService } from '../../../services/property.service';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-owner-property-form',
@@ -11,6 +12,7 @@ import { PropertyService } from '../../../services/property.service';
 })
 export class OwnerPropertyFormComponent implements OnInit {
   readonly id = input<string | undefined>();
+  readonly language = inject(LanguageService);
 
   private readonly fb = inject(FormBuilder);
   private readonly propertyService = inject(PropertyService);

@@ -2,12 +2,12 @@
 
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">Superadmin Dashboard</h1>
-      <p class="text-[12px] text-ink-3">Find Your Perfect Home, Easily.</p>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Superadmin Dashboard', 'ផ្ទាំងគ្រប់គ្រងអ្នកគ្រប់គ្រងកំពូល') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('Find Your Perfect Home, Easily.', 'ស្វែងរកផ្ទះដ៏ល្អឥតខ្ចោះរបស់អ្នកយ៉ាងងាយស្រួល។') }}</p>
     </div>
     <a routerLink="/console/users/new" class="btn btn-primary btn-sm">
       <app-icon name="user-plus" [size]="15" />
-      <span>New user</span>
+      <span>{{ language.t('New user', 'អ្នកប្រើប្រាស់ថ្មី') }}</span>
     </a>
   </div>
 
@@ -23,33 +23,33 @@
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="users" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Users</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Users', 'អ្នកប្រើប្រាស់') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ d.stats.users }}</span>
-          <span class="block truncate text-[11px] text-ink-3">Renters: {{ d.stats.renters }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Renters', 'អ្នកជួល') }}: {{ d.stats.renters }}</span>
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="building" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Properties</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Properties', 'អចលនទ្រព្យ') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ d.stats.properties }}</span>
-          <span class="block truncate text-[11px] text-ink-3">Saved to favorites: {{ d.stats.favorites }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Saved to favorites', 'បានរក្សាទុកក្នុងចំណូលចិត្ត') }}: {{ d.stats.favorites }}</span>
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="clipboard" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Bookings</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Bookings', 'ការកក់') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ d.stats.bookings }}</span>
-          <span class="block truncate text-[11px] text-ink-3">Awaiting approval: {{ d.status_counts['Pending'] ?? 0 }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Awaiting approval', 'រង់ចាំការអនុម័ត') }}: {{ d.status_counts['Pending'] ?? 0 }}</span>
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">Revenue</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Revenue', 'ចំណូល') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ usd(d.stats.revenue) }}</span>
-          <span class="block truncate text-[11px] text-ink-3">Refunded: {{ usd(d.stats.refunded) }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Refunded', 'បានសងប្រាក់វិញ') }}: {{ usd(d.stats.refunded) }}</span>
         </span>
       </div>
     </div>
@@ -58,13 +58,13 @@
       <section class="app-card p-5">
         <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
           <app-icon name="chart" [size]="17" />
-          <span>Bookings</span>
+          <span>{{ language.t('Bookings', 'ការកក់') }}</span>
         </h2>
         <div class="space-y-3">
           @for (row of funnel; track row.label) {
             <div>
               <div class="mb-1 flex items-center justify-between text-[12px] font-bold">
-                <span class="text-ink-2">{{ row.label }}</span>
+                <span class="text-ink-2">{{ label(row.label) }}</span>
                 <span class="tabular-nums">{{ d.status_counts[row.label] ?? 0 }}</span>
               </div>
               <div class="h-2 overflow-hidden rounded-full bg-surface-2">
@@ -76,10 +76,10 @@
 
         <div class="divider my-4"></div>
 
-        <h3 class="mb-3 text-[12px] font-extrabold uppercase tracking-wide text-ink-3">Role</h3>
+        <h3 class="mb-3 text-[12px] font-extrabold uppercase tracking-wide text-ink-3">{{ language.t('Role', 'តួនាទី') }}</h3>
         <div class="flex flex-wrap gap-2">
           @for (row of d.role_breakdown; track row.role) {
-            <span [class]="'pill ' + rolePill(row.role)">{{ roleLabel(row.role) }} · {{ row.n }}</span>
+            <span [class]="'pill ' + rolePill(row.role)">{{ label(roleLabel(row.role)) }} · {{ row.n }}</span>
           }
         </div>
       </section>
@@ -88,9 +88,9 @@
         <div class="mb-4 flex items-center gap-2">
           <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <app-icon name="trending-up" [size]="17" />
-            <span>Revenue</span>
+            <span>{{ language.t('Revenue', 'ចំណូល') }}</span>
           </h2>
-          <span class="ms-auto text-[12px] text-ink-3">Average rent: {{ usd(d.stats.avg_rent) }}</span>
+          <span class="ms-auto text-[12px] text-ink-3">{{ language.t('Average rent', 'ថ្លៃជួលជាមធ្យម') }}: {{ usd(d.stats.avg_rent) }}</span>
         </div>
 
         @if (d.monthly_rows.length) {
@@ -107,93 +107,52 @@
         } @else {
           <div class="empty-state">
             <span class="empty-state-icon"><app-icon name="chart" [size]="30" /></span>
-            <p class="text-[15px] font-bold text-ink">No payments yet</p>
-            <p class="text-[12px] text-ink-3">Successful payments only.</p>
+            <p class="text-[15px] font-bold text-ink">{{ language.t('No payments yet', 'មិនទាន់មានការទូទាត់ទេ') }}</p>
+            <p class="text-[12px] text-ink-3">{{ language.t('Successful payments only.', 'បង្ហាញតែការទូទាត់ដែលជោគជ័យប៉ុណ្ណោះ។') }}</p>
           </div>
         }
 
         <div class="mt-4 grid grid-cols-3 gap-2 border-t border-hairline pt-4 text-center">
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">Pending</p>
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Pending', 'កំពុងរង់ចាំ') }}</p>
             <p class="mt-0.5 text-[17px] font-extrabold text-warning">{{ d.status_counts['Pending'] ?? 0 }}</p>
           </div>
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">Approved</p>
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Approved', 'បានអនុម័ត') }}</p>
             <p class="mt-0.5 text-[17px] font-extrabold text-primary">{{ d.status_counts['Approved'] ?? 0 }}</p>
           </div>
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">Refunds</p>
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Refunds', 'ការសងប្រាក់វិញ') }}</p>
             <p class="mt-0.5 text-[17px] font-extrabold">{{ d.stats.refunds }}</p>
           </div>
         </div>
       </section>
     </div>
 
-    <section class="app-card p-5">
-      <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
-        <app-icon name="building" [size]="17" />
-        <span>Top Properties</span>
-      </h2>
-      @if (d.top_properties.length) {
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th class="text-start">Title</th>
-                <th class="text-start">Property Owner</th>
-                <th class="text-end">Bookings</th>
-                <th class="text-end">Favorites</th>
-                <th class="text-end">Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of d.top_properties; track p.id) {
-                <tr>
-                  <td data-label="" class="min-w-[12rem]">
-                    <a [routerLink]="['/console/properties', p.id, 'edit']" class="block truncate font-bold hover:text-primary">{{ p.title }}</a>
-                    <span class="block text-[11px] text-ink-3">{{ p.location }}</span>
-                  </td>
-                  <td data-label="Property Owner" class="whitespace-nowrap text-ink-2">{{ p.owner.display_name }}</td>
-                  <td data-label="Bookings" class="text-end text-ink-2 tabular-nums">{{ p.booking_count ?? 0 }}</td>
-                  <td data-label="Favorites" class="text-end text-ink-2 tabular-nums">{{ p.favorite_count ?? 0 }}</td>
-                  <td data-label="" class="whitespace-nowrap text-end font-extrabold text-primary">{{ usd(p.revenue) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <div class="empty-state">
-          <span class="empty-state-icon"><app-icon name="building" [size]="30" /></span>
-          <p class="text-[15px] font-bold text-ink">No properties yet</p>
-        </div>
-      }
-    </section>
-
     <div class="grid gap-4 lg:grid-cols-3">
       <section class="app-card p-5">
         <div class="mb-4 flex items-center gap-2">
           <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <app-icon name="clipboard" [size]="17" />
-            <span>Recent Booking Activity</span>
+            <span>{{ language.t('Recent Booking Activity', 'សកម្មភាពកក់ថ្មីៗ') }}</span>
           </h2>
-          <a routerLink="/console/bookings" class="ms-auto btn btn-ghost btn-xs">More →</a>
+          <a routerLink="/console/bookings" class="ms-auto btn btn-ghost btn-xs">{{ language.t('More', 'បន្ថែម') }} →</a>
         </div>
         @if (d.recent_bookings.length) {
           <div class="space-y-2">
             @for (b of d.recent_bookings; track b.id) {
-              <a [routerLink]="['/console/bookings', b.id, 'edit']"
+              <a routerLink="/console/bookings"
                  class="flex items-center gap-3 rounded-xl border border-hairline p-2.5 transition-colors hover:border-primary">
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-[12px] font-bold">{{ b.property?.title }}</span>
                   <span class="block truncate text-[11px] text-ink-3">{{ b.renter.display_name }} · {{ b.reference }}</span>
                 </span>
-                <span [class]="'pill ' + bookingPill(b.status) + ' shrink-0'">{{ b.status }}</span>
+                <span [class]="'pill ' + bookingPill(b.status) + ' shrink-0'">{{ label(b.status) }}</span>
               </a>
             }
           </div>
         } @else {
-          <p class="px-1 py-3 text-center text-[12px] text-ink-3">No booking activity yet.</p>
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No booking activity yet.', 'មិនទាន់មានសកម្មភាពកក់ទេ។') }}</p>
         }
       </section>
 
@@ -201,9 +160,9 @@
         <div class="mb-4 flex items-center gap-2">
           <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <app-icon name="user-plus" [size]="17" />
-            <span>New Users</span>
+            <span>{{ language.t('New Users', 'អ្នកប្រើប្រាស់ថ្មី') }}</span>
           </h2>
-          <a routerLink="/console/users" class="ms-auto btn btn-ghost btn-xs">More →</a>
+          <a routerLink="/console/users" class="ms-auto btn btn-ghost btn-xs">{{ language.t('More', 'បន្ថែម') }} →</a>
         </div>
         @if (d.recent_users.length) {
           <div class="space-y-2">
@@ -219,19 +178,19 @@
                   <span class="block truncate text-[12px] font-bold">{{ u.display_name }}</span>
                   <span class="block truncate text-[11px] text-ink-3">{{ u.email }}</span>
                 </span>
-                <span [class]="'pill ' + rolePill(u.role) + ' shrink-0'">{{ roleLabel(u.role) }}</span>
+                <span [class]="'pill ' + rolePill(u.role) + ' shrink-0'">{{ label(roleLabel(u.role)) }}</span>
               </a>
             }
           </div>
         } @else {
-          <p class="px-1 py-3 text-center text-[12px] text-ink-3">No new users yet.</p>
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No new users yet.', 'មិនទាន់មានអ្នកប្រើប្រាស់ថ្មីទេ។') }}</p>
         }
       </section>
 
       <section class="app-card p-5">
         <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
           <app-icon name="document" [size]="17" />
-          <span>Audit Log</span>
+          <span>{{ language.t('Audit Log', 'កំណត់ហេតុសវនកម្ម') }}</span>
         </h2>
         @if (d.audit_logs.length) {
           <div class="space-y-2">
@@ -248,7 +207,7 @@
             }
           </div>
         } @else {
-          <p class="px-1 py-3 text-center text-[12px] text-ink-3">No activity yet.</p>
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No activity yet.', 'មិនទាន់មានសកម្មភាពទេ។') }}</p>
         }
       </section>
     </div>

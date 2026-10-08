@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../components/icon/icon';
 import { ConsoleService } from '../../services/console.service';
 import { ConsoleDashboardData } from '../../models';
+import { LanguageService } from '../../services/language.service';
 import {
   bookingPill,
   initials,
@@ -14,6 +15,7 @@ import {
 } from '../../shared/ui';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_KM = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
 
 @Component({
   selector: 'app-console-dashboard',
@@ -22,6 +24,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 })
 export class ConsoleDashboardComponent implements OnInit {
   private readonly consoleService = inject(ConsoleService);
+  readonly language = inject(LanguageService);
 
   readonly usd = usd;
   readonly prettyDate = prettyDate;
@@ -55,6 +58,20 @@ export class ConsoleDashboardComponent implements OnInit {
     return ((d.status_counts[status] ?? 0) / total) * 100;
   }
 
+  label(value: string): string {
+    const khmer: Record<string, string> = {
+      Pending: 'កំពុងរង់ចាំ',
+      Approved: 'បានអនុម័ត',
+      Rejected: 'បានបដិសេធ',
+      Cancelled: 'បានលុបចោល',
+      Confirmed: 'បានបញ្ជាក់',
+      Renter: 'អ្នកជួល',
+      'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
+      'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
+    };
+    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+  }
+
   maxTotal(d: ConsoleDashboardData): number {
     return Math.max(...d.monthly_rows.map((r) => r.total), 1);
   }
@@ -63,7 +80,9 @@ export class ConsoleDashboardComponent implements OnInit {
     if (!iso) return '';
     const parts = iso.split('-').map((p) => Number(p));
     if (parts.length < 2 || Number.isNaN(parts[1])) return '';
-    return `${MONTHS[(parts[1] - 1) % 12] || ''} ${String(parts[0]).slice(-2)}`;
+    const monthIndex = (parts[1] - 1) % 12;
+    const month = this.language.current() === 'km' ? MONTHS_KM[monthIndex] : MONTHS[monthIndex];
+    return `${month || ''} ${String(parts[0]).slice(-2)}`;
   }
 
   auditPill(action: string): string {

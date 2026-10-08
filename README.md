@@ -42,15 +42,14 @@ just setup
 just run
 ```
 
-`just setup` creates/synchronizes the backend virtual environment, applies the Django Bolt compatibility patch, and installs frontend packages. It uses `uv` and Bun when available, with pip and npm fallbacks.
+`just setup` creates/synchronizes the backend virtual environment, applies the Django Bolt compatibility patch, runs database migrations, and installs frontend packages. It uses `uv` and Bun when available, with pip and npm fallbacks.
 
 ## First run and demo data
 
-After setup, initialize the database and seed the demo accounts and sample content:
+After setup, seed the demo accounts and sample content:
 
 ```bash
 cd backend
-.venv/bin/python manage.py migrate
 .venv/bin/python manage.py seed_demo
 cd ..
 ```

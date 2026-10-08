@@ -20,12 +20,29 @@ api = BoltAPI(
 )
 
 
-async def _landing_payload(limit: int = 6) -> dict:
+async def _landing_payload(request, limit: int = 6) -> dict:
     from bookings.models import Booking, BookingStatus
-    from listings.models import Property
+    from listings.models import Favorite, Property
     from payments.models import Payment
 
-    properties = Property.objects.select_related("owner").order_by("-created_at")
+    confirmed_property_ids = Booking.objects.filter(
+        status=BookingStatus.CONFIRMED
+    ).values_list("property_id", flat=True)
+    properties = (
+        Property.objects.select_related("owner")
+        .exclude(pk__in=confirmed_property_ids)
+        .order_by("-created_at")
+    )
+    featured_properties = [p async for p in properties[:limit]]
+    user = await get_user(request)
+    favorite_ids = set()
+    if user is not None and user.is_renter:
+        favorite_ids = {
+            property_id
+            async for property_id in Favorite.objects.filter(
+                user=user, property_id__in=[p.pk for p in featured_properties]
+            ).values_list("property_id", flat=True)
+        }
     stats = {
         "properties": await properties.acount(),
         "owners": await properties.values("owner_id").distinct().acount(),
@@ -45,7 +62,10 @@ async def _landing_payload(limit: int = 6) -> dict:
     }
     return {
         "stats": stats,
-        "featured": [await serialize_property(p) async for p in properties[:limit]],
+        "featured": [
+            await serialize_property(p, is_favorite=p.pk in favorite_ids)
+            for p in featured_properties
+        ],
         "has_data": await properties.aexists() and await Booking.objects.aexists(),
         "pending_bookings": await Booking.objects.filter(
             status=BookingStatus.PENDING
@@ -58,12 +78,12 @@ async def home(request):
     user = await get_user(request)
     if user is not None:
         return Redirect(user.home_url)
-    return await _landing_payload()
+    return await _landing_payload(request)
 
 
 @api.get("/core/landing/")
 async def landing(request):
-    return await _landing_payload()
+    return await _landing_payload(request)
 
 
 @api.get("/core/health/")

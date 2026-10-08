@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { RenterDashboardData } from '../../../models';
 import { PropertyCardComponent } from '../../../components/property-card/property-card';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-renter-dashboard',
@@ -11,6 +12,7 @@ import { PropertyCardComponent } from '../../../components/property-card/propert
   templateUrl: './renter-dashboard.html',
 })
 export class RenterDashboardComponent implements OnInit {
+  readonly language = inject(LanguageService);
   readonly auth = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
 

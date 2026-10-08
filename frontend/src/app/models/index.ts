@@ -22,6 +22,7 @@ export interface User extends UserBrief {
 
 export interface Property {
   id: number;
+  is_active: boolean;
   title: string;
   location: string;
   price_per_month: number;
@@ -44,7 +45,7 @@ export interface Property {
 export interface Booking {
   id: number;
   reference: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled' | string;
+  status: 'Pending' | 'Approved' | 'Confirmed' | 'Rejected' | 'Cancelled' | string;
   monthly_rent: number;
   rent_display: string;
   move_in_date?: string | null;

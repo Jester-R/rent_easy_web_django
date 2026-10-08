@@ -47,7 +47,7 @@ def _counts(queryset):
 
 
 async def _get_property(pk: int) -> Property:
-    prop = await Property.objects.select_related("owner").filter(pk=pk).afirst()
+    prop = await Property.objects.select_related("owner").filter(pk=pk, is_active=True).afirst()
     if prop is None:
         raise HTTPException(status_code=404, detail="property_not_found")
     return prop
@@ -199,6 +199,10 @@ async def renter_detail(request):
 
     user = await renter_required(request)
     prop = await _get_property(pk)
+    if await Booking.objects.filter(
+        property=prop, status=BookingStatus.CONFIRMED
+    ).aexists():
+        raise HTTPException(status_code=404, detail="property_not_found")
     is_favorite = await Favorite.objects.filter(user=user, property=prop).aexists()
     active_booking = await (
         Booking.objects.filter(
@@ -335,9 +339,12 @@ async def public_detail(request):
     from core.bolt import get_user
 
     user = await get_user(request)
+    is_favorite = False
+    if user is not None and user.is_renter:
+        is_favorite = await Favorite.objects.filter(user=user, property=prop).aexists()
     return {
-        "property": await serialize_property(prop),
-        "is_favorite": False,
+        "property": await serialize_property(prop, is_favorite=is_favorite),
+        "is_favorite": is_favorite,
         "viewer_is_owner": bool(user is not None and user.is_owner),
     }
 

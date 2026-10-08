@@ -15,7 +15,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 9.5 5 4h14l1.5 5.5"/><path d="M3.5 9.5a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5 11.5V20h14v-8.5"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">My Properties</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('My Properties', 'អចលនទ្រព្យរបស់ខ្ញុំ') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.listings }}</p>
         </div>
       </div>
@@ -25,9 +25,9 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Pending Requests</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Pending Requests', 'សំណើកំពុងរង់ចាំ') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.pending }}</p>
-          <p class="text-[10px] text-ink-3 mt-0.5">Awaiting decision</p>
+          <p class="text-[10px] text-ink-3 mt-0.5">{{ language.t('Awaiting decision', 'រង់ចាំការសម្រេច') }}</p>
         </div>
       </div>
 
@@ -36,7 +36,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.5"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Approved Deals</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Approved Deals', 'កិច្ចព្រមព្រៀងដែលបានអនុម័ត') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.approved }}</p>
         </div>
       </div>
@@ -46,7 +46,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 7.5A2 2 0 0 1 5.5 5.5H18a2 2 0 0 1 2 2v1"/><rect x="3.5" y="7.5" width="17" height="12" rx="2"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Total Revenue</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Total Revenue', 'ចំណូលសរុប') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-primary mt-0.5">${{ d.stats.revenue | number:'1.0-2' }}</p>
         </div>
       </div>
@@ -61,9 +61,9 @@
           <div class="mb-4 flex items-center justify-between">
             <h2 class="text-[15px] font-extrabold tracking-tight flex items-center gap-2">
               <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6a1.5 1.5 0 0 0-1.5-1.5H15"/></svg>
-              <span>Booking Inquiries</span>
+              <span>{{ language.t('Booking Inquiries', 'សំណើសុំជួល') }}</span>
             </h2>
-            <a routerLink="/owner/bookings" class="btn btn-ghost btn-xs">Manage &rarr;</a>
+            <a routerLink="/owner/bookings" class="btn btn-ghost btn-xs">{{ language.t('Manage', 'គ្រប់គ្រង') }} &rarr;</a>
           </div>
 
           <div class="space-y-2.5">
@@ -72,8 +72,8 @@
                 <span class="empty-state-icon">
                   <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.5"/></svg>
                 </span>
-                <p class="text-[13px] font-bold text-ink">No pending requests</p>
-                <p class="text-[12px] text-ink-3">New inquiries from tenants will show up here.</p>
+                <p class="text-[13px] font-bold text-ink">{{ language.t('No pending requests', 'មិនមានសំណើកំពុងរង់ចាំទេ') }}</p>
+                <p class="text-[12px] text-ink-3">{{ language.t('New inquiries from tenants will show up here.', 'សំណើថ្មីពីអ្នកជួលនឹងបង្ហាញនៅទីនេះ។') }}</p>
               </div>
             } @else {
               @for (b of d.recent_bookings; track b.id) {
@@ -94,7 +94,7 @@
                     }">
                     {{ b.status }}
                   </span>
-                  <a routerLink="/owner/bookings" class="btn btn-outline btn-xs">Review</a>
+                  <a routerLink="/owner/bookings" class="btn btn-outline btn-xs">{{ language.t('Review', 'ពិនិត្យ') }}</a>
                 </div>
               }
             }
@@ -105,9 +105,9 @@
           <div class="mb-4 flex items-center justify-between">
             <h2 class="text-[15px] font-extrabold tracking-tight flex items-center gap-2">
               <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 9.5 5 4h14l1.5 5.5"/><path d="M5 11.5V20h14v-8.5"/></svg>
-              <span>My Properties</span>
+              <span>{{ language.t('My Properties', 'អចលនទ្រព្យរបស់ខ្ញុំ') }}</span>
             </h2>
-            <a routerLink="/owner/properties" class="btn btn-ghost btn-xs">All &rarr;</a>
+            <a routerLink="/owner/properties" class="btn btn-ghost btn-xs">{{ language.t('All', 'ទាំងអស់') }} &rarr;</a>
           </div>
 
           <div class="space-y-2.5">
@@ -121,7 +121,7 @@
                   <span class="block truncate text-[11px] text-ink-3">📍 {{ p.location }}</span>
                 </div>
                 <span class="shrink-0 text-[13px] font-extrabold text-primary">{{ p.price_display }}</span>
-                <a [routerLink]="['/owner/properties', p.id, 'edit']" class="btn btn-outline btn-xs">Edit</a>
+                <a [routerLink]="['/owner/properties', p.id, 'edit']" class="btn btn-outline btn-xs">{{ language.t('Edit', 'កែសម្រួល') }}</a>
               </div>
             }
           </div>
@@ -133,29 +133,29 @@
         <section class="app-card p-5">
           <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 7.5A2 2 0 0 1 5.5 5.5H18a2 2 0 0 1 2 2v1"/><rect x="3.5" y="7.5" width="17" height="12" rx="2"/></svg>
-            <span>Revenue</span>
+            <span>{{ language.t('Revenue', 'ចំណូល') }}</span>
           </h2>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="rounded-xl bg-primary-soft p-3">
-              <p class="text-[11px] font-bold uppercase tracking-wide text-primary-dark">Monthly Potential</p>
+              <p class="text-[11px] font-bold uppercase tracking-wide text-primary-dark">{{ language.t('Monthly Potential', 'ចំណូលសក្តានុពលប្រចាំខែ') }}</p>
               <p class="mt-1 text-[18px] font-extrabold leading-none text-primary-dark">${{ d.stats.potential | number:'1.0-2' }}</p>
             </div>
             <div class="rounded-xl bg-surface-2 p-3 border border-hairline">
-              <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">Collected</p>
+              <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Collected', 'បានទទួល') }}</p>
               <p class="mt-1 text-[18px] font-extrabold leading-none text-primary">${{ d.stats.revenue | number:'1.0-2' }}</p>
             </div>
           </div>
 
-          <a routerLink="/owner/payments" class="btn btn-outline btn-sm mt-4 w-full">Detailed Financials</a>
+          <a routerLink="/owner/payments" class="btn btn-outline btn-sm mt-4 w-full">{{ language.t('Detailed Financials', 'ព័ត៌មានហិរញ្ញវត្ថុលម្អិត') }}</a>
         </section>
       </div>
     </div>
   </div>
 } @else if (hasError()) {
   <section class="app-card p-8 text-center">
-    <h1 class="text-lg font-extrabold">Owner dashboard unavailable</h1>
-    <p class="mt-2 text-sm text-ink-3">We couldn’t load your dashboard. Check your connection and try again.</p>
-    <button type="button" class="btn btn-primary mt-4" (click)="loadDashboard()">Try again</button>
+    <h1 class="text-lg font-extrabold">{{ language.t('Owner dashboard unavailable', 'មិនអាចបង្ហាញផ្ទាំងម្ចាស់ផ្ទះបានទេ') }}</h1>
+    <p class="mt-2 text-sm text-ink-3">{{ language.t('We couldn’t load your dashboard. Check your connection and try again.', 'មិនអាចផ្ទុកផ្ទាំងគ្រប់គ្រងបានទេ។ សូមពិនិត្យការតភ្ជាប់ ហើយព្យាយាមម្ដងទៀត។') }}</p>
+    <button type="button" class="btn btn-primary mt-4" (click)="loadDashboard()">{{ language.t('Try again', 'ព្យាយាមម្ដងទៀត') }}</button>
   </section>
 }

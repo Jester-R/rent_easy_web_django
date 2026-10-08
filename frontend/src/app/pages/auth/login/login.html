@@ -7,7 +7,7 @@
       </span>
       <div>
         <p class="text-xl font-extrabold tracking-tight">RentEasy</p>
-        <p class="text-[13px] text-ink-3">Easy Rent, Happy Living</p>
+        <p class="text-[13px] text-ink-3">{{ language.t('Easy Rent, Happy Living', 'ជួលងាយស្រួល រស់នៅសុខសាន្ត') }}</p>
       </div>
     </div>
 
@@ -17,8 +17,8 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="4.5" y="10" width="15" height="10.5" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/></svg>
         </span>
         <div class="min-w-0">
-          <h1 class="truncate text-[19px] font-extrabold tracking-tight">Sign in to RentEasy</h1>
-          <p class="truncate text-[13px] text-ink-3">Access your rental dashboard</p>
+          <h1 class="truncate text-[19px] font-extrabold tracking-tight">{{ language.t('Sign in to RentEasy', 'ចូលគណនី RentEasy') }}</h1>
+          <p class="truncate text-[13px] text-ink-3">{{ language.t('Access your rental dashboard', 'ចូលទៅកាន់ផ្ទាំងគ្រប់គ្រងការជួលរបស់អ្នក') }}</p>
         </div>
       </div>
 
@@ -31,29 +31,29 @@
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
         <div>
-          <label class="form-label" for="id_identifier">Email or Username</label>
+          <label class="form-label" for="id_identifier">{{ language.t('Email or Username', 'អ៊ីមែល ឬឈ្មោះអ្នកប្រើ') }}</label>
           <input type="text" id="id_identifier" formControlName="identifier" class="form-input" autocomplete="username" autofocus required>
         </div>
 
         <div>
-          <label class="form-label" for="id_password">Password</label>
+          <label class="form-label" for="id_password">{{ language.t('Password', 'ពាក្យសម្ងាត់') }}</label>
           <input type="password" id="id_password" formControlName="password" class="form-input" autocomplete="current-password" required>
         </div>
 
         <button type="submit" [disabled]="form.invalid || isLoading()" class="btn btn-primary w-full">
-          <span>{{ isLoading() ? 'Signing in...' : 'Sign In' }}</span>
+          <span>{{ isLoading() ? language.t('Signing in...', 'កំពុងចូលគណនី...') : language.t('Sign In', 'ចូលគណនី') }}</span>
         </button>
       </form>
 
       <div class="divider my-5"></div>
 
       <p class="text-center text-[13px] text-ink-2">
-        Don't have an account?
-        <a routerLink="/register" class="font-bold text-primary hover:underline">Create an account</a>
+        {{ language.t("Don't have an account?", 'មិនទាន់មានគណនីមែនទេ?') }}
+        <a routerLink="/register" class="font-bold text-primary hover:underline">{{ language.t('Create an account', 'បង្កើតគណនី') }}</a>
       </p>
 
       <div class="mt-4 rounded-xl border border-dashed border-hairline bg-surface-2 px-3.5 py-2.5 text-center">
-        <p class="text-[12px] text-ink-3 mb-2">Quick Demo Accounts (Click to test):</p>
+        <p class="text-[12px] text-ink-3 mb-2">{{ language.t('Quick Demo Accounts (Click to test):', 'គណនីសាកល្បង (ចុចដើម្បីសាកល្បង):') }}</p>
         <div class="flex flex-wrap items-center justify-center gap-1.5">
           <button type="button" (click)="fillDemo('renter')" class="chip">renter</button>
           <button type="button" (click)="fillDemo('owner')" class="chip">owner</button>

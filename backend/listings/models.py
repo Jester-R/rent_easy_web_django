@@ -9,17 +9,21 @@ from django.utils import timezone
 
 class PropertyQuerySet(models.QuerySet):
     def for_renter(self, user):
-        """Exclude properties the renter already has an active booking on."""
+        """Hide confirmed rentals and the renter's existing active requests."""
         from bookings.models import Booking, BookingStatus
 
+        confirmed = Booking.objects.filter(
+            property__isnull=False, status=BookingStatus.CONFIRMED
+        ).values_list("property_id", flat=True)
+        queryset = self.filter(is_active=True).exclude(id__in=confirmed)
         if not user or not user.is_authenticated:
-            return self
+            return queryset
         blocked = Booking.objects.filter(
             renter=user,
             property__isnull=False,
-            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CONFIRMED],
         ).values_list("property_id", flat=True)
-        return self.exclude(id__in=blocked)
+        return queryset.exclude(id__in=blocked)
 
     def available(self):
         return self
@@ -32,6 +36,7 @@ class PropertyQuerySet(models.QuerySet):
 
 
 class Property(models.Model):
+    is_active = models.BooleanField(default=True, db_index=True)
     title = models.CharField(max_length=160)
     location = models.CharField(max_length=160, db_index=True)
     price_per_month = models.DecimalField(

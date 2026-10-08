@@ -10,7 +10,7 @@ import { User, RenterDashboardData, OwnerDashboardData } from '../models';
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly platformId = inject(PLATFORM_ID);
-  private readonly baseUrl = '';
+  private readonly baseUrl = '/api';
 
   readonly currentUser = signal<User | null>(null);
   readonly isLoading = signal<boolean>(true);
@@ -119,13 +119,13 @@ export class AuthService {
   }
 
   getRenterDashboard(): Observable<RenterDashboardData> {
-    return this.http.get<RenterDashboardData>(`${this.baseUrl}/api/rent/`, {
+    return this.http.get<RenterDashboardData>(`${this.baseUrl}/rent/`, {
       withCredentials: true,
     });
   }
 
   getOwnerDashboard(): Observable<OwnerDashboardData> {
-    return this.http.get<OwnerDashboardData>(`${this.baseUrl}/api/owner/`, {
+    return this.http.get<OwnerDashboardData>(`${this.baseUrl}/owner/`, {
       withCredentials: true,
     });
   }

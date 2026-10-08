@@ -1,7 +1,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <div class="mb-8">
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Revenue & Financials</h1>
-    <p class="text-xs text-ink-3 mt-1">Review rent payouts, received payments, and pending tenant refunds</p>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ language.t('Revenue & Financials', 'ចំណូល និងហិរញ្ញវត្ថុ') }}</h1>
+    <p class="text-xs text-ink-3 mt-1">{{ language.t('Review rent payouts, received payments, and pending tenant refunds', 'ពិនិត្យប្រាក់ជួលដែលបានទទួល ការទូទាត់ និងការសងប្រាក់ដែលកំពុងរង់ចាំ') }}</p>
   </div>
 
   @if (actionMessage()) {
@@ -22,27 +22,27 @@
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
         <div>
-          <span class="text-xs font-medium text-ink-3">Net Revenue Collected</span>
+          <span class="text-xs font-medium text-ink-3">{{ language.t('Net Revenue Collected', 'ចំណូលសុទ្ធដែលបានប្រមូល') }}</span>
           <div class="text-2xl font-extrabold text-primary mt-0.5">${{ d.totals.revenue | number:'1.0-2' }}</div>
-          <span class="text-[11px] text-ink-3">{{ d.totals.count }} successful transactions</span>
+          <span class="text-[11px] text-ink-3">{{ d.totals.count }} {{ language.t('successful transactions', 'ប្រតិបត្តិការជោគជ័យ') }}</span>
         </div>
       </div>
 
       <div class="stat-card">
         <span class="stat-icon bg-rose-50 text-danger"><app-icon name="rotate-ccw" [size]="20" /></span>
         <div>
-          <span class="text-xs font-medium text-ink-3">Refunded Amount</span>
+          <span class="text-xs font-medium text-ink-3">{{ language.t('Refunded Amount', 'ចំនួនទឹកប្រាក់ដែលបានសងវិញ') }}</span>
           <div class="text-2xl font-extrabold text-danger mt-0.5">${{ d.totals.refunded | number:'1.0-2' }}</div>
-          <span class="text-[11px] text-ink-3">Total processed refunds</span>
+          <span class="text-[11px] text-ink-3">{{ language.t('Total processed refunds', 'ការសងប្រាក់វិញដែលបានដំណើរការសរុប') }}</span>
         </div>
       </div>
 
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="users" [size]="20" /></span>
         <div>
-          <span class="text-xs font-medium text-ink-3">Active Paying Tenants</span>
+          <span class="text-xs font-medium text-ink-3">{{ language.t('Active Paying Tenants', 'អ្នកជួលដែលកំពុងបង់ប្រាក់') }}</span>
           <div class="text-2xl font-extrabold text-primary mt-0.5">{{ d.renter_count }}</div>
-          <span class="text-[11px] text-ink-3">Unique tenants paying rent</span>
+          <span class="text-[11px] text-ink-3">{{ language.t('Unique tenants paying rent', 'ចំនួនអ្នកជួលផ្សេងៗគ្នាដែលបានបង់ថ្លៃជួល') }}</span>
         </div>
       </div>
     </div>
@@ -50,8 +50,8 @@
     <!-- Pending Refunds Section if any -->
     @if (d.pending_refunds.length > 0) {
       <div class="bg-rose-50/50 rounded-3xl border border-rose-100 p-6 mb-8">
-        <h2 class="text-base font-bold text-danger mb-1">Action Required: Pending Refunds</h2>
-        <p class="text-xs text-rose-600 mb-4">You have refund requests awaiting your authorization.</p>
+        <h2 class="text-base font-bold text-danger mb-1">{{ language.t('Action Required: Pending Refunds', 'ត្រូវការចាត់វិធានការ៖ ការសងប្រាក់ដែលកំពុងរង់ចាំ') }}</h2>
+        <p class="text-xs text-rose-600 mb-4">{{ language.t('You have refund requests awaiting your authorization.', 'អ្នកមានសំណើសងប្រាក់ដែលកំពុងរង់ចាំការអនុញ្ញាតរបស់អ្នក។') }}</p>
 
         <div class="space-y-3">
           @for (r of d.pending_refunds; track r.id) {
@@ -59,13 +59,13 @@
               <div>
                 <span class="text-xs font-mono text-ink-3">#{{ r.reference }}</span>
                 <div class="text-sm font-bold text-ink mt-0.5">{{ r.amount_display }}</div>
-                <p class="text-xs text-ink-3">Reason: {{ r.reason }}</p>
+                <p class="text-xs text-ink-3">{{ language.t('Reason', 'មូលហេតុ') }}: {{ r.reason }}</p>
               </div>
               <button
                 (click)="processRefund(r.id)"
                 class="btn btn-danger btn-sm"
               >
-                Approve & Refund
+                {{ language.t('Approve & Refund', 'អនុម័ត និងសងប្រាក់វិញ') }}
               </button>
             </div>
           }
@@ -76,25 +76,25 @@
     <!-- Payment Records Table -->
     <div class="table-wrap">
       <div class="p-5 border-b border-hairline">
-        <h2 class="text-base font-bold text-ink">Payment Transactions</h2>
-        <p class="text-xs text-ink-3">Complete record of rent collected on your properties</p>
+        <h2 class="text-base font-bold text-ink">{{ language.t('Payment Transactions', 'ប្រតិបត្តិការទូទាត់') }}</h2>
+        <p class="text-xs text-ink-3">{{ language.t('Complete record of rent collected on your properties', 'កំណត់ត្រាពេញលេញនៃប្រាក់ជួលដែលបានប្រមូលពីអចលនទ្រព្យរបស់អ្នក') }}</p>
       </div>
 
       @if (d.payments.length === 0) {
         <div class="p-10 text-center text-xs text-ink-3">
-          No payments recorded yet.
+          {{ language.t('No payments recorded yet.', 'មិនទាន់មានការទូទាត់ត្រូវបានកត់ត្រាទេ។') }}
         </div>
       } @else {
         <table class="data-table">
           <thead>
             <tr>
-              <th>Ref</th>
-              <th>Property</th>
-              <th>Tenant</th>
-              <th>Method</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Date</th>
+              <th>{{ language.t('Ref', 'លេខយោង') }}</th>
+              <th>{{ language.t('Property', 'អចលនទ្រព្យ') }}</th>
+              <th>{{ language.t('Tenant', 'អ្នកជួល') }}</th>
+              <th>{{ language.t('Method', 'វិធីសាស្ត្រ') }}</th>
+              <th>{{ language.t('Amount', 'ចំនួនទឹកប្រាក់') }}</th>
+              <th>{{ language.t('Status', 'ស្ថានភាព') }}</th>
+              <th>{{ language.t('Date', 'កាលបរិច្ឆេទ') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -113,7 +113,7 @@
                       'pill-rejected': p.status === 'Failed',
                       'pill-refunded': p.status === 'Refunded'
                     }">
-                    {{ p.status }}
+                    {{ statusLabel(p.status) }}
                   </span>
                 </td>
                 <td class="text-ink-3">{{ p.created_at | date:'mediumDate' }}</td>

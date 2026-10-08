@@ -109,13 +109,26 @@ async def renter_cancel(request):
     return {"ok": True, "booking": await serialize_booking(booking)}
 
 
+@api.post("/rent/bookings/{pk}/confirm/")
+async def renter_confirm(request):
+    pk = param_int(request, "pk")
+    user = await renter_required(request)
+    booking = await _renter_booking(pk, user)
+    ok, code = await in_thread(
+        transition_booking, booking, BookingStatus.CONFIRMED, actor=user
+    )
+    if not ok:
+        raise HTTPException(status_code=409, detail=code)
+    return {"ok": True, "booking": await serialize_booking(booking)}
+
+
 @api.post("/rent/bookings/{pk}/pay/")
 async def renter_pay(request):
     pk = param_int(request, "pk")
     user = await renter_required(request)
     booking = await _renter_booking(pk, user)
 
-    if booking.status != BookingStatus.APPROVED:
+    if booking.status != BookingStatus.CONFIRMED:
         raise HTTPException(status_code=409, detail="invalid_transition")
     if booking.payment_id:
         return {

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PropertyService, PropertyBrowseResponse } from '../../../services/property.service';
 import { Property } from '../../../models';
 import { PropertyCardComponent } from '../../../components/property-card/property-card';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-browse-properties',
@@ -11,6 +12,7 @@ import { PropertyCardComponent } from '../../../components/property-card/propert
   templateUrl: './browse.html',
 })
 export class BrowsePropertiesComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly propertyService = inject(PropertyService);
   private readonly platformId = inject(PLATFORM_ID);
 
