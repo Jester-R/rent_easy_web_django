@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { BookingService, BookingListResponse } from '../../../services/booking.service';
 import { Booking } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-owner-bookings',
@@ -11,6 +12,7 @@ import { IconComponent } from '../../../components/icon/icon';
   templateUrl: './owner-bookings.html',
 })
 export class OwnerBookingsComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly bookingService = inject(BookingService);
 
   bookings = signal<Booking[]>([]);
@@ -18,6 +20,14 @@ export class OwnerBookingsComponent implements OnInit {
   activeTab = signal<string>('all');
   isLoading = signal(true);
   actionMessage = signal<string | null>(null);
+
+  label(value: string): string {
+    const khmer: Record<string, string> = {
+      all: 'ទាំងអស់', Pending: 'កំពុងរង់ចាំ', Approved: 'បានអនុម័ត',
+      Confirmed: 'បានបញ្ជាក់', Rejected: 'បានបដិសេធ', Cancelled: 'បានលុបចោល',
+    };
+    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+  }
 
   ngOnInit(): void {
     this.loadBookings();

@@ -13,7 +13,7 @@
         </a>
         <span class="mt-0.5 flex items-center gap-1 truncate text-[12px] text-ink-3">
           <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.75"/></svg>
-          <span class="truncate">{{ property().location }}</span>
+          <span class="truncate">{{ locationLabel }}</span>
         </span>
       </span>
 
@@ -22,9 +22,12 @@
           <button type="button"
                   (click)="toggleFavorite($event)"
                   class="btn btn-ghost btn-icon -m-1.5"
+                  [disabled]="favoritePending()"
+                  [attr.aria-pressed]="property().is_favorite"
+                  [attr.aria-label]="property().is_favorite ? 'Remove from favorites' : 'Add to favorites'"
                   [class.text-primary]="property().is_favorite"
                   [class.text-ink-3]="!property().is_favorite"
-                  aria-label="Favorite">
+                  [class.opacity-50]="favoritePending()">
             <svg class="w-5 h-5" viewBox="0 0 24 24" [attr.fill]="property().is_favorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.75">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
             </svg>
@@ -37,15 +40,18 @@
       <span class="text-[15px] font-extrabold text-primary">{{ property().price_display }}<span class="text-[12px] font-semibold text-ink-3">/month</span></span>
       <span class="pill pill-neutral">
         <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 18V7"/><path d="M3 12h18v6"/><path d="M21 18v-4.5A1.5 1.5 0 0 0 19.5 12H15v-2a2 2 0 0 0-2-2H9.5A1.5 1.5 0 0 0 8 9.5V12"/></svg>
-        {{ property().bedrooms }} beds
+        {{ property().bedrooms === 0 ? 'Studio' : property().bedrooms + (property().bedrooms === 1 ? ' bed' : ' beds') }}
       </span>
       <span class="pill pill-neutral">
         <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 12.5h18"/><path d="M4.5 12.5V6A2 2 0 0 1 6.5 4h.5a1.5 1.5 0 0 1 1.5 1.5V8"/><path d="M4.5 12.5V16a4 4 0 0 0 4 4h7a4 4 0 0 0 4-4v-3.5"/></svg>
-        {{ property().bathrooms }} baths
+        {{ property().bathrooms }}{{ property().bathrooms === 1 ? ' bath' : ' baths' }}
       </span>
       @if (property().has_active_booking) {
         <span class="pill pill-pending">Already Booked</span>
       }
     </span>
+    @if (favoriteError()) {
+      <span class="mt-1 block text-xs text-danger" role="alert">Could not update favorite. Please try again.</span>
+    }
   </span>
 </div>

@@ -1,5 +1,5 @@
 <header class="app-topbar sticky top-0 z-40 border-b border-hairline bg-surface/95 backdrop-blur">
-  <div class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:h-16 sm:flex-nowrap sm:gap-3 sm:py-0 sm:px-6 lg:px-8 justify-between">
+  <div class="app-topbar__inner flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:h-16 sm:flex-nowrap sm:gap-3 sm:py-0 sm:px-6 lg:px-8 justify-between">
 
     <!-- Mobile Brand / Left Header -->
     <div class="flex items-center gap-3">
@@ -24,13 +24,16 @@
             </span>
             <span>RentEasy</span>
           </a>
-          <a routerLink="/browse" routerLinkActive="is-active" class="nav-item">Browse Listings</a>
+          <a routerLink="/browse" routerLinkActive="is-active" class="nav-item">{{ language.t('Browse Listings', 'មើលអចលនទ្រព្យ') }}</a>
         </nav>
       }
     </div>
 
     <!-- Right Actions -->
-    <div class="ms-auto flex shrink-0 items-center gap-2">
+    <div class="app-topbar__actions ms-auto flex shrink-0 items-center gap-2">
+      <button type="button" (click)="language.toggle()" class="btn btn-ghost btn-sm" [attr.aria-label]="language.current() === 'en' ? 'ប្តូរទៅភាសាខ្មែរ' : 'Switch to English'" [attr.title]="language.current() === 'en' ? 'ប្តូរទៅភាសាខ្មែរ' : 'Switch to English'">
+        <span class="text-xs font-bold">{{ language.current() === 'en' ? 'ខ្មែរ' : 'English' }}</span>
+      </button>
       <button
         type="button"
         (click)="themeService.toggle()"
@@ -51,18 +54,18 @@
         @if (auth.isOwner()) {
           <a routerLink="/owner/properties/new" class="btn btn-primary btn-sm hidden sm:inline-flex">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Add Property</span>
+            <span>{{ language.t('Add Property', 'បន្ថែមអចលនទ្រព្យ') }}</span>
           </a>
         } @else if (auth.isRenter()) {
           <a routerLink="/browse" class="btn btn-primary btn-sm hidden sm:inline-flex">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V5.5A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.5V21"/><path d="M15 10h3.5A1.5 1.5 0 0 1 20 11.5V21"/></svg>
-            <span>Browse</span>
+            <span>{{ language.t('Browse', 'មើលអចលនទ្រព្យ') }}</span>
           </a>
         }
 
         <!-- Notifications Bell dropdown -->
         <div class="relative">
-          <button (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative" aria-label="Notifications">
+          <button (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative" [attr.aria-label]="language.t('Notifications', 'ការជូនដំណឹង')">
             <svg class="w-5 h-5 text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
               <path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/>
             </svg>
@@ -72,27 +75,27 @@
           </button>
 
           @if (isNotifMenuOpen()) {
-            <div class="dropdown-panel p-2 shadow-pop">
+            <div class="dropdown-panel notification-dropdown p-2 shadow-pop">
               <div class="flex items-center justify-between px-3 py-2 border-b border-hairline">
-                <span class="text-[13px] font-bold">Notifications</span>
-                <button (click)="markAllRead()" class="text-[11px] text-primary hover:underline font-semibold">Mark read</button>
+                <span class="text-[13px] font-bold">{{ language.t('Notifications', 'ការជូនដំណឹង') }}</span>
+                <button (click)="markAllRead()" class="text-[11px] text-primary hover:underline font-semibold">{{ language.t('Mark read', 'សម្គាល់ថាបានអាន') }}</button>
               </div>
               <div class="max-h-72 overflow-y-auto divide-y divide-hairline">
                 @if (notifications().length === 0) {
-                  <p class="p-6 text-center text-[12px] text-ink-3">No notifications</p>
+                  <p class="p-6 text-center text-[12px] text-ink-3">{{ language.t('No notifications', 'មិនមានការជូនដំណឹងទេ') }}</p>
                 } @else {
                   @for (n of notifications(); track n.id) {
-                    <div class="p-2.5 hover:bg-surface-2 transition-colors cursor-pointer" [class.bg-primary-soft/30]="!n.read">
-                      <p class="text-[12px] font-bold text-ink">{{ n.title_key }}</p>
-                      <p class="text-[11px] text-ink-2 mt-0.5">{{ n.body_key }}</p>
+                    <button type="button" (click)="openNotification(n)" class="block w-full p-2.5 text-start hover:bg-surface-2 transition-colors" [class.bg-primary-soft/30]="!n.read">
+                      <p class="break-words text-[12px] font-bold text-ink">{{ n.title_key }}</p>
+                      <p class="mt-0.5 break-words text-[11px] text-ink-2">{{ n.body_key }}</p>
                       <span class="text-[10px] text-ink-3 mt-1 block">{{ n.created_at | date:'shortTime' }}</span>
-                    </div>
+                    </button>
                   }
                 }
               </div>
               <div class="border-t border-hairline pt-1 text-center">
                 <a routerLink="/notifications" (click)="isNotifMenuOpen.set(false)" class="nav-item justify-center text-[12px] text-primary font-bold">
-                  View all notifications
+                  {{ language.t('View all notifications', 'មើលការជូនដំណឹងទាំងអស់') }}
                 </a>
               </div>
             </div>
@@ -121,24 +124,24 @@
               <div class="divider my-1"></div>
               <a routerLink="/profile" (click)="isProfileMenuOpen.set(false)" class="nav-item">
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
-                <span>Profile</span>
+                <span>{{ language.t('Profile', 'ប្រវត្តិរូប') }}</span>
               </a>
               <a routerLink="/notifications" (click)="isProfileMenuOpen.set(false)" class="nav-item">
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/></svg>
-                <span>Notifications</span>
+                <span>{{ language.t('Notifications', 'ការជូនដំណឹង') }}</span>
               </a>
               <div class="divider my-1"></div>
               <button (click)="logout()" class="nav-item w-full text-rose-600 hover:bg-rose-50">
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 8V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h8a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M10 12h11"/><path d="m17.5 8.5 3.5 3.5-3.5 3.5"/></svg>
-                <span>Log out</span>
+                <span>{{ language.t('Log out', 'ចាកចេញ') }}</span>
               </button>
             </div>
           }
         </div>
       } @else {
         <!-- Guest Links -->
-        <a routerLink="/login" class="btn btn-outline btn-sm">Log in</a>
-        <a routerLink="/register" class="btn btn-primary btn-sm">Create Account</a>
+        <a routerLink="/login" class="btn btn-outline btn-sm">{{ language.t('Log in', 'ចូលគណនី') }}</a>
+        <a routerLink="/register" class="btn btn-primary btn-sm">{{ language.t('Create Account', 'បង្កើតគណនី') }}</a>
       }
     </div>
   </div>

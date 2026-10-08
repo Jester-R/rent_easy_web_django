@@ -6,6 +6,7 @@ import { PropertyService } from '../../../services/property.service';
 import { AuthService } from '../../../services/auth.service';
 import { Property } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-property-detail',
@@ -13,6 +14,7 @@ import { IconComponent } from '../../../components/icon/icon';
   templateUrl: './detail.html',
 })
 export class PropertyDetailComponent implements OnInit {
+  readonly language = inject(LanguageService);
   readonly id = input.required<string>();
 
   private readonly propertyService = inject(PropertyService);
@@ -23,6 +25,8 @@ export class PropertyDetailComponent implements OnInit {
   property = signal<Property | null>(null);
   activeBookingId = signal<number | null>(null);
   isLoading = signal(true);
+  isFavoritePending = signal(false);
+  favoriteError = signal(false);
   isBookingSubmitting = signal(false);
   bookingSuccess = signal<string | null>(null);
   bookingError = signal<string | null>(null);
@@ -61,12 +65,20 @@ export class PropertyDetailComponent implements OnInit {
 
   toggleFavorite(): void {
     const prop = this.property();
-    if (!prop || !this.auth.isRenter()) return;
+    if (!prop || !this.auth.isRenter() || this.isFavoritePending()) return;
 
+    this.isFavoritePending.set(true);
+    this.favoriteError.set(false);
     this.propertyService.toggleFavorite(prop.id).subscribe({
       next: (res) => {
         prop.is_favorite = res.favorited;
+        prop.favorite_count = res.count;
         this.property.set({ ...prop });
+        this.isFavoritePending.set(false);
+      },
+      error: () => {
+        this.isFavoritePending.set(false);
+        this.favoriteError.set(true);
       },
     });
   }

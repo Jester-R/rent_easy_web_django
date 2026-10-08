@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../../components/icon/icon';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
+import { LanguageService } from '../../../services/language.service';
 import { Booking, UserBrief } from '../../../models';
 import {
   bookingPill,
@@ -24,6 +25,7 @@ type BookingExt = Booking & { can_approve?: boolean; can_cancel?: boolean; can_r
   templateUrl: './booking-detail.html',
 })
 export class BookingDetailComponent implements OnInit {
+  readonly language = inject(LanguageService);
   readonly id = input<string>();
 
   private readonly bookingService = inject(BookingService);
@@ -31,9 +33,11 @@ export class BookingDetailComponent implements OnInit {
   readonly auth = inject(AuthService);
 
   readonly booking = signal<BookingExt | null>(null);
+  readonly loadError = signal<string | null>(null);
   readonly audience = signal<'renter' | 'owner'>('renter');
   readonly isLoading = signal(true);
   readonly isBusy = signal(false);
+  readonly actionError = signal<string | null>(null);
 
   readonly payOpen = signal(false);
   readonly isPaying = signal(false);
@@ -69,11 +73,15 @@ export class BookingDetailComponent implements OnInit {
   }
 
   load(): void {
-    const id = Number(this.id());
-    if (!id) {
+    const rawId = this.id()?.trim() ?? '';
+    const idMatch = rawId.match(/^(?:#?BK-)?(\d+)$/i);
+    const id = idMatch ? Number(idMatch[1]) : Number(rawId);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      this.loadError.set(`Invalid booking reference: ${rawId || 'missing'}`);
       this.isLoading.set(false);
       return;
     }
+    this.loadError.set(null);
     this.isLoading.set(true);
     const req = this.auth.isOwner()
       ? this.bookingService.getOwnerBooking(id)
@@ -86,6 +94,7 @@ export class BookingDetailComponent implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
+        this.loadError.set(err.status === 404 ? `Booking not found: ${rawId.startsWith('#') ? rawId.slice(1) : rawId}` : 'Could not load this booking.');
         this.onError(err);
       },
     });
@@ -126,6 +135,25 @@ export class BookingDetailComponent implements OnInit {
     });
   }
 
+  confirmApproval(): void {
+    const b = this.booking();
+    if (!b || !confirm('Confirm this rental? The property will be removed from available listings.')) return;
+    this.actionError.set(null);
+    this.isBusy.set(true);
+    this.bookingService.confirmBooking(b.id).subscribe({
+      next: (res) => {
+        this.isBusy.set(false);
+        this.booking.update((current) => current ? { ...current, ...res.booking } : current);
+        this.load();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isBusy.set(false);
+        this.actionError.set(err.error?.detail || 'Could not confirm this rental. Please try again.');
+        this.onError(err);
+      },
+    });
+  }
+
   reject(): void {
     const b = this.booking();
     if (!b) return;
@@ -146,7 +174,10 @@ export class BookingDetailComponent implements OnInit {
   cancel(): void {
     const b = this.booking();
     if (!b) return;
-    if (!confirm(`Cancel this booking request?\n${b.property?.title}`)) return;
+    const message = b.status === 'Confirmed'
+      ? `Cancel this confirmed rental? The property will become available again and any eligible payment refund will be queued.\n${b.property?.title}`
+      : `Cancel this booking request?\n${b.property?.title}`;
+    if (!confirm(message)) return;
     this.isBusy.set(true);
     this.bookingService.cancelBooking(b.id).subscribe({
       next: () => {

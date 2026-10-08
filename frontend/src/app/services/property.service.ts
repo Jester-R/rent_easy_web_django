@@ -26,7 +26,7 @@ export interface PropertyBrowseResponse {
 })
 export class PropertyService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '';
+  private readonly baseUrl = '/api';
 
   getLandingData(): Observable<LandingData> {
     return this.http.get<LandingData>(`${this.baseUrl}/core/landing/`, {

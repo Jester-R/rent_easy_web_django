@@ -2,6 +2,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ConsoleService } from '../../../services/console.service';
+import { LanguageService } from '../../../services/language.service';
 import { IconComponent } from '../../../components/icon/icon';
 import { Payment, Refund } from '../../../models';
 import {
@@ -22,6 +23,7 @@ import {
   templateUrl: './console-payments.html',
 })
 export class ConsolePaymentsComponent implements OnInit, OnDestroy {
+  readonly language = inject(LanguageService);
   private readonly console = inject(ConsoleService);
 
   readonly methodIcon = methodIcon;
@@ -33,6 +35,14 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   readonly refundStatusLabel = refundStatusLabel;
   readonly shortDate = shortDate;
   readonly usd = usd;
+
+  statusText(value: string): string {
+    const khmer: Record<string, string> = {
+      Successful: 'ជោគជ័យ', Failed: 'បរាជ័យ', Pending: 'កំពុងរង់ចាំ',
+      'No Refund': 'មិនមានការសងប្រាក់ទេ', Processed: 'បានដំណើរការ',
+    };
+    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+  }
 
   payments = signal<Payment[]>([]);
   refunds = signal<Refund[]>([]);

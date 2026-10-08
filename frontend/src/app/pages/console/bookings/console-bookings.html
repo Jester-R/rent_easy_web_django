@@ -1,11 +1,8 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">Bookings</h1>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Bookings', 'ការកក់') }}</h1>
     </div>
-    <a routerLink="/console/bookings/new" class="btn btn-primary btn-sm">
-      <app-icon name="plus" [size]="15" /><span>New booking</span>
-    </a>
   </div>
 
   @if (error(); as message) {
@@ -24,18 +21,18 @@
         <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
           <app-icon name="search" [size]="16" />
         </span>
-        <input #q type="search" class="form-input ps-11" placeholder="Search by reference, property or renter" [value]="query()" (input)="onSearch(q.value)" />
+        <input #q type="search" class="form-input ps-11" [placeholder]="language.t('Search by reference, property or renter', 'ស្វែងរកតាមលេខយោង អចលនទ្រព្យ ឬអ្នកជួល')" [value]="query()" (input)="onSearch(q.value)" />
       </div>
       <select class="form-input" [value]="status()" #s (change)="onStatusChange(s.value)">
         @for (o of statusOptions(); track o.value) {
-          <option [value]="o.value">{{ o.label }}</option>
+          <option [value]="o.value">{{ formatStatusOption(o.value, o.label) }}</option>
         }
       </select>
       <div class="flex gap-2">
         <button type="submit" class="btn btn-primary flex-1">
-          <app-icon name="filter" [size]="15" /><span>Filter</span>
+          <app-icon name="filter" [size]="15" /><span>{{ language.t('Filter', 'តម្រង') }}</span>
         </button>
-        <button type="button" class="btn btn-ghost" (click)="refresh()" title="Refresh" aria-label="Refresh">
+        <button type="button" class="btn btn-ghost" (click)="refresh()" [title]="language.t('Refresh', 'ធ្វើបច្ចុប្បន្នភាព')" [attr.aria-label]="language.t('Refresh', 'ធ្វើបច្ចុប្បន្នភាព')">
           <app-icon name="refresh" [size]="15" />
         </button>
       </div>
@@ -44,7 +41,7 @@
 
   <div class="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
     <span class="pill pill-neutral">
-      <app-icon name="clipboard" [size]="12" /> {{ bookings().length }} / {{ total() }} Bookings
+      <app-icon name="clipboard" [size]="12" /> {{ bookings().length }} / {{ total() }} {{ language.t('Bookings', 'ការកក់') }}
     </span>
     @if (query()) {
       <span class="pill pill-neutral">
@@ -64,46 +61,29 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th class="w-px">
-              <input type="checkbox" class="form-checkbox" [checked]="allSelected()" (change)="toggleAll()" aria-label="Select all" />
-            </th>
-            <th class="text-start">Booking Ref</th>
-            <th class="text-start">Property</th>
-            <th class="text-start">Renter</th>
-            <th class="text-end">Rent</th>
-            <th class="text-start">Move-in</th>
-            <th class="text-start">Status</th>
-            <th class="text-end w-px">Actions</th>
+            <th class="text-start">{{ language.t('Booking Ref', 'លេខយោងការកក់') }}</th>
+            <th class="text-start">{{ language.t('Property', 'អចលនទ្រព្យ') }}</th>
+            <th class="text-start">{{ language.t('Renter', 'អ្នកជួល') }}</th>
+            <th class="text-end">{{ language.t('Rent', 'ថ្លៃជួល') }}</th>
+            <th class="text-start">{{ language.t('Move-in', 'ថ្ងៃចូលនៅ') }}</th>
+            <th class="text-start">{{ language.t('Status', 'ស្ថានភាព') }}</th>
           </tr>
         </thead>
         <tbody>
           @for (b of bookings(); track b.id) {
             <tr>
-              <td class="w-px">
-                <input type="checkbox" class="form-checkbox" [checked]="isSelected(b.id)" (change)="toggle(b.id)" [attr.aria-label]="b.reference" />
-              </td>
               <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ b.reference }}</td>
               <td class="min-w-[11rem]">
-                <a [routerLink]="['/console/bookings', b.id, 'edit']" class="block truncate font-bold hover:text-primary">{{ b.property?.title }}</a>
+                <span class="block truncate font-bold">{{ b.property?.title }}</span>
               </td>
               <td class="whitespace-nowrap text-ink-2">
                 {{ b.renter.display_name }}
-                <span class="block text-[11px] text-ink-3">Lease: {{ b.lease_months }} months</span>
+                <span class="block text-[11px] text-ink-3">{{ language.t('Lease', 'រយៈពេលជួល') }}: {{ b.lease_months }} {{ language.t('months', 'ខែ') }}</span>
               </td>
               <td class="whitespace-nowrap text-end font-bold text-primary">{{ usd(b.monthly_rent) }}</td>
               <td class="whitespace-nowrap text-ink-2">{{ shortDate(b.move_in_date) || '—' }}</td>
               <td>
-                <span class="pill {{ bookingPill(b.status) }}">{{ b.status }}</span>
-              </td>
-              <td class="w-px">
-                <div class="flex items-center justify-end gap-1">
-                  <a [routerLink]="['/console/bookings', b.id, 'edit']" class="btn btn-ghost btn-icon" title="Edit">
-                    <app-icon name="edit" [size]="16" />
-                  </a>
-                  <button type="button" class="btn btn-ghost btn-icon text-danger" title="Delete" (click)="remove(b)">
-                    <app-icon name="trash" [size]="16" />
-                  </button>
-                </div>
+                <span class="pill {{ bookingPill(b.status) }}">{{ label(b.status) }}</span>
               </td>
             </tr>
           }
@@ -111,30 +91,10 @@
       </table>
     </div>
 
-    @if (selected().length) {
-      <div class="sticky bottom-3 z-30 mt-3">
-        <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
-          <span class="flex items-center gap-2 text-[13px] font-bold">
-            <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">{{ selected().length }}</span>
-            selected
-          </span>
-          <div class="ms-auto flex flex-wrap items-center gap-2">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="clearSelection()">Reset</button>
-            <button type="button" class="btn btn-danger btn-sm" (click)="bulkDelete()">
-              <app-icon name="trash" [size]="15" /><span>Delete</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    }
   } @else {
     <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
       <span class="empty-state-icon"><app-icon name="clipboard" [size]="30" /></span>
-      <p class="text-[15px] font-bold text-ink">No bookings found</p>
-      <p class="max-w-sm text-[13px] leading-relaxed text-ink-3">New booking</p>
-      <a routerLink="/console/bookings/new" class="btn btn-primary btn-sm mt-1">
-        <app-icon name="plus" [size]="15" /><span>New booking</span>
-      </a>
+      <p class="text-[15px] font-bold text-ink">{{ language.t('No bookings found', 'រកមិនឃើញការកក់ទេ') }}</p>
     </div>
   }
 </div>

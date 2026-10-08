@@ -11,7 +11,6 @@ payment/notification services and manager helpers hop through
 
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Q, Sum
@@ -20,7 +19,7 @@ from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
 
 from accounts.models import AuditLog, Role, User, is_valid_username, normalize_identity
-from bookings.models import Booking, BookingStatus
+from bookings.models import Booking
 from core.bolt import (
     body_bool,
     body_float,
@@ -76,16 +75,6 @@ def _optional_id(data: dict, key: str):
     if value in (None, "", "null"):
         return None
     return body_int(data, key, 0) or None
-
-
-def _parse_date(value):
-    value = (value or "").strip()
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="invalid_date") from exc
 
 
 def _not_found(kind: str) -> HTTPException:
@@ -384,86 +373,18 @@ async def properties_list(request):
     }
 
 
-def _property_fields(data: dict) -> dict:
-    title = body_str(data, "title")
-    location = body_str(data, "location")
-    price = body_float(data, "price_per_month")
-    if not title:
-        raise HTTPException(status_code=422, detail="title_required")
-    if not location:
-        raise HTTPException(status_code=422, detail="location_required")
-    if price is None or price <= 0:
-        raise HTTPException(status_code=422, detail="price_required")
-    return {
-        "title": title,
-        "location": location,
-        "price_per_month": Decimal(str(price)),
-        "bedrooms": max(0, body_int(data, "bedrooms", 0)),
-        "bathrooms": max(0, body_int(data, "bathrooms", 0)),
-        "description": body_str(data, "description"),
-    }
-
-
-@console_api.post("/properties/new/")
-async def property_create(request):
-    actor = await superadmin_required(request)
-    data = json_body(request)
-    owner = await User.objects.filter(
-        pk=_optional_id(data, "owner"), role=Role.OWNER
-    ).afirst()
-    if owner is None:
-        raise HTTPException(status_code=422, detail="owner_required")
-    prop = await Property.objects.acreate(owner=owner, **_property_fields(data))
-    await audit(actor, AuditLog.Action.CREATE, "property", prop.pk, f"created {prop.title}")
-    return {"property": await serialize_property(prop)}
-
-
-@console_api.post("/properties/{pk}/edit/")
-async def property_edit(request):
-    pk = param_int(request, "pk")
-    actor = await superadmin_required(request)
-    prop = await Property.objects.filter(pk=pk).afirst()
-    if prop is None:
-        raise _not_found("property")
-    data = json_body(request)
-    for field, value in _property_fields(data).items():
-        setattr(prop, field, value)
-    owner_id = _optional_id(data, "owner")
-    if owner_id:
-        owner = await User.objects.filter(pk=owner_id, role=Role.OWNER).afirst()
-        if owner is not None:
-            prop.owner = owner
-    await prop.asave()
-    await audit(actor, AuditLog.Action.UPDATE, "property", prop.pk, f"updated {prop.title}")
-    return {"property": await serialize_property(prop)}
-
-
 @console_api.post("/properties/{pk}/delete/")
-async def property_delete(request):
+async def property_soft_delete(request):
     pk = param_int(request, "pk")
     actor = await superadmin_required(request)
     prop = await Property.objects.filter(pk=pk).afirst()
     if prop is None:
         raise _not_found("property")
-    title = prop.title
-    await prop.adelete()
-    await audit(actor, AuditLog.Action.DELETE, "property", pk, f"deleted {title}")
-    return {"ok": True, "deleted": pk}
-
-
-@console_api.post("/properties/bulk-delete/")
-async def properties_bulk_delete(request):
-    actor = await superadmin_required(request)
-    ids = _ids(json_body(request))
-    await Property.objects.filter(pk__in=ids).adelete()
-    await audit(
-        actor,
-        AuditLog.Action.DELETE,
-        "property",
-        ",".join(map(str, ids)),
-        "bulk deleted properties",
-    )
-    return {"ok": True}
+    if prop.is_active:
+        prop.is_active = False
+        await prop.asave(update_fields=["is_active", "updated_at"])
+        await audit(actor, AuditLog.Action.DELETE, "property", pk, f"soft deleted {prop.title}")
+    return {"ok": True, "deleted": pk, "is_active": prop.is_active}
 
 
 # ---------------------------------------------------------------------------
@@ -497,103 +418,6 @@ async def bookings_list(request):
         "status_counts": status_counts,
         "total": await Booking.objects.acount(),
     }
-
-
-@console_api.post("/bookings/new/")
-async def booking_create(request):
-    actor = await superadmin_required(request)
-    data = json_body(request)
-    prop = await Property.objects.filter(pk=_optional_id(data, "property")).afirst()
-    renter = await User.objects.filter(pk=_optional_id(data, "renter")).afirst()
-    if prop is None or renter is None:
-        raise HTTPException(status_code=422, detail="property_and_renter_required")
-    owner_id = _optional_id(data, "owner")
-    owner = await User.objects.filter(pk=owner_id).afirst() if owner_id else None
-    if owner is None:
-        owner = await User.objects.filter(pk=prop.owner_id).afirst()
-    status = body_str(data, "status") or BookingStatus.PENDING
-    if status not in dict(BookingStatus.choices):
-        raise HTTPException(status_code=422, detail="invalid_status")
-    booking = await Booking.objects.acreate(
-        property=prop,
-        renter=renter,
-        owner=owner,
-        status=status,
-        monthly_rent=Decimal(
-            str(body_float(data, "monthly_rent", float(prop.price_per_month)))
-        ),
-        lease_months=body_int(data, "lease_months", 12) or 12,
-        move_in_date=_parse_date(body_str(data, "move_in_date")),
-        note=body_str(data, "note"),
-    )
-    await audit(
-        actor,
-        AuditLog.Action.CREATE,
-        "booking",
-        booking.pk,
-        f"created {booking.reference}",
-    )
-    return {"booking": await serialize_booking(booking)}
-
-
-@console_api.post("/bookings/{pk}/edit/")
-async def booking_edit(request):
-    pk = param_int(request, "pk")
-    actor = await superadmin_required(request)
-    booking = await Booking.objects.filter(pk=pk).afirst()
-    if booking is None:
-        raise _not_found("booking")
-    data = json_body(request)
-    if "status" in data:
-        status = body_str(data, "status")
-        if status not in dict(BookingStatus.choices):
-            raise HTTPException(status_code=422, detail="invalid_status")
-        booking.status = status
-    if "monthly_rent" in data:
-        booking.monthly_rent = Decimal(str(body_float(data, "monthly_rent", 0)))
-    if "lease_months" in data:
-        booking.lease_months = body_int(data, "lease_months", booking.lease_months) or 1
-    if "move_in_date" in data:
-        booking.move_in_date = _parse_date(body_str(data, "move_in_date"))
-    if "note" in data:
-        booking.note = body_str(data, "note")
-    await booking.asave()
-    await audit(
-        actor,
-        AuditLog.Action.UPDATE,
-        "booking",
-        booking.pk,
-        f"updated {booking.reference}",
-    )
-    return {"booking": await serialize_booking(booking)}
-
-
-@console_api.post("/bookings/{pk}/delete/")
-async def booking_delete(request):
-    pk = param_int(request, "pk")
-    actor = await superadmin_required(request)
-    booking = await Booking.objects.filter(pk=pk).afirst()
-    if booking is None:
-        raise _not_found("booking")
-    ref = booking.reference
-    await booking.adelete()
-    await audit(actor, AuditLog.Action.DELETE, "booking", pk, f"deleted {ref}")
-    return {"ok": True, "deleted": pk}
-
-
-@console_api.post("/bookings/bulk-delete/")
-async def bookings_bulk_delete(request):
-    actor = await superadmin_required(request)
-    ids = _ids(json_body(request))
-    await Booking.objects.filter(pk__in=ids).adelete()
-    await audit(
-        actor,
-        AuditLog.Action.DELETE,
-        "booking",
-        ",".join(map(str, ids)),
-        "bulk deleted bookings",
-    )
-    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
@@ -654,42 +478,6 @@ async def payments_list(request):
             or 0
         ),
     }
-
-
-@console_api.post("/payments/new/")
-async def payment_create(request):
-    actor = await superadmin_required(request)
-    data = json_body(request)
-    user = await User.objects.filter(pk=_optional_id(data, "user")).afirst()
-    booking = await Booking.objects.filter(pk=_optional_id(data, "booking")).afirst()
-    prop = await Property.objects.filter(pk=_optional_id(data, "property")).afirst()
-    if prop is None and booking is not None and booking.property_id:
-        prop = await Property.objects.filter(pk=booking.property_id).afirst()
-    amount = body_float(data, "amount")
-    if amount is None:
-        if booking is not None:
-            amount = float(booking.monthly_rent)
-        elif prop is not None:
-            amount = float(prop.price_per_month)
-    if user is None or amount is None:
-        raise HTTPException(status_code=422, detail="user_and_amount_required")
-
-    payment = await Payment.objects.acreate(
-        property=prop,
-        user=user,
-        booking=booking,
-        amount=Decimal(str(amount)),
-        method=body_str(data, "method") or Payment.Method.ABA,
-        status=body_str(data, "status") or Payment.Status.SUCCESS,
-    )
-    await audit(
-        actor,
-        AuditLog.Action.CREATE,
-        "payment",
-        payment.pk,
-        f"created {payment.reference}",
-    )
-    return {"payment": await serialize_payment(payment)}
 
 
 @console_api.post("/payments/{pk}/edit/")

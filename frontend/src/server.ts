@@ -9,25 +9,6 @@ import http from 'node:http';
 import { join } from 'node:path';
 
 const BACKEND_URL = process.env['BACKEND_URL'] || 'http://127.0.0.1:8123';
-const API_PREFIXES = [
-  '/auth',
-  '/bookings',
-  '/core',
-  '/notifications',
-  '/owner/bookings',
-  '/owner/payments',
-  '/owner/properties',
-  '/payments',
-  '/properties',
-  '/refunds',
-  '/rent/bookings',
-  '/rent/favorites',
-  '/rent/payments',
-  '/rent/properties',
-  '/rent/property',
-  '/users',
-];
-
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
@@ -48,10 +29,7 @@ const HOP_BY_HOP = new Set([
 
 app.use((req, res, next) => {
   const isApiAlias = req.path === '/api' || req.path.startsWith('/api/');
-  const isApi = API_PREFIXES.some(
-    (prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`),
-  );
-  if (!isApi && !isApiAlias) return next();
+  if (!isApiAlias) return next();
 
   const headers = { ...req.headers } as Record<string, string | string[] | undefined>;
   headers['host'] = backendTarget.host;

@@ -263,7 +263,11 @@ async def set_theme_view(request):
 @api.get("/rent/")
 async def renter_dashboard(request):
     user = await renter_required(request)
-    properties = Property.objects.filter(owner__role=Role.OWNER).order_by("-created_at")
+    properties = (
+        Property.objects.filter(owner__role=Role.OWNER)
+        .for_renter(user)
+        .order_by("-created_at")
+    )
     bookings = (
         Booking.objects.filter(renter=user)
         .select_related("property", "owner", "payment")
@@ -285,10 +289,7 @@ async def renter_dashboard(request):
     )["v"] or 0
     refunded = (await payments.aaggregate(v=Sum("refunded_amount")))["v"] or 0
 
-    blocked = Booking.objects.filter(
-        renter=user, status__in=[BookingStatus.PENDING, BookingStatus.APPROVED]
-    ).values_list("property_id", flat=True)
-    suggested = properties.exclude(id__in=blocked)[:6]
+    suggested = properties.for_renter(user)[:6]
     favorite_ids = {
         v async for v in favorites.values_list("property_id", flat=True)
     }
@@ -297,12 +298,14 @@ async def renter_dashboard(request):
         "stats": {
             "available": await Property.objects.filter(
                 owner__role=Role.OWNER
-            ).acount(),
+            ).for_renter(user).acount(),
             "bookings": await bookings.acount(),
             "active": counts.get(BookingStatus.PENDING, 0)
-            + counts.get(BookingStatus.APPROVED, 0),
+            + counts.get(BookingStatus.APPROVED, 0)
+            + counts.get(BookingStatus.CONFIRMED, 0),
             "pending": counts.get(BookingStatus.PENDING, 0),
-            "approved": counts.get(BookingStatus.APPROVED, 0),
+            "approved": counts.get(BookingStatus.APPROVED, 0)
+            + counts.get(BookingStatus.CONFIRMED, 0),
             "favorites": await favorites.acount(),
             "payments": await payments.acount(),
             "spend": float(spend),
@@ -359,7 +362,8 @@ async def owner_dashboard(request):
         "stats": {
             "listings": await properties.acount(),
             "pending": counts.get(BookingStatus.PENDING, 0),
-            "approved": counts.get(BookingStatus.APPROVED, 0),
+            "approved": counts.get(BookingStatus.APPROVED, 0)
+            + counts.get(BookingStatus.CONFIRMED, 0),
             "rejected": counts.get(BookingStatus.REJECTED, 0),
             "cancelled": counts.get(BookingStatus.CANCELLED, 0),
             "potential": float(potential),

@@ -8,12 +8,13 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-ACTIVE_STATUSES = ("Pending", "Approved")
+ACTIVE_STATUSES = ("Pending", "Approved", "Confirmed")
 
 #: Mirrors ``PropertyProvider._isValidStatusTransition`` from the Flutter app.
 VALID_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "Pending": ("Approved", "Rejected", "Cancelled"),
-    "Approved": (),
+    "Approved": ("Confirmed", "Cancelled"),
+    "Confirmed": ("Cancelled",),
     "Rejected": (),
     "Cancelled": (),
 }
@@ -28,6 +29,7 @@ TIMESTAMP_FIELD = {
 class BookingStatus(models.TextChoices):
     PENDING = "Pending", "Pending"
     APPROVED = "Approved", "Approved"
+    CONFIRMED = "Confirmed", "Confirmed"
     REJECTED = "Rejected", "Rejected"
     CANCELLED = "Cancelled", "Cancelled"
 
@@ -105,6 +107,8 @@ class Booking(models.Model):
         return new_status in VALID_TRANSITIONS.get(self.status, ())
 
     def can_cancel(self) -> bool:
+        if self.status == BookingStatus.CONFIRMED and self.payment_id:
+            return False
         return self.can_transition_to(BookingStatus.CANCELLED)
 
     def can_approve(self) -> bool:

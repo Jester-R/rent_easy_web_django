@@ -5,6 +5,7 @@ import { PropertyService } from '../../services/property.service';
 import { AuthService } from '../../services/auth.service';
 import { LandingData } from '../../models';
 import { PropertyCardComponent } from '../../components/property-card/property-card';
+import { LanguageService } from '../../services/language.service';
 
 @Component({
   selector: 'app-landing',
@@ -15,6 +16,7 @@ export class LandingComponent implements OnInit {
   private readonly propertyService = inject(PropertyService);
   private readonly platformId = inject(PLATFORM_ID);
   readonly auth = inject(AuthService);
+  readonly language = inject(LanguageService);
 
   landingData = signal<LandingData | null>(null);
   isLoading = signal(true);

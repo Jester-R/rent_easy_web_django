@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-register',
@@ -10,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
   templateUrl: './register.html',
 })
 export class RegisterComponent {
+  readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -30,7 +32,7 @@ export class RegisterComponent {
 
     const val = this.form.value;
     if (val.password !== val.password_confirm) {
-      this.errorMessage.set('Passwords do not match.');
+      this.errorMessage.set(this.language.t('Passwords do not match.', 'ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ។'));
       return;
     }
 
@@ -54,13 +56,13 @@ export class RegisterComponent {
           this.isLoading.set(false);
           const detail = err.error?.detail || '';
           if (detail === 'email_taken') {
-            this.errorMessage.set('This email address is already registered.');
+            this.errorMessage.set(this.language.t('This email address is already registered.', 'អាសយដ្ឋានអ៊ីមែលនេះបានចុះឈ្មោះរួចហើយ។'));
           } else if (detail === 'username_taken') {
-            this.errorMessage.set('This username is already taken.');
+            this.errorMessage.set(this.language.t('This username is already taken.', 'ឈ្មោះអ្នកប្រើនេះត្រូវបានប្រើរួចហើយ។'));
           } else if (detail === 'username_invalid') {
-            this.errorMessage.set('Username must be alphanumeric.');
+            this.errorMessage.set(this.language.t('Username must be alphanumeric.', 'ឈ្មោះអ្នកប្រើត្រូវមានតែអក្សរ និងលេខ។'));
           } else {
-            this.errorMessage.set('Registration failed. Please check your details.');
+            this.errorMessage.set(this.language.t('Registration failed. Please check your details.', 'ការចុះឈ្មោះបរាជ័យ។ សូមពិនិត្យព័ត៌មានរបស់អ្នក។'));
           }
         },
       });

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { PropertyService } from '../../../services/property.service';
 import { Property } from '../../../models';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-owner-properties',
@@ -10,6 +11,7 @@ import { Property } from '../../../models';
   templateUrl: './owner-list.html',
 })
 export class OwnerPropertiesComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly propertyService = inject(PropertyService);
 
   properties = signal<Property[]>([]);

@@ -1,11 +1,11 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">Users</h1>
-      <p class="text-[12px] text-ink-3">Manage platform accounts, roles and access</p>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Users', 'អ្នកប្រើប្រាស់') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('Manage platform accounts, roles and access', 'គ្រប់គ្រងគណនី តួនាទី និងសិទ្ធិចូលប្រើប្រាស់របស់វេទិកា') }}</p>
     </div>
     <a routerLink="/console/users/new" class="btn btn-primary btn-sm">
-      <app-icon name="user-plus" [size]="15" /><span>New user</span>
+      <app-icon name="user-plus" [size]="15" /><span>{{ language.t('New user', 'អ្នកប្រើប្រាស់ថ្មី') }}</span>
     </a>
   </div>
 
@@ -25,17 +25,17 @@
         <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
           <app-icon name="search" [size]="16" />
         </span>
-        <input #q type="search" class="form-input ps-11" placeholder="Search by name, email or username" [value]="query()" (input)="onSearch(q.value)" />
+        <input #q type="search" class="form-input ps-11" [placeholder]="language.t('Search by name, email or username', 'ស្វែងរកតាមឈ្មោះ អ៊ីមែល ឬឈ្មោះអ្នកប្រើ')" [value]="query()" (input)="onSearch(q.value)" />
       </div>
       <select class="form-input" [value]="role()" #r (change)="onRoleChange(r.value)">
-        <option value="all">All</option>
+        <option value="all">{{ language.t('All', 'ទាំងអស់') }}</option>
         @for (option of roles(); track option.value) {
-          <option [value]="option.value">{{ option.label }}</option>
+          <option [value]="option.value">{{ label(option.label) }}</option>
         }
       </select>
       <div class="flex gap-2">
         <button type="submit" class="btn btn-primary flex-1">
-          <app-icon name="filter" [size]="15" /><span>Filter</span>
+          <app-icon name="filter" [size]="15" /><span>{{ language.t('Filter', 'តម្រង') }}</span>
         </button>
         <button type="button" class="btn btn-ghost" (click)="refresh()" title="Refresh" aria-label="Refresh">
           <app-icon name="refresh" [size]="15" />
@@ -46,7 +46,7 @@
 
   <div class="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
     <span class="pill pill-neutral">
-      <app-icon name="users" [size]="12" /> {{ users().length }} / {{ total() }} Users
+      <app-icon name="users" [size]="12" /> {{ users().length }} / {{ total() }} {{ language.t('Users', 'អ្នកប្រើប្រាស់') }}
     </span>
     @if (query()) {
       <span class="pill pill-neutral">
@@ -64,12 +64,12 @@
   } @else if (users().length === 0) {
     <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
       <span class="empty-state-icon"><app-icon [name]="hasFilters() ? 'search' : 'users'" [size]="30" /></span>
-      <p class="text-[15px] font-bold text-ink">No users found</p>
+      <p class="text-[15px] font-bold text-ink">{{ language.t('No users found', 'រកមិនឃើញអ្នកប្រើប្រាស់ទេ') }}</p>
       <p class="max-w-sm text-[13px] leading-relaxed text-ink-3">
-        {{ hasFilters() ? 'No accounts match your search or role filter.' : 'New user' }}
+        {{ hasFilters() ? language.t('No accounts match your search or role filter.', 'គ្មានគណនីដែលត្រូវនឹងការស្វែងរក ឬតម្រងតួនាទីទេ។') : language.t('New user', 'អ្នកប្រើប្រាស់ថ្មី') }}
       </p>
       <button type="button" class="btn btn-primary btn-sm mt-1" (click)="refresh()">
-        <app-icon name="refresh" [size]="15" /><span>Reset</span>
+        <app-icon name="refresh" [size]="15" /><span>{{ language.t('Reset', 'កំណត់ឡើងវិញ') }}</span>
       </button>
     </div>
   } @else {
@@ -80,12 +80,12 @@
             <th class="w-px">
               <input type="checkbox" class="form-checkbox" [checked]="allSelected()" (change)="toggleAll()" aria-label="Select all" />
             </th>
-            <th class="text-start">Users</th>
-            <th class="text-start">Role</th>
-            <th class="text-end">Properties</th>
-            <th class="text-end">Bookings</th>
-            <th class="text-start">Created</th>
-            <th class="text-end w-px">Actions</th>
+            <th class="text-start">{{ language.t('Users', 'អ្នកប្រើប្រាស់') }}</th>
+            <th class="text-start">{{ language.t('Role', 'តួនាទី') }}</th>
+            <th class="text-end">{{ language.t('Properties', 'អចលនទ្រព្យ') }}</th>
+            <th class="text-end">{{ language.t('Bookings', 'ការកក់') }}</th>
+            <th class="text-start">{{ language.t('Created', 'បានបង្កើត') }}</th>
+            <th class="text-end w-px">{{ language.t('Actions', 'សកម្មភាព') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -94,7 +94,7 @@
               <td data-label="" class="w-px">
                 <input type="checkbox" class="form-checkbox" [checked]="isSelected(item.id)" (change)="toggle(item.id)" [attr.aria-label]="item.email" />
               </td>
-              <td data-label="Users" class="min-w-[13rem]">
+              <td [attr.data-label]="language.t('Users', 'អ្នកប្រើប្រាស់')" class="min-w-[13rem]">
                 <div class="flex items-center gap-2.5">
                   <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
                         [style.background-color]="'hsl(' + item.avatar_hue + ' 42% 92%)'"
@@ -105,26 +105,26 @@
                     <a [routerLink]="['/console/users', item.id, 'edit']" class="block truncate font-bold hover:text-primary">
                       {{ item.display_name }}
                       @if (!item.is_active) {
-                        <span class="pill pill-rejected ms-1">Failed</span>
+                        <span class="pill pill-rejected ms-1">{{ language.t('Failed', 'បរាជ័យ') }}</span>
                       }
                     </a>
                     <span class="block truncate text-[11px] text-ink-3">{{ item.email }} · &#64;{{ item.username }}</span>
                   </span>
                 </div>
               </td>
-              <td data-label="Role">
-                <span class="pill {{ rolePill(item.role) }}">{{ roleLabel(item.role) }}</span>
+              <td [attr.data-label]="language.t('Role', 'តួនាទី')">
+                <span class="pill {{ rolePill(item.role) }}">{{ label(roleLabel(item.role)) }}</span>
               </td>
-              <td data-label="Properties" class="text-end text-ink-2 tabular-nums">{{ item.property_count ?? 0 }}</td>
-              <td data-label="Bookings" class="text-end text-ink-2 tabular-nums">{{ item.booking_count ?? 0 }}</td>
-              <td data-label="Created" class="whitespace-nowrap text-ink-2">{{ shortDate(item.date_joined) }}</td>
+              <td [attr.data-label]="language.t('Properties', 'អចលនទ្រព្យ')" class="text-end text-ink-2 tabular-nums">{{ item.property_count ?? 0 }}</td>
+              <td [attr.data-label]="language.t('Bookings', 'ការកក់')" class="text-end text-ink-2 tabular-nums">{{ item.booking_count ?? 0 }}</td>
+              <td [attr.data-label]="language.t('Created', 'បានបង្កើត')" class="whitespace-nowrap text-ink-2">{{ shortDate(item.date_joined) }}</td>
               <td data-label="" class="w-px">
                 <div class="flex items-center justify-end gap-1">
-                  <a [routerLink]="['/console/users', item.id, 'edit']" class="btn btn-ghost btn-icon" title="Edit">
+                  <a [routerLink]="['/console/users', item.id, 'edit']" class="btn btn-ghost btn-icon" [title]="language.t('Edit', 'កែសម្រួល')">
                     <app-icon name="edit" [size]="16" />
                   </a>
                   @if (item.id !== auth.currentUser()?.id) {
-                    <button type="button" class="btn btn-ghost btn-icon text-danger" title="Delete" (click)="remove(item)">
+                    <button type="button" class="btn btn-ghost btn-icon text-danger" [title]="language.t('Delete', 'លុប')" (click)="remove(item)">
                       <app-icon name="trash" [size]="16" />
                     </button>
                   }
@@ -141,12 +141,12 @@
         <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
           <span class="flex items-center gap-2 text-[13px] font-bold">
             <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">{{ selected().length }}</span>
-            selected
+            {{ language.t('selected', 'បានជ្រើសរើស') }}
           </span>
           <div class="ms-auto flex flex-wrap items-center gap-2">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="clearSelection()">Reset</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="clearSelection()">{{ language.t('Reset', 'កំណត់ឡើងវិញ') }}</button>
             <button type="button" class="btn btn-danger btn-sm" (click)="bulkDelete()">
-              <app-icon name="trash" [size]="15" /><span>Delete</span>
+              <app-icon name="trash" [size]="15" /><span>{{ language.t('Delete', 'លុប') }}</span>
             </button>
           </div>
         </div>

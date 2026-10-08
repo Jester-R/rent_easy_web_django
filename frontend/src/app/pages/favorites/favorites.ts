@@ -5,6 +5,7 @@ import { PropertyService } from '../../services/property.service';
 import { Property } from '../../models';
 import { PropertyCardComponent } from '../../components/property-card/property-card';
 import { IconComponent } from '../../components/icon/icon';
+import { LanguageService } from '../../services/language.service';
 
 @Component({
   selector: 'app-renter-favorites',
@@ -12,6 +13,7 @@ import { IconComponent } from '../../components/icon/icon';
   templateUrl: './favorites.html',
 })
 export class RenterFavoritesComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly propertyService = inject(PropertyService);
 
   favorites = signal<Property[]>([]);

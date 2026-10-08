@@ -78,6 +78,7 @@ class UserSerializer(UserBriefSerializer):
 
 class PropertySerializer(Serializer):
     id: int
+    is_active: bool
     title: str
     location: str
     price_per_month: float
@@ -169,6 +170,8 @@ class BookingSerializer(Serializer):
 
     @computed_field
     def can_cancel(self) -> bool:
+        if self.status == "Confirmed" and self.is_paid:
+            return False
         return "Cancelled" in VALID_TRANSITIONS.get(self.status, ())
 
 

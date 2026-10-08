@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
 import { AuthService } from '../../../services/auth.service';
 import { ConsoleService } from '../../../services/console.service';
+import { LanguageService } from '../../../services/language.service';
 import { ConsoleUserItem, RoleOption } from '../../../models';
 import { initials, roleLabel, rolePill, shortDate } from '../../../shared/ui';
 
@@ -14,6 +15,7 @@ import { initials, roleLabel, rolePill, shortDate } from '../../../shared/ui';
 export class ConsoleUsersComponent implements OnInit, OnDestroy {
   private readonly console = inject(ConsoleService);
   readonly auth = inject(AuthService);
+  readonly language = inject(LanguageService);
 
   readonly rolePill = rolePill;
   readonly roleLabel = roleLabel;
@@ -37,6 +39,15 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
   });
 
   hasFilters = computed(() => this.query() !== '' || this.role() !== 'all');
+
+  label(value: string): string {
+    const khmer: Record<string, string> = {
+      'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
+      'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
+      Renter: 'អ្នកជួល',
+    };
+    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+  }
 
   ngOnInit(): void {
     this.load();

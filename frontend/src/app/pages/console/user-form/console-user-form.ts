@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
 import { ConsoleService } from '../../../services/console.service';
+import { LanguageService } from '../../../services/language.service';
 import { User } from '../../../models';
 import { prettyDate, roleLabel } from '../../../shared/ui';
 
@@ -13,6 +14,7 @@ import { prettyDate, roleLabel } from '../../../shared/ui';
 })
 export class ConsoleUserFormComponent implements OnInit {
   readonly id = input<string>();
+  readonly language = inject(LanguageService);
 
   private readonly fb = inject(FormBuilder);
   private readonly console = inject(ConsoleService);
@@ -20,6 +22,16 @@ export class ConsoleUserFormComponent implements OnInit {
 
   readonly prettyDate = prettyDate;
   readonly roleLabel = roleLabel;
+
+  roleLabelTranslated(role: string): string {
+    const label = roleLabel(role);
+    const khmer: Record<string, string> = {
+      'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
+      'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
+      Renter: 'អ្នកជួល',
+    };
+    return this.language.current() === 'km' ? (khmer[label] ?? label) : label;
+  }
 
   isEdit = signal(false);
   isLoading = signal(true);
@@ -113,7 +125,9 @@ export class ConsoleUserFormComponent implements OnInit {
 
   private friendlyError(err: unknown, fallback: string): string {
     const detail = (err as { error?: { detail?: string } }).error?.detail;
-    if (!detail) return fallback;
+    if (!detail) {
+      return this.language.t(fallback, fallback === 'Failed to load user.' ? 'មិនអាចផ្ទុកព័ត៌មានអ្នកប្រើប្រាស់បានទេ។' : 'មិនអាចរក្សាទុកអ្នកប្រើប្រាស់បានទេ។');
+    }
     const messages: Record<string, string> = {
       email_taken: 'Email or username already in use',
       password_too_short: 'Password must be at least 6 characters.',
@@ -123,6 +137,15 @@ export class ConsoleUserFormComponent implements OnInit {
       price_required: 'Enter a valid price',
       owner_required: 'Select an owner with the Property Owner role.',
     };
-    return messages[detail] || detail;
+    const message = messages[detail] || detail;
+    const khmer: Record<string, string> = {
+      'Email or username already in use': 'អ៊ីមែល ឬឈ្មោះអ្នកប្រើនេះត្រូវបានប្រើរួចហើយ។',
+      'Password must be at least 6 characters.': 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ។',
+      'Username must be 3-30 characters using letters, numbers, ., _ or -': 'ឈ្មោះអ្នកប្រើត្រូវមាន ៣–៣០ តួអក្សរ ដោយប្រើអក្សរ លេខ . _ ឬ -។',
+      'Title is required': 'ត្រូវបញ្ចូលចំណងជើង។',
+      'Location is required': 'ត្រូវបញ្ចូលទីតាំង។',
+      'Enter a valid price': 'សូមបញ្ចូលតម្លៃត្រឹមត្រូវ។',
+    };
+    return this.language.current() === 'km' ? (khmer[message] ?? message) : message;
   }
 }

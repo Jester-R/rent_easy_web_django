@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-login',
@@ -10,6 +11,7 @@ import { AuthService } from '../../../services/auth.service';
   templateUrl: './login.html',
 })
 export class LoginComponent {
+  readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -51,11 +53,11 @@ export class LoginComponent {
           this.isLoading.set(false);
           const detail = err.error?.detail || '';
           if (detail === 'invalid_credentials') {
-            this.errorMessage.set('Invalid username/email or password.');
+            this.errorMessage.set(this.language.t('Invalid username/email or password.', 'ឈ្មោះអ្នកប្រើ/អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ។'));
           } else if (detail === 'credentials_required') {
-            this.errorMessage.set('Please provide both identifier and password.');
+            this.errorMessage.set(this.language.t('Please provide both identifier and password.', 'សូមបញ្ចូលឈ្មោះអ្នកប្រើ ឬអ៊ីមែល និងពាក្យសម្ងាត់។'));
           } else {
-            this.errorMessage.set('An error occurred during login. Please try again.');
+            this.errorMessage.set(this.language.t('An error occurred during login. Please try again.', 'មានបញ្ហាក្នុងពេលចូលគណនី។ សូមព្យាយាមម្ដងទៀត។'));
           }
         },
       });

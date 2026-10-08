@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PaymentService, RenterPaymentsResponse } from '../../../services/payment.service';
 import { Payment } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-renter-payments',
@@ -11,6 +12,7 @@ import { IconComponent } from '../../../components/icon/icon';
   templateUrl: './renter-payments.html',
 })
 export class RenterPaymentsComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly paymentService = inject(PaymentService);
 
   payments = signal<Payment[]>([]);

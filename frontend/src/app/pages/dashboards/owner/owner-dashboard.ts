@@ -3,6 +3,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { OwnerDashboardData } from '../../../models';
+import { LanguageService } from '../../../services/language.service';
 
 @Component({
   selector: 'app-owner-dashboard',
@@ -10,6 +11,7 @@ import { OwnerDashboardData } from '../../../models';
   templateUrl: './owner-dashboard.html',
 })
 export class OwnerDashboardComponent implements OnInit {
+  readonly language = inject(LanguageService);
   readonly auth = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
 

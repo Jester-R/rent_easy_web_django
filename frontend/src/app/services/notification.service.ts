@@ -8,7 +8,7 @@ import { AppNotification } from '../models';
 })
 export class NotificationService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '';
+  private readonly baseUrl = '/api';
 
   readonly unreadCount = signal<number>(0);
 

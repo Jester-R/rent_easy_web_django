@@ -24,7 +24,7 @@ export interface OwnerPaymentsResponse {
 })
 export class PaymentService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '';
+  private readonly baseUrl = '/api';
 
   getRenterPayments(filters?: {
     q?: string;

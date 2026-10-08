@@ -5,6 +5,7 @@ export function bookingPill(status: string): string {
     case 'Pending':
       return 'pill-pending';
     case 'Approved':
+    case 'Confirmed':
       return 'pill-approved';
     case 'Rejected':
       return 'pill-rejected';

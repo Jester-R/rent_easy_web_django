@@ -30,7 +30,7 @@
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4 max-w-xl">
         <div>
-          <label class="form-label">Full Name</label>
+          <label class="form-label">{{ language.t('Full Name', 'ឈ្មោះពេញ') }}</label>
           <input
             type="text"
             formControlName="full_name"
@@ -39,7 +39,7 @@
         </div>
 
         <div>
-          <label class="form-label">Username</label>
+          <label class="form-label">{{ language.t('Username', 'ឈ្មោះអ្នកប្រើ') }}</label>
           <input
             type="text"
             formControlName="username"
@@ -48,7 +48,7 @@
         </div>
 
         <div>
-          <label class="form-label">Email</label>
+          <label class="form-label">{{ language.t('Email', 'អ៊ីមែល') }}</label>
           <input
             type="email"
             formControlName="email"
@@ -63,13 +63,22 @@
             class="btn btn-primary"
           >
             @if (isLoading()) {
-              Saving Changes...
+              {{ language.t('Saving Changes...', 'កំពុងរក្សាទុកការផ្លាស់ប្តូរ...') }}
             } @else {
-              Save Preferences
+              {{ language.t('Save Preferences', 'រក្សាទុកការកំណត់') }}
             }
           </button>
         </div>
       </form>
+
+      <section class="mt-8 border-t border-hairline pt-6">
+        <h2 class="text-base font-bold">{{ language.t('Language', 'ភាសា') }}</h2>
+        <p class="mt-1 text-xs text-ink-3">{{ language.t('Choose the language used across RentEasy.', 'ជ្រើសរើសភាសាដែលប្រើនៅលើ RentEasy។') }}</p>
+        <div class="mt-3 flex gap-2">
+          <button type="button" (click)="language.set('en')" class="btn btn-sm" [class.btn-primary]="language.current() === 'en'" [class.btn-outline]="language.current() !== 'en'">English</button>
+          <button type="button" (click)="language.set('km')" class="btn btn-sm" [class.btn-primary]="language.current() === 'km'" [class.btn-outline]="language.current() !== 'km'">ខ្មែរ</button>
+        </div>
+      </section>
     </div>
   </div>
 </div>

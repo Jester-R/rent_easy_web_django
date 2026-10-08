@@ -107,7 +107,8 @@
     }
 
     body {
-        padding: 16px;
+        margin: 0;
+        padding: 0;
         background-color: var(--canvas);
         color: var(--ink);
         font-family: var(--font-sans);
@@ -135,6 +136,15 @@
     html[lang="km"] .tracking-tight,
     html[lang="km"] .tracking-wide {
         letter-spacing: 0;
+    }
+}
+
+/* Avoid horizontal page scrolling on phones when long labels or media appear. */
+@media (max-width: 1023px) {
+    html,
+    body {
+        max-width: 100%;
+        overflow-x: clip;
     }
 }
 
@@ -719,7 +729,7 @@
     .modal-backdrop {
         position: fixed;
         inset: 0;
-        z-index: 60;
+        z-index: 100;
         display: grid;
         place-items: center;
         padding: 1.25rem;
@@ -737,6 +747,10 @@
         box-shadow: var(--shadow-pop);
     }
 
+    .payment-modal-backdrop {
+        z-index: 1000;
+    }
+
     .dropdown-panel {
         position: absolute;
         right: 0;
@@ -748,6 +762,10 @@
         border: 1px solid var(--hairline);
         border-radius: 0.9rem;
         box-shadow: var(--shadow-pop);
+    }
+
+    .notification-dropdown {
+        width: min(24rem, calc(100vw - 1rem));
     }
 
     /* ---------------- flash toasts ---------------- */
@@ -825,7 +843,24 @@
    Phone refinements (< 640px). Tailwind handles most of the layout, but data
    tables, sheets and tap targets need real breakpoints.
    --------------------------------------------------------------------------- */
+app-property-card {
+    display: block;
+    min-width: 0;
+}
+
 @media (max-width: 639px) {
+    .grid.home-featured-grid:has(> app-property-card) {
+        row-gap: 1.25rem;
+        column-gap: 0;
+    }
+
+    /* Give dashboard and listing cards more breathing room on phones. */
+    .grid:has(> .app-card),
+    .grid:has(> .stat-card),
+    .grid:has(> app-property-card) {
+        gap: 1rem;
+    }
+
     /* --- tables become stacked cards, labels supplied by data-label --- */
     .table-wrap {
         overflow-x: visible;
@@ -938,22 +973,12 @@
     }
 
     .modal-panel {
-        max-height: 92vh;
+        max-height: min(92vh, 92dvh);
+        overflow-y: auto;
+        overscroll-behavior: contain;
         border-radius: 1.15rem 1.15rem 0 0;
         border-bottom: 0;
-        padding-bottom: env(safe-area-inset-bottom);
-    }
-
-    /* --- topbar actions collapse to their icon so nothing is clipped --- */
-    .app-topbar .btn-sm {
-        gap: 0;
-        padding-inline: 0.55rem;
-        font-size: 0;
-    }
-
-    .app-topbar .btn-sm svg {
-        width: 18px;
-        height: 18px;
+        padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
     }
 
     /* --- comfortable tap targets --- */
@@ -972,8 +997,14 @@
     }
 
     .property-thumb {
-        width: 3rem;
-        height: 3rem;
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .property-card {
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem;
     }
 }
 
@@ -1012,6 +1043,50 @@ html {
     }
 }
 
+/* Keep guest actions on screen on narrow phones by giving the header a
+   predictable second row instead of letting flex items spill off-canvas. */
+@media (max-width: 639px) {
+    .modal-backdrop.payment-modal-backdrop {
+        z-index: 1000;
+        align-items: center;
+        padding: 1rem 0.75rem calc(4.5rem + env(safe-area-inset-bottom));
+    }
+
+    .modal-panel.payment-modal-panel {
+        max-height: calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        border-radius: 1rem;
+        border-bottom: 1px solid var(--hairline);
+        padding-bottom: 1.25rem;
+    }
+
+    .notification-dropdown {
+        position: fixed;
+        top: calc(env(safe-area-inset-top) + 6.25rem);
+        right: 0.5rem;
+        width: calc(100vw - 1rem);
+        max-width: 24rem;
+        max-height: calc(100dvh - env(safe-area-inset-top) - 7rem);
+    }
+
+    .app-topbar__inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.35rem;
+        padding-top: 0.45rem;
+        padding-bottom: 0.55rem;
+    }
+
+    .app-topbar__actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-inline-start: 0;
+    }
+
+    .app-topbar__actions > a {
+        flex: 0 0 auto;
+    }
+}
+
 /* ---- bottom tab bar ---- */
 .app-tabbar {
     position: fixed;
@@ -1032,6 +1107,21 @@ html {
     padding: 0.3rem 0.4rem 0.35rem;
 }
 
+.app-tabbar__row--admin {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+.app-tabbar__row--admin::-webkit-scrollbar {
+    display: none;
+}
+
+.app-tabbar__row--admin .app-tab {
+    flex: 0 0 4.75rem;
+}
+
 .app-tab {
     display: flex;
     flex-direction: column;
@@ -1050,6 +1140,12 @@ html {
 }
 
 .app-tab__icon {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.35rem;
+    font-size: 1.25rem;
+    line-height: 1;
     transition: transform 0.18s ease;
 }
 

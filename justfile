@@ -1,65 +1,76 @@
-# RentEasy dev - minimal cross-platform commands (Linux/macOS + Windows).
-#   just setup     build everything: uv/pip venv + bolt patch + JS deps
-#   just backend   start only the backend (runbolt on PORT)
-#   just frontend  start only the Angular app (ng serve; bun, else node/npm)
-#   just run       start both together (Ctrl+C stops them)
-#
-# Each recipe is defined once for Unix and once for Windows ([unix]/[windows]);
-# just picks the matching variant automatically.
+# Run `just` from the project root. Unix and Windows commands are kept separate
+# because their virtual environment paths and shells differ.
 
 set dotenv-load := true
 
 port := "8123"
 
-# Create backend venv + install deps (venv/sync via uv when present), patch django-bolt, install frontend deps
+# Create the backend environment, install Python packages, and install frontend packages.
 [unix]
 setup:
-    @cd backend && { [ -d .venv ] || { command -v uv >/dev/null 2>&1 && uv venv || { python3 -m venv .venv || python -m venv .venv; }; }; }
-    @cd backend && { command -v uv >/dev/null 2>&1 && uv sync || { .venv/bin/python -m pip install --upgrade pip >/dev/null && .venv/bin/python -m pip install "django==6.1.1" "django-bolt>=0.11.1" "sqlparse==0.6.0" "whitenoise==6.12.0"; }; }
-    @cd backend && .venv/bin/python tools/patch_bolt.py
-    @cd frontend && { command -v bun >/dev/null 2>&1 && bun install || { command -v npm >/dev/null 2>&1 && npm install || echo "frontend deps skipped: install bun or node/npm"; }; }
+    @cd backend && if command -v uv >/dev/null 2>&1; then uv sync; else python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip && .venv/bin/python -m pip install -e .; fi
+    @cd backend && .venv/bin/python manage.py migrate
+    @cd backend && .venv/bin/python manage.py seed_demo
+    @cd frontend && if command -v bun >/dev/null 2>&1; then bun install; else npm install; fi
 
 [windows]
 setup:
-    @cd /d backend && if exist ".venv" (echo venv already present) else ((where uv >nul 2>nul && uv venv) || (py -3 -m venv .venv || python -m venv .venv))
-    @cd /d backend && (where uv >nul 2>nul && uv sync) || (.venv\Scripts\python.exe -m pip install --upgrade pip && .venv\Scripts\python.exe -m pip install "django==6.1.1" "django-bolt>=0.11.1" "sqlparse==0.6.0" "whitenoise==6.12.0")
-    @cd /d backend && .venv\Scripts\python.exe tools/patch_bolt.py
-    @cd /d frontend && (where bun >nul 2>nul && bun install) || ((where npm >nul 2>nul && npm install) || echo frontend deps skipped: install bun or node/npm)
+    @cd /d backend && (where uv >nul 2>nul && uv sync) || (py -3 -m venv .venv && .venv\Scripts\python.exe -m pip install --upgrade pip && .venv\Scripts\python.exe -m pip install -e .)
+    @cd /d backend && .venv\Scripts\python.exe manage.py migrate
+    @cd /d backend && .venv\Scripts\python.exe manage.py seed_demo
+    @cd /d frontend && (where bun >nul 2>nul && bun install) || npm install
 
-# Start only the backend (runbolt on PORT)
+# Apply database migrations.
+[unix]
+migrate:
+    @cd backend && .venv/bin/python manage.py migrate
+
+[windows]
+migrate:
+    @cd /d backend && .venv\Scripts\python.exe manage.py migrate
+
+# Create demo accounts and sample content. Use `just seed -- --reset` to recreate them.
+[unix]
+seed *ARGS:
+    @cd backend && .venv/bin/python manage.py seed_demo {{ARGS}}
+
+[windows]
+seed *ARGS:
+    @cd /d backend && .venv\Scripts\python.exe manage.py seed_demo {{ARGS}}
+
+# Start the backend API.
 [unix]
 backend:
-    @cd backend && { command -v nix >/dev/null 2>&1 && nix develop --command .venv/bin/python manage.py runbolt --host 127.0.0.1 --port {{port}} --no-admin || .venv/bin/python manage.py runbolt --host 127.0.0.1 --port {{port}} --no-admin; }
+    @cd backend && .venv/bin/python manage.py runbolt --host 127.0.0.1 --port {{port}} --no-admin
 
 [windows]
 backend:
     @cd /d backend && .venv\Scripts\python.exe manage.py runbolt --host 127.0.0.1 --port {{port}} --no-admin
 
-# Start only the Angular frontend (ng serve on :4200; bun, else node/npm)
+# Start the frontend development server.
 [unix]
 frontend:
-    @cd frontend && { command -v bun >/dev/null 2>&1 && bunx ng serve || { command -v npm >/dev/null 2>&1 && npm start || echo "frontend needs bun or node/npm"; }; }
+    @cd frontend && if command -v bun >/dev/null 2>&1; then bunx ng serve; else npm start; fi
 
 [windows]
 frontend:
-    @cd /d frontend && (where bun >nul 2>nul && bunx ng serve) || ((where npm >nul 2>nul && npm start) || echo frontend needs bun or node/npm)
+    @cd /d frontend && (where bun >nul 2>nul && bunx ng serve) || npm start
 
-# Build the Angular frontend for production (bun, else node/npm)
+# Build the frontend.
 [unix]
 build:
-    @cd frontend && { command -v bun >/dev/null 2>&1 && bun run build || { command -v npm >/dev/null 2>&1 && npm run build || echo "frontend build needs bun or node/npm"; }; }
+    @cd frontend && if command -v bun >/dev/null 2>&1; then bun run build; else npm run build; fi
 
 [windows]
 build:
-    @cd /d frontend && (where bun >nul 2>nul && bun run build) || ((where npm >nul 2>nul && npm run build) || echo frontend build needs bun or node/npm)
+    @cd /d frontend && (where bun >nul 2>nul && bun run build) || npm run build
 
-# Start both: backend in the background, frontend in the foreground
+# Start backend in the background and frontend in the foreground.
 [unix]
 run:
     @{{just_executable()}} backend > /tmp/bolt.log 2>&1 &
     @{{just_executable()}} frontend
 
-# Start both: backend in its own window, frontend in the foreground
 [windows]
 run:
     @start "renteasy-backend" {{just_executable()}} backend

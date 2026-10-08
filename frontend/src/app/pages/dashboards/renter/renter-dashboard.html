@@ -15,7 +15,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 21h18"/><path d="M5 21V5.5A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.5V21"/><path d="M15 10h3.5A1.5 1.5 0 0 1 20 11.5V21"/><path d="M8 8h4M8 12h4M8 16h4"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Available Listings</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Available Listings', 'អចលនទ្រព្យដែលមាន') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.available }}</p>
         </div>
       </div>
@@ -25,7 +25,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6a1.5 1.5 0 0 0-1.5-1.5H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/><path d="M9 11h6M9 14.5h4"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Total Applications</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Total Applications', 'ពាក្យស្នើសុំសរុប') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.bookings }}</p>
           <p class="text-[10px] text-ink-3 mt-0.5">{{ d.stats.pending }} pending</p>
         </div>
@@ -36,7 +36,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.5"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Approved Leases</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Approved Leases', 'កិច្ចសន្យាជួលដែលបានអនុម័ត') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.approved }}</p>
         </div>
       </div>
@@ -46,7 +46,7 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </span>
         <div>
-          <p class="text-[12px] font-semibold text-ink-3">Favorites</p>
+          <p class="text-[12px] font-semibold text-ink-3">{{ language.t('Favorites', 'ចំណូលចិត្ត') }}</p>
           <p class="text-[20px] font-extrabold leading-none text-ink mt-0.5">{{ d.stats.favorites }}</p>
         </div>
       </div>
@@ -61,9 +61,9 @@
           <div class="mb-4 flex items-center justify-between">
             <h2 class="text-[15px] font-extrabold tracking-tight flex items-center gap-2">
               <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5 10.1 12.8 4.5 10.9 10.1 9 12 3.5Z"/></svg>
-              <span>Featured Properties</span>
+              <span>{{ language.t('Featured Properties', 'អចលនទ្រព្យពិសេស') }}</span>
             </h2>
-            <a routerLink="/browse" class="btn btn-ghost btn-xs">Browse &rarr;</a>
+            <a routerLink="/browse" class="btn btn-ghost btn-xs">{{ language.t('Browse', 'មើល') }} &rarr;</a>
           </div>
 
           <div class="space-y-2.5">
@@ -77,9 +77,9 @@
           <div class="mb-4 flex items-center justify-between">
             <h2 class="text-[15px] font-extrabold tracking-tight flex items-center gap-2">
               <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6a1.5 1.5 0 0 0-1.5-1.5H15"/></svg>
-              <span>Recent Applications</span>
+              <span>{{ language.t('Recent Applications', 'ពាក្យស្នើសុំថ្មីៗ') }}</span>
             </h2>
-            <a routerLink="/bookings" class="btn btn-ghost btn-xs">View all &rarr;</a>
+            <a routerLink="/bookings" class="btn btn-ghost btn-xs">{{ language.t('View all', 'មើលទាំងអស់') }} &rarr;</a>
           </div>
 
           <div class="space-y-2.5">
@@ -88,9 +88,9 @@
                 <span class="empty-state-icon">
                   <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9"/></svg>
                 </span>
-                <p class="text-[13px] font-bold text-ink">No booking activity yet</p>
-                <p class="text-[12px] text-ink-3">Search available homes to send your first application.</p>
-                <a routerLink="/browse" class="btn btn-primary btn-sm mt-2">Browse Rentals</a>
+                <p class="text-[13px] font-bold text-ink">{{ language.t('No booking activity yet', 'មិនទាន់មានសកម្មភាពកក់ទេ') }}</p>
+                <p class="text-[12px] text-ink-3">{{ language.t('Search available homes to send your first application.', 'ស្វែងរកផ្ទះដែលមាន ដើម្បីផ្ញើពាក្យស្នើសុំដំបូងរបស់អ្នក។') }}</p>
+                <a routerLink="/browse" class="btn btn-primary btn-sm mt-2">{{ language.t('Browse Rentals', 'មើលផ្ទះជួល') }}</a>
               </div>
             } @else {
               @for (b of d.recent_bookings; track b.id) {
@@ -123,16 +123,16 @@
         <section class="app-card p-5">
           <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 3.5h14v17l-2.3-1.6-2.35 1.6-2.35-1.6-2.35 1.6L7.3 18.9 5 20.5v-17Z"/><path d="M8.5 8.5h7M8.5 12.5h7"/></svg>
-            <span>Payment Summary</span>
+            <span>{{ language.t('Payment Summary', 'សង្ខេបការទូទាត់') }}</span>
           </h2>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="rounded-xl bg-surface-2 p-3 border border-hairline">
-              <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">Total Paid</p>
+              <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Total Paid', 'បានបង់សរុប') }}</p>
               <p class="mt-1 text-[18px] font-extrabold leading-none text-primary">${{ d.stats.spend | number:'1.0-2' }}</p>
             </div>
             <div class="rounded-xl bg-surface-2 p-3 border border-hairline">
-              <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">Refunded</p>
+              <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Refunded', 'បានសងប្រាក់វិញ') }}</p>
               <p class="mt-1 text-[18px] font-extrabold leading-none">${{ d.stats.refunded | number:'1.0-2' }}</p>
             </div>
           </div>
@@ -149,15 +149,15 @@
             }
           </div>
 
-          <a routerLink="/payments" class="btn btn-outline btn-sm mt-4 w-full">View All Receipts</a>
+          <a routerLink="/payments" class="btn btn-outline btn-sm mt-4 w-full">{{ language.t('View All Receipts', 'មើលបង្កាន់ដៃទាំងអស់') }}</a>
         </section>
       </div>
     </div>
   </div>
 } @else if (hasError()) {
   <section class="app-card p-8 text-center">
-    <h1 class="text-lg font-extrabold">Renter dashboard unavailable</h1>
-    <p class="mt-2 text-sm text-ink-3">We couldn’t load your dashboard. Check your connection and try again.</p>
-    <button type="button" class="btn btn-primary mt-4" (click)="loadDashboard()">Try again</button>
+    <h1 class="text-lg font-extrabold">{{ language.t('Renter dashboard unavailable', 'មិនអាចបង្ហាញផ្ទាំងអ្នកជួលបានទេ') }}</h1>
+    <p class="mt-2 text-sm text-ink-3">{{ language.t('We couldn’t load your dashboard. Check your connection and try again.', 'មិនអាចផ្ទុកផ្ទាំងគ្រប់គ្រងបានទេ។ សូមពិនិត្យការតភ្ជាប់ ហើយព្យាយាមម្ដងទៀត។') }}</p>
+    <button type="button" class="btn btn-primary mt-4" (click)="loadDashboard()">{{ language.t('Try again', 'ព្យាយាមម្ដងទៀត') }}</button>
   </section>
 }

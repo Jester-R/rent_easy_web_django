@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
+import { LanguageService } from '../../services/language.service';
 
 @Component({
   selector: 'app-profile',
@@ -9,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './profile.html',
 })
 export class ProfileComponent implements OnInit {
+  readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
 

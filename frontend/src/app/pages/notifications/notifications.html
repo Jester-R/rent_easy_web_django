@@ -1,12 +1,12 @@
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-  <div class="flex items-center justify-between mb-8">
+<div class="mx-auto max-w-4xl py-6 sm:py-10">
+  <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
     <div>
-      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Notifications</h1>
-      <p class="text-xs text-ink-3 mt-1">Activity alerts, booking updates, and messages</p>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ language.t('Notifications', 'ការជូនដំណឹង') }}</h1>
+      <p class="text-xs text-ink-3 mt-1">{{ language.t('Activity alerts, booking updates, and messages', 'ការជូនដំណឹងសកម្មភាព បច្ចុប្បន្នភាពការកក់ និងសារ') }}</p>
     </div>
     @if (notifications().length > 0) {
-      <button (click)="markAllRead()" class="btn btn-outline btn-sm">
-        Mark all as read
+      <button (click)="markAllRead()" class="btn btn-outline btn-sm self-start">
+        {{ language.t('Mark all as read', 'សម្គាល់ទាំងអស់ថាបានអាន') }}
       </button>
     }
   </div>
@@ -22,18 +22,22 @@
       <div class="w-12 h-12 rounded-full bg-primary-soft text-primary-dark mx-auto flex items-center justify-center mb-3">
         <app-icon name="bell" [size]="22" />
       </div>
-      <h3 class="text-base font-bold text-ink">No notifications</h3>
-      <p class="text-xs text-ink-3 mt-1">You are all caught up!</p>
+      <h3 class="text-base font-bold text-ink">{{ language.t('No notifications', 'មិនមានការជូនដំណឹងទេ') }}</h3>
+      <p class="text-xs text-ink-3 mt-1">{{ language.t('You are all caught up!', 'អ្នកបានអានព័ត៌មានថ្មីៗទាំងអស់ហើយ!') }}</p>
     </div>
   } @else {
     <div class="app-card overflow-hidden divide-y divide-hairline">
       @for (n of notifications(); track n.id) {
         <div
-          class="p-5 flex items-start justify-between gap-4 transition-colors"
+          (click)="openNotification(n)"
+          (keydown.enter)="openNotification(n)"
+          role="link"
+          tabindex="0"
+          class="flex cursor-pointer flex-col gap-3 p-4 transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:p-5"
           [class.bg-primary-soft/30]="!n.read"
           [class.hover:bg-surface-2]="n.read"
         >
-          <div class="flex items-start gap-4">
+          <div class="flex min-w-0 items-start gap-3 sm:gap-4">
             <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
               [class.bg-primary-soft]="!n.read"
               [class.text-primary-dark]="!n.read"
@@ -43,23 +47,23 @@
               <app-icon name="bell" [size]="18" />
             </div>
 
-            <div>
-              <div class="flex items-center gap-2">
-                <h4 class="text-sm font-bold text-ink">{{ n.title_key }}</h4>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <h4 class="break-words text-sm font-bold text-ink">{{ n.title_key }}</h4>
                 @if (!n.read) {
                   <span class="w-2 h-2 rounded-full bg-primary"></span>
                 }
               </div>
-              <p class="text-xs text-ink-2 mt-1 leading-relaxed">{{ n.body_key }}</p>
+              <p class="mt-1 break-words text-xs leading-relaxed text-ink-2">{{ n.body_key }}</p>
               <span class="text-[11px] text-ink-3 mt-2 block">{{ n.created_at | date:'medium' }}</span>
             </div>
           </div>
 
           <button
-            (click)="toggleRead(n.id)"
-            class="text-xs text-ink-3 hover:text-primary shrink-0 font-medium cursor-pointer"
+            (click)="$event.stopPropagation(); toggleRead(n.id)"
+            class="shrink-0 self-end rounded-lg px-2 py-1 text-xs font-medium text-ink-3 hover:text-primary sm:self-start"
           >
-            {{ n.read ? 'Mark unread' : 'Mark read' }}
+            {{ n.read ? language.t('Mark unread', 'សម្គាល់ថាមិនទាន់អាន') : language.t('Mark read', 'សម្គាល់ថាបានអាន') }}
           </button>
         </div>
       }

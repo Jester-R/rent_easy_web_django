@@ -14,7 +14,7 @@ export interface BookingListResponse {
 })
 export class BookingService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = '';
+  private readonly baseUrl = '/api';
 
   getRenterBookings(status: string = 'all'): Observable<BookingListResponse> {
     let params = new HttpParams();
@@ -35,6 +35,14 @@ export class BookingService {
   cancelBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
     return this.http.post<{ ok: boolean; booking: Booking }>(
       `${this.baseUrl}/rent/bookings/${id}/cancel/`,
+      {},
+      { withCredentials: true }
+    );
+  }
+
+  confirmBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
+    return this.http.post<{ ok: boolean; booking: Booking }>(
+      `${this.baseUrl}/rent/bookings/${id}/confirm/`,
       {},
       { withCredentials: true }
     );
