@@ -56,6 +56,7 @@ class Booking(models.Model):
     )
     monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
     move_in_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
     lease_months = models.PositiveSmallIntegerField(default=12)
     note = models.TextField(blank=True)
     payment = models.ForeignKey(
@@ -107,7 +108,8 @@ class Booking(models.Model):
         return new_status in VALID_TRANSITIONS.get(self.status, ())
 
     def can_cancel(self) -> bool:
-        if self.status == BookingStatus.CONFIRMED and self.payment_id:
+        # Mirrors the Flutter rule: a renter may only cancel a pending request.
+        if self.status != BookingStatus.PENDING or self.payment_id:
             return False
         return self.can_transition_to(BookingStatus.CANCELLED)
 

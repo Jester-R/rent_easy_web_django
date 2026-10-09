@@ -23,7 +23,42 @@ class Role(models.TextChoices):
     SUPERADMIN = "superadmin", "Super Admin"
 
 
+class ApprovalStatus(models.TextChoices):
+    """Owner accounts need a superadmin to approve them before first login."""
+
+    APPROVED = "approved", "Approved"
+    PENDING = "pending", "Pending approval"
+    REJECTED = "rejected", "Rejected"
+
+
 ROLE_VALUES = {value for value, _ in Role.choices}
+APPROVAL_VALUES = {value for value, _ in ApprovalStatus.choices}
+
+
+class PlatformSettings(models.Model):
+    """Singleton row holding platform-wide switches controlled by superadmins."""
+
+    auto_approve_owners = models.BooleanField(
+        default=False,
+        help_text="When enabled, new property owners are approved automatically.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Platform settings"
+        verbose_name_plural = "Platform settings"
+
+    def __str__(self) -> str:
+        return "Platform settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls) -> "PlatformSettings":
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 
 
 class UserManager(BaseUserManager):
@@ -38,11 +73,13 @@ class UserManager(BaseUserManager):
             raise ValueError("Users must have a username")
         email = self.normalize_email(email).strip().lower()
         username = username.strip()
+        role = role if role in ROLE_VALUES else Role.RENTER
+        extra.setdefault("approval_status", ApprovalStatus.APPROVED)
         user = self.model(
             email=email,
             username=username,
             full_name=(full_name or "").strip(),
-            role=role if role in ROLE_VALUES else Role.RENTER,
+            role=role,
             **extra,
         )
         user.set_password(password)
@@ -74,8 +111,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=30, unique=True, validators=[USERNAME_VALIDATOR]
     )
     full_name = models.CharField(max_length=120, blank=True)
+    avatar_url = models.URLField(max_length=500, blank=True)
     role = models.CharField(
         max_length=16, choices=Role.choices, default=Role.RENTER, db_index=True
+    )
+    approval_status = models.CharField(
+        max_length=16,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.APPROVED,
+        db_index=True,
     )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -110,6 +154,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_superadmin_role(self) -> bool:
         return self.role == Role.SUPERADMIN
+
+    @property
+    def is_pending_approval(self) -> bool:
+        return self.approval_status == ApprovalStatus.PENDING
+
+    @property
+    def is_rejected(self) -> bool:
+        return self.approval_status == ApprovalStatus.REJECTED
 
     @property
     def home_url(self) -> str:

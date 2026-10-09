@@ -1,6 +1,11 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { ConsolePropertyItem, User } from '../../../models';
@@ -8,7 +13,7 @@ import { usd } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-properties',
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, FormsModule, SearchableSelectComponent],
   templateUrl: './console-properties.html',
 })
 export class ConsolePropertiesComponent implements OnInit {
@@ -23,6 +28,11 @@ export class ConsolePropertiesComponent implements OnInit {
   owner = signal('');
   isLoading = signal(true);
   error = signal<string | null>(null);
+
+  readonly ownerOptions = computed<SelectOption[]>(() => [
+    { value: '', label: this.language.t('All owners', 'ម្ចាស់ទាំងអស់') },
+    ...this.owners().map((item) => ({ value: String(item.id), label: item.display_name })),
+  ]);
 
   ngOnInit(): void {
     this.load();

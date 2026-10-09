@@ -6,6 +6,9 @@ import { LoginComponent } from './pages/auth/login/login';
 import { RegisterComponent } from './pages/auth/register/register';
 import { RoleSelectComponent } from './pages/auth/role-select/role-select';
 import { ProfileComponent } from './pages/profile/profile';
+import { SettingsComponent } from './pages/settings/settings';
+import { MessagesComponent } from './pages/messages/messages';
+import { ChatThreadComponent } from './pages/messages/thread';
 import { RenterDashboardComponent } from './pages/dashboards/renter/renter-dashboard';
 import { RenterBookingsComponent } from './pages/bookings/renter-bookings/renter-bookings';
 import { RenterFavoritesComponent } from './pages/favorites/favorites';
@@ -23,44 +26,64 @@ import { ConsoleUserFormComponent } from './pages/console/user-form/console-user
 import { ConsolePropertiesComponent } from './pages/console/properties/console-properties';
 import { ConsoleBookingsComponent } from './pages/console/bookings/console-bookings';
 import { ConsolePaymentsComponent } from './pages/console/payments/console-payments';
+import { ConsoleSettingsComponent } from './pages/console/settings/console-settings';
+import { PaymentDetailComponent } from './pages/payments/detail/payment-detail';
+import { DeniedComponent } from './pages/auth/denied/denied';
+import { NotFoundComponent } from './pages/errors/not-found/not-found';
+import {
+  adminGuard,
+  authGuard,
+  guestGuard,
+  ownerGuard,
+  renterGuard,
+} from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: LandingComponent, pathMatch: 'full' },
   { path: 'browse', component: BrowsePropertiesComponent },
   { path: 'properties/:id', component: PropertyDetailComponent },
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'role-select', component: RoleSelectComponent },
-  { path: 'profile', component: ProfileComponent },
+  { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
+  { path: 'register', component: RegisterComponent, canActivate: [guestGuard] },
+  { path: 'role-select', component: RoleSelectComponent, canActivate: [guestGuard] },
+  { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
+  { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
+  { path: 'messages', component: MessagesComponent, canActivate: [authGuard] },
+  { path: 'messages/:id', component: ChatThreadComponent, canActivate: [authGuard] },
+  { path: 'denied', component: DeniedComponent },
+  { path: 'not-found', component: NotFoundComponent },
 
   // Renter
-  { path: 'renter', component: RenterDashboardComponent },
-  { path: 'rent', component: RenterDashboardComponent },
-  { path: 'bookings', component: RenterBookingsComponent },
-  { path: 'rent/bookings', component: RenterBookingsComponent },
-  { path: 'bookings/:id', component: BookingDetailComponent },
-  { path: 'rent/bookings/:id', component: BookingDetailComponent },
-  { path: 'favorites', component: RenterFavoritesComponent },
-  { path: 'payments', component: RenterPaymentsComponent },
+  { path: 'renter', component: RenterDashboardComponent, canActivate: [renterGuard] },
+  { path: 'rent', component: RenterDashboardComponent, canActivate: [renterGuard] },
+  { path: 'bookings', component: RenterBookingsComponent, canActivate: [renterGuard] },
+  { path: 'rent/bookings', component: RenterBookingsComponent, canActivate: [renterGuard] },
+  { path: 'bookings/:id', component: BookingDetailComponent, canActivate: [renterGuard] },
+  { path: 'rent/bookings/:id', component: BookingDetailComponent, canActivate: [renterGuard] },
+  { path: 'favorites', component: RenterFavoritesComponent, canActivate: [renterGuard] },
+  { path: 'payments', component: RenterPaymentsComponent, canActivate: [renterGuard] },
 
   // Owner
-  { path: 'owner', component: OwnerDashboardComponent },
-  { path: 'owner/properties', component: OwnerPropertiesComponent },
-  { path: 'owner/properties/new', component: OwnerPropertyFormComponent },
-  { path: 'owner/properties/:id/edit', component: OwnerPropertyFormComponent },
-  { path: 'owner/bookings', component: OwnerBookingsComponent },
-  { path: 'owner/bookings/:id', component: BookingDetailComponent },
-  { path: 'owner/payments', component: OwnerPaymentsComponent },
+  { path: 'owner', component: OwnerDashboardComponent, canActivate: [ownerGuard] },
+  { path: 'owner/properties', component: OwnerPropertiesComponent, canActivate: [ownerGuard] },
+  { path: 'owner/properties/new', component: OwnerPropertyFormComponent, canActivate: [ownerGuard] },
+  { path: 'owner/properties/:id/edit', component: OwnerPropertyFormComponent, canActivate: [ownerGuard] },
+  { path: 'owner/bookings', component: OwnerBookingsComponent, canActivate: [ownerGuard] },
+  { path: 'owner/bookings/:id', component: BookingDetailComponent, canActivate: [ownerGuard] },
+  { path: 'owner/payments', component: OwnerPaymentsComponent, canActivate: [ownerGuard] },
+
+  // Shared payment detail (renter or owner audience)
+  { path: 'payments/:id', component: PaymentDetailComponent, canActivate: [authGuard] },
 
   // Notifications & Console
-  { path: 'notifications', component: NotificationsComponent },
-  { path: 'console', component: ConsoleDashboardComponent },
-  { path: 'console/users', component: ConsoleUsersComponent },
-  { path: 'console/users/new', component: ConsoleUserFormComponent },
-  { path: 'console/users/:id/edit', component: ConsoleUserFormComponent },
-  { path: 'console/properties', component: ConsolePropertiesComponent },
-  { path: 'console/bookings', component: ConsoleBookingsComponent },
-  { path: 'console/payments', component: ConsolePaymentsComponent },
+  { path: 'notifications', component: NotificationsComponent, canActivate: [authGuard] },
+  { path: 'console', component: ConsoleDashboardComponent, canActivate: [adminGuard] },
+  { path: 'console/users', component: ConsoleUsersComponent, canActivate: [adminGuard] },
+  { path: 'console/users/new', component: ConsoleUserFormComponent, canActivate: [adminGuard] },
+  { path: 'console/users/:id/edit', component: ConsoleUserFormComponent, canActivate: [adminGuard] },
+  { path: 'console/properties', component: ConsolePropertiesComponent, canActivate: [adminGuard] },
+  { path: 'console/bookings', component: ConsoleBookingsComponent, canActivate: [adminGuard] },
+  { path: 'console/payments', component: ConsolePaymentsComponent, canActivate: [adminGuard] },
+  { path: 'console/settings', component: ConsoleSettingsComponent, canActivate: [adminGuard] },
 
-  { path: '**', redirectTo: '' },
+  { path: '**', component: NotFoundComponent },
 ];

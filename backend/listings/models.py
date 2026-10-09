@@ -7,6 +7,17 @@ from django.db.models import Count
 from django.utils import timezone
 
 
+class PropertyCategory(models.TextChoices):
+    APARTMENT = "apartment", "Apartment"
+    HOUSE = "house", "House"
+    CONDO = "condo", "Condo"
+    VILLA = "villa", "Villa"
+    ROOM = "room", "Room"
+    STUDIO = "studio", "Studio"
+    OFFICE = "office", "Office"
+    LAND = "land", "Land"
+
+
 class PropertyQuerySet(models.QuerySet):
     def for_renter(self, user):
         """Hide confirmed rentals and the renter's existing active requests."""
@@ -45,6 +56,12 @@ class Property(models.Model):
         validators=[MinValueValidator(0)],
         db_index=True,
     )
+    category = models.CharField(
+        max_length=24, choices=PropertyCategory.choices, blank=True, db_index=True
+    )
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    images = models.JSONField(default=list, blank=True)
     bedrooms = models.PositiveSmallIntegerField(default=1)
     bathrooms = models.PositiveSmallIntegerField(default=1)
     description = models.TextField(blank=True)
@@ -76,6 +93,15 @@ class Property(models.Model):
     @property
     def location_label(self) -> str:
         return self.location or "—"
+
+    @property
+    def cover_image(self) -> str:
+        images = self.images or []
+        return images[0] if images else ""
+
+    @property
+    def has_coordinates(self) -> bool:
+        return self.latitude is not None and self.longitude is not None
 
 
 class Favorite(models.Model):

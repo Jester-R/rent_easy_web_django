@@ -18,6 +18,8 @@ export class RegisterComponent {
 
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
+  role = signal<'renter' | 'owner'>('renter');
+  pendingApproval = signal(false);
 
   form = this.fb.group({
     full_name: [''],
@@ -26,6 +28,10 @@ export class RegisterComponent {
     password: ['', [Validators.required, Validators.minLength(6)]],
     password_confirm: ['', [Validators.required]],
   });
+
+  selectRole(role: 'renter' | 'owner'): void {
+    this.role.set(role);
+  }
 
   onSubmit(): void {
     if (this.form.invalid) return;
@@ -46,11 +52,16 @@ export class RegisterComponent {
         email: val.email || '',
         password: val.password || '',
         password_confirm: val.password_confirm || '',
+        role: this.role(),
       })
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.isLoading.set(false);
-          this.router.navigate(['/role-select']);
+          if (res.status === 'pending_approval') {
+            this.pendingApproval.set(true);
+            return;
+          }
+          this.router.navigateByUrl(res.redirect || '/');
         },
         error: (err) => {
           this.isLoading.set(false);

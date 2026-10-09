@@ -1,8 +1,12 @@
 <div class="property-card group" [class.opacity-75]="property().has_active_booking">
-  <span class="property-thumb">
-    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.6V21h13V9.6"/><path d="M9.75 21v-5.5h4.5V21"/>
-    </svg>
+  <span class="property-thumb overflow-hidden">
+    @if (property().cover_image) {
+      <img [src]="property().cover_image" [alt]="property().title" class="h-full w-full object-cover" loading="lazy" />
+    } @else {
+      <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.6V21h13V9.6"/><path d="M9.75 21v-5.5h4.5V21"/>
+      </svg>
+    }
   </span>
 
   <span class="min-w-0 flex-1">
@@ -38,6 +42,9 @@
 
     <span class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <span class="text-[15px] font-extrabold text-primary">{{ property().price_display }}<span class="text-[12px] font-semibold text-ink-3">/month</span></span>
+      @if (property().category) {
+        <span class="pill pill-neutral">{{ categoryLabel(property().category) }}</span>
+      }
       <span class="pill pill-neutral">
         <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 18V7"/><path d="M3 12h18v6"/><path d="M21 18v-4.5A1.5 1.5 0 0 0 19.5 12H15v-2a2 2 0 0 0-2-2H9.5A1.5 1.5 0 0 0 8 9.5V12"/></svg>
         {{ property().bedrooms === 0 ? 'Studio' : property().bedrooms + (property().bedrooms === 1 ? ' bed' : ' beds') }}

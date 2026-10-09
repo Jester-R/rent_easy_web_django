@@ -6,6 +6,7 @@ import { AppNotification } from '../../models';
 import { IconComponent } from '../../components/icon/icon';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
+import { notificationText } from '../../shared/ui';
 
 @Component({
   selector: 'app-notifications',
@@ -14,6 +15,7 @@ import { LanguageService } from '../../services/language.service';
 })
 export class NotificationsComponent implements OnInit {
   readonly language = inject(LanguageService);
+  readonly notificationText = notificationText;
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);

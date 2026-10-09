@@ -1,0 +1,50 @@
+<div class="max-w-3xl mx-auto">
+  <div class="mb-4">
+    <h1 class="text-2xl font-black text-ink">{{ language.t('Messages', 'សារ') }}</h1>
+    <p class="text-xs text-ink-3 mt-1">{{ language.t('Chat with renters and owners about a property.', 'ជជែកជាមួយអ្នកជួល និងម្ចាស់ផ្ទះអំពីអចលនទ្រព្យ។') }}</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="space-y-3">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="app-card h-20 animate-pulse"></div>
+      }
+    </div>
+  } @else if (loadError()) {
+    <div class="app-card p-12 text-center text-ink-3">
+      <p class="text-sm">{{ language.t('Could not load your conversations.', 'មិនអាចផ្ទុកការសន្ទនារបស់អ្នកបានទេ។') }}</p>
+      <button type="button" (click)="load()" class="btn btn-primary btn-sm mt-3">{{ language.t('Try again', 'ព្យាយាមម្តងទៀត') }}</button>
+    </div>
+  } @else if (conversations().length === 0) {
+    <div class="app-card p-12 text-center text-ink-3">
+      <p class="text-sm font-semibold text-ink">{{ language.t('No conversations yet', 'មិនទាន់មានការសន្ទនាទេ') }}</p>
+      <p class="text-xs mt-1">{{ language.t('Open a property and message the owner to start chatting.', 'បើកអចលនទ្រព្យ ហើយផ្ញើសារទៅម្ចាស់ដើម្បីចាប់ផ្តើមជជែក។') }}</p>
+      <a routerLink="/browse" class="btn btn-primary btn-sm mt-4">{{ language.t('Browse listings', 'មើលអចលនទ្រព្យ') }}</a>
+    </div>
+  } @else {
+    <div class="app-card divide-y divide-hairline overflow-hidden">
+      @for (c of conversations(); track c.id) {
+        <a [routerLink]="['/messages', c.id]" class="flex items-center gap-3 px-3 py-3 hover:bg-surface-2 transition-colors">
+          @if (c.property_cover) {
+            <img [src]="c.property_cover" [alt]="c.property_title" class="h-12 w-12 rounded-xl object-cover" />
+          } @else {
+            <span class="grid h-12 w-12 place-items-center rounded-xl bg-surface-2 text-ink-3">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.6V21h13V9.6"/></svg>
+            </span>
+          }
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <p class="truncate text-sm font-bold text-ink">{{ c.other_party?.display_name || 'User' }}</p>
+              <span class="shrink-0 text-[10px] text-ink-3">{{ prettyDate(c.last_message_at) }}</span>
+            </div>
+            <p class="truncate text-xs text-ink-3">{{ c.property_title }}</p>
+            <p class="truncate text-xs text-ink-2 mt-0.5">{{ c.last_message || '…' }}</p>
+          </div>
+          @if (c.unread > 0) {
+            <span class="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-white">{{ c.unread }}</span>
+          }
+        </a>
+      }
+    </div>
+  }
+</div>

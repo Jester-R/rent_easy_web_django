@@ -63,6 +63,13 @@
           </a>
         }
 
+        <!-- Messages -->
+        <a routerLink="/messages" class="btn btn-ghost btn-icon" [attr.aria-label]="language.t('Messages', 'សារ')" [attr.title]="language.t('Messages', 'សារ')">
+          <svg class="w-5 h-5 text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M21 11.5a8.4 8.5 0 0 1-9 8.5 9.4 8.5 0 0 1-4.2-1L3 20.5l1.3-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8M8 13h5"/>
+          </svg>
+        </a>
+
         <!-- Notifications Bell dropdown -->
         <div class="relative">
           <button (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative" [attr.aria-label]="language.t('Notifications', 'ការជូនដំណឹង')">
@@ -86,8 +93,8 @@
                 } @else {
                   @for (n of notifications(); track n.id) {
                     <button type="button" (click)="openNotification(n)" class="block w-full p-2.5 text-start hover:bg-surface-2 transition-colors" [class.bg-primary-soft/30]="!n.read">
-                      <p class="break-words text-[12px] font-bold text-ink">{{ n.title_key }}</p>
-                      <p class="mt-0.5 break-words text-[11px] text-ink-2">{{ n.body_key }}</p>
+                      <p class="break-words text-[12px] font-bold text-ink">{{ notificationText(n, language.current()).title }}</p>
+                      <p class="mt-0.5 break-words text-[11px] text-ink-2">{{ notificationText(n, language.current()).body }}</p>
                       <span class="text-[10px] text-ink-3 mt-1 block">{{ n.created_at | date:'shortTime' }}</span>
                     </button>
                   }
@@ -105,21 +112,44 @@
         <!-- User Dropdown Menu -->
         <div class="relative">
           <button (click)="toggleProfileMenu()" class="flex items-center gap-2 rounded-xl border border-hairline px-2 py-1.5 hover:border-primary transition-colors">
-            <span class="grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold"
-              [style.background-color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 42% 92%)'"
-              [style.color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 55% 28%)'">
-              {{ auth.currentUser()?.display_name?.substring(0, 2) || 'U' }}
-            </span>
+            @if (auth.currentUser()?.avatar_url) {
+              <img
+                [src]="auth.currentUser()?.avatar_url"
+                [alt]="auth.currentUser()?.display_name"
+                class="h-7 w-7 rounded-full object-cover border border-hairline"
+              />
+            } @else {
+              <span class="grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold"
+                [style.background-color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 42% 92%)'"
+                [style.color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 55% 28%)'">
+                {{ auth.currentUser()?.display_name?.substring(0, 2) || 'U' }}
+              </span>
+            }
             <span class="hidden text-[13px] font-semibold sm:block">{{ auth.currentUser()?.display_name }}</span>
             <svg class="w-3.5 h-3.5 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9.5 6 6 6-6"/></svg>
           </button>
 
           @if (isProfileMenuOpen()) {
             <div class="dropdown-panel p-2 shadow-pop">
-              <div class="rounded-lg px-3 py-2.5">
-                <p class="truncate text-[13px] font-bold">{{ auth.currentUser()?.display_name }}</p>
-                <p class="truncate text-[12px] text-ink-3">{{ auth.currentUser()?.email }}</p>
-                <span class="pill pill-approved mt-2 capitalize">{{ auth.currentUser()?.role }}</span>
+              <div class="flex items-start gap-3 rounded-lg px-3 py-2.5">
+                @if (auth.currentUser()?.avatar_url) {
+                  <img
+                    [src]="auth.currentUser()?.avatar_url"
+                    [alt]="auth.currentUser()?.display_name"
+                    class="h-10 w-10 rounded-full object-cover border border-hairline"
+                  />
+                } @else {
+                  <span class="grid h-10 w-10 place-items-center rounded-full text-[12px] font-bold"
+                    [style.background-color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 42% 92%)'"
+                    [style.color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 55% 28%)'">
+                    {{ auth.currentUser()?.display_name?.substring(0, 2) || 'U' }}
+                  </span>
+                }
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-[13px] font-bold">{{ auth.currentUser()?.display_name }}</p>
+                  <p class="truncate text-[12px] text-ink-3">{{ auth.currentUser()?.email }}</p>
+                  <span class="pill pill-approved mt-2 capitalize">{{ auth.currentUser()?.role }}</span>
+                </div>
               </div>
               <div class="divider my-1"></div>
               <a routerLink="/profile" (click)="isProfileMenuOpen.set(false)" class="nav-item">
@@ -129,6 +159,14 @@
               <a routerLink="/notifications" (click)="isProfileMenuOpen.set(false)" class="nav-item">
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/></svg>
                 <span>{{ language.t('Notifications', 'ការជូនដំណឹង') }}</span>
+              </a>
+              <a routerLink="/messages" (click)="isProfileMenuOpen.set(false)" class="nav-item">
+                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 11.5a8.4 8.5 0 0 1-9 8.5 9.4 8.5 0 0 1-4.2-1L3 20.5l1.3-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8M8 13h5"/></svg>
+                <span>{{ language.t('Messages', 'សារ') }}</span>
+              </a>
+              <a routerLink="/settings" (click)="isProfileMenuOpen.set(false)" class="nav-item">
+                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg>
+                <span>{{ language.t('Settings', 'ការកំណត់') }}</span>
               </a>
               <div class="divider my-1"></div>
               <button (click)="logout()" class="nav-item w-full text-rose-600 hover:bg-rose-50">

@@ -1,6 +1,11 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { AuthService } from '../../../services/auth.service';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
@@ -9,7 +14,7 @@ import { initials, roleLabel, rolePill, shortDate } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-users',
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, FormsModule, SearchableSelectComponent],
   templateUrl: './console-users.html',
 })
 export class ConsoleUsersComponent implements OnInit, OnDestroy {
@@ -25,8 +30,11 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
   users = signal<ConsoleUserItem[]>([]);
   total = signal(0);
   roles = signal<RoleOption[]>([]);
+  approvals = signal<RoleOption[]>([]);
+  pendingCount = signal(0);
   query = signal('');
   role = signal('all');
+  approval = signal('all');
   isLoading = signal(true);
   error = signal<string | null>(null);
   selected = signal<number[]>([]);
@@ -38,13 +46,28 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
     return list.length > 0 && list.every((u) => this.selected().includes(u.id));
   });
 
-  hasFilters = computed(() => this.query() !== '' || this.role() !== 'all');
+  hasFilters = computed(
+    () => this.query() !== '' || this.role() !== 'all' || this.approval() !== 'all'
+  );
+
+  readonly roleOptions = computed<SelectOption[]>(() => [
+    { value: 'all', label: this.language.t('All', 'ទាំងអស់') },
+    ...this.roles().map((o) => ({ value: o.value, label: this.label(o.label) })),
+  ]);
+
+  readonly approvalOptions = computed<SelectOption[]>(() => [
+    { value: 'all', label: this.language.t('All approvals', 'ការអនុម័តទាំងអស់') },
+    ...this.approvals().map((o) => ({ value: o.value, label: this.label(o.label) })),
+  ]);
 
   label(value: string): string {
     const khmer: Record<string, string> = {
       'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
       'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
       Renter: 'អ្នកជួល',
+      Pending: 'កំពុងរង់ចាំ',
+      Approved: 'បានអនុម័ត',
+      Rejected: 'បានបដិសេធ',
     };
     return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
   }
@@ -59,17 +82,21 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
 
   load(): void {
     this.isLoading.set(true);
-    this.console.getUsers({ q: this.query(), role: this.role() }).subscribe({
-      next: (res) => {
-        this.users.set(res.users);
-        this.total.set(res.total);
-        this.roles.set(res.roles);
-        this.selected.set([]);
-        this.error.set(null);
-        this.isLoading.set(false);
-      },
-      error: () => this.isLoading.set(false),
-    });
+    this.console
+      .getUsers({ q: this.query(), role: this.role(), approval: this.approval() })
+      .subscribe({
+        next: (res) => {
+          this.users.set(res.users);
+          this.total.set(res.total);
+          this.roles.set(res.roles);
+          this.approvals.set(res.approvals ?? []);
+          this.pendingCount.set(res.pending_count ?? 0);
+          this.selected.set([]);
+          this.error.set(null);
+          this.isLoading.set(false);
+        },
+        error: () => this.isLoading.set(false),
+      });
   }
 
   onSearch(value: string): void {
@@ -84,6 +111,20 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
     this.load();
   }
 
+  onApprovalChange(value: string): void {
+    this.approval.set(value);
+    if (this.timer) clearTimeout(this.timer);
+    this.load();
+  }
+
+  viewPending(): void {
+    this.query.set('');
+    this.role.set('all');
+    this.approval.set('pending');
+    if (this.timer) clearTimeout(this.timer);
+    this.load();
+  }
+
   applyFilter(): void {
     if (this.timer) clearTimeout(this.timer);
     this.load();
@@ -92,6 +133,7 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
   refresh(): void {
     this.query.set('');
     this.role.set('all');
+    this.approval.set('all');
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
@@ -111,6 +153,23 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
 
   clearSelection(): void {
     this.selected.set([]);
+  }
+
+  approve(item: ConsoleUserItem): void {
+    this.console.approveUser(item.id).subscribe({
+      next: () => this.load(),
+      error: (err) => this.error.set(this.friendlyError(err, 'Failed to approve user.')),
+    });
+  }
+
+  reject(item: ConsoleUserItem): void {
+    if (!confirm(this.language.t('Reject this owner request?', 'បដិសេធសំណើម្ចាស់នេះមែនទេ?'))) {
+      return;
+    }
+    this.console.rejectUser(item.id).subscribe({
+      next: () => this.load(),
+      error: (err) => this.error.set(this.friendlyError(err, 'Failed to reject user.')),
+    });
   }
 
   remove(item: ConsoleUserItem): void {

@@ -14,6 +14,9 @@ class Notification(models.Model):
         BOOKING_APPROVED = "booking_approved", "Booking approved"
         PAYMENT_RECEIVED = "payment_received", "Payment received"
         REFUND_PROCESSED = "refund_processed", "Refund processed"
+        OWNER_APPROVAL_REQUEST = "owner_approval_request", "Owner approval request"
+        OWNER_APPROVED = "owner_approved", "Owner approved"
+        OWNER_REJECTED = "owner_rejected", "Owner rejected"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"

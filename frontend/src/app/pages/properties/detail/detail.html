@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+<div class="max-w-7xl mx-auto pt-2 pb-10 px-4 sm:px-6 lg:px-8">
   @if (isLoading()) {
     <div class="animate-pulse space-y-6">
       <div class="h-8 bg-surface-2 rounded w-1/3"></div>
@@ -6,26 +6,44 @@
     </div>
   } @else if (property(); as prop) {
     <!-- Breadcrumb -->
-    <div class="flex items-center gap-2 text-xs text-ink-3 mb-6">
+    <div class="flex items-center gap-2 text-xs text-ink-3 mb-4">
       <a routerLink="/browse" class="hover:text-primary transition-colors">{{ language.t('Rentals', 'ផ្ទះជួល') }}</a>
       <span>/</span>
       <span class="text-ink font-medium truncate">{{ prop.title }}</span>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left Column: Details -->
       <div class="lg:col-span-2 space-y-8">
         <!-- Hero Header -->
         <div class="app-card overflow-hidden">
-          <div class="h-72 sm:h-96 hero-gradient-soft flex items-center justify-center relative">
-            <span class="grid h-28 w-28 place-items-center rounded-3xl bg-white/70 text-primary shadow-sm dark:bg-white/10 dark:text-white">
-              <app-icon name="home" [size]="48" />
-            </span>
+          <div class="h-56 sm:h-80 relative bg-surface-2">
+            @if (prop.images?.length || prop.cover_image) {
+              <img
+                [src]="prop.images?.[activeImage()] || prop.cover_image"
+                [alt]="prop.title"
+                class="absolute inset-0 h-full w-full object-cover"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"></div>
+            } @else {
+              <div class="absolute inset-0 hero-gradient-soft flex items-center justify-center">
+                <span class="grid h-28 w-28 place-items-center rounded-3xl bg-white/70 text-primary shadow-sm dark:bg-white/10 dark:text-white">
+                  <app-icon name="home" [size]="48" />
+                </span>
+              </div>
+            }
 
-            <!-- Location Badge -->
-            <span class="absolute bottom-4 left-4 bg-white/90 backdrop-blur text-ink text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
-              📍 {{ prop.location }}
-            </span>
+            <!-- Category + Location Badges -->
+            <div class="absolute bottom-4 left-4 flex flex-wrap items-center gap-2">
+              @if (prop.category) {
+                <span class="bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+                  {{ categoryLabel(prop.category) }}
+                </span>
+              }
+              <span class="bg-white/90 backdrop-blur text-ink text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+                📍 {{ prop.location }}
+              </span>
+            </div>
 
             @if (auth.isRenter()) {
               <button
@@ -45,6 +63,22 @@
               </span>
             }
           </div>
+
+          @if (prop.images && prop.images.length > 1) {
+            <div class="flex gap-2 overflow-x-auto border-b border-hairline p-3">
+              @for (img of prop.images; track img; let i = $index) {
+                <button
+                  type="button"
+                  (click)="selectImage(i)"
+                  class="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 transition"
+                  [class.border-primary]="activeImage() === i"
+                  [class.border-transparent]="activeImage() !== i"
+                >
+                  <img [src]="img" [alt]="prop.title + ' photo ' + (i + 1)" class="h-full w-full object-cover" />
+                </button>
+              }
+            </div>
+          }
 
           <div class="p-6 sm:p-8">
             <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 border-b border-hairline pb-6">
@@ -85,6 +119,32 @@
                 {{ prop.description || 'No description provided by the owner.' }}
               </p>
             </div>
+
+            <!-- Location / Map -->
+            <div class="pt-6 mt-6 border-t border-hairline">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <h2 class="text-base font-bold text-ink">{{ language.t('Location', 'ទីតាំង') }}</h2>
+                @if (prop.has_coordinates) {
+                  <a [href]="mapsUrl(prop)" target="_blank" rel="noopener" class="text-xs font-semibold text-primary hover:underline">
+                    {{ language.t('Open in Google Maps', 'បើកក្នុង Google Maps') }}
+                  </a>
+                }
+              </div>
+              @if (prop.has_coordinates) {
+                <app-leaflet-map
+                  [latitude]="prop.latitude ?? null"
+                  [longitude]="prop.longitude ?? null"
+                  [height]="280"
+                />
+                <p class="text-xs text-ink-3 mt-2">
+                  {{ prop.location }} · {{ formatCoordinates(prop.latitude, prop.longitude) }}
+                </p>
+              } @else {
+                <div class="rounded-2xl border border-hairline bg-surface-2 p-6 text-center text-xs text-ink-3">
+                  {{ language.t('This owner has not pinned a map location yet.', 'ម្ចាស់ផ្ទះមិនទាន់បានកំណត់ទីតាំងលើផែនទីនៅឡើយទេ។') }}
+                </div>
+              }
+            </div>
           </div>
         </div>
       </div>
@@ -104,6 +164,14 @@
               <a routerLink="/bookings" class="btn btn-primary w-full text-xs">
                 View My Bookings
               </a>
+              <button
+                type="button"
+                (click)="messageLandlord()"
+                [disabled]="isMessaging()"
+                class="btn btn-outline w-full text-xs mt-2"
+              >
+                {{ language.t('Message landlord', 'ផ្ញើសារទៅម្ចាស់ផ្ទះ') }}
+              </button>
             </div>
           } @else {
             <div class="app-card p-6">
@@ -122,12 +190,29 @@
                 </div>
               }
 
+              @if (messageError()) {
+                <div class="toast toast-error mb-4" role="alert">
+                  <span>{{ language.t('Could not open a chat. Please try again.', 'មិនអាចបើកការជជែកបានទេ។ សូមព្យាយាមម្តងទៀត។') }}</span>
+                </div>
+              }
+
+              <button
+                type="button"
+                (click)="messageLandlord()"
+                [disabled]="isMessaging()"
+                class="btn btn-outline w-full text-xs mb-4"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 11.5a8.4 8.5 0 0 1-9 8.5 9.4 8.5 0 0 1-4.2-1L3 20.5l1.3-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8M8 13h5"/></svg>
+                <span>{{ language.t('Message landlord', 'ផ្ញើសារទៅម្ចាស់ផ្ទះ') }}</span>
+              </button>
+
               <form [formGroup]="bookingForm" (ngSubmit)="onRequestBooking()" class="space-y-4">
                 <div>
                   <label class="form-label">{{ language.t('Target Move-in Date', 'កាលបរិច្ឆេទចូលនៅគោលដៅ') }}</label>
                   <input
                     type="date"
                     formControlName="move_in_date"
+                    (change)="recalcEndDate()"
                     class="form-input"
                   />
                 </div>
@@ -139,7 +224,18 @@
                     formControlName="lease_months"
                     min="1"
                     max="60"
+                    (change)="recalcEndDate()"
                     class="form-input"
+                  />
+                </div>
+
+                <div>
+                  <label class="form-label">{{ language.t('Move-out Date (auto)', 'កាលបរិច្ឆេទចេញ (ស្វ័យប្រវត្តិ)') }}</label>
+                  <input
+                    type="date"
+                    formControlName="end_date"
+                    readonly
+                    class="form-input bg-surface-2"
                   />
                 </div>
 

@@ -61,11 +61,12 @@
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
               <label class="form-label" for="role">{{ language.t('Role', 'តួនាទី') }} <span class="text-danger">*</span></label>
-              <select id="role" class="form-input" formControlName="role">
-                @for (option of roleOptions; track option) {
-                  <option [value]="option">{{ roleLabelTranslated(option) }}</option>
-                }
-              </select>
+              <app-searchable-select
+                [options]="roleSelectOptions"
+                formControlName="role"
+                [placeholder]="language.t('Role', 'តួនាទី')"
+                [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+              />
             </div>
             <div>
               <label class="form-label" for="password">{{ language.t('Password', 'ពាក្យសម្ងាត់') }}</label>

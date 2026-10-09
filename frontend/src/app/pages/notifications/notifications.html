@@ -49,12 +49,12 @@
 
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <h4 class="break-words text-sm font-bold text-ink">{{ n.title_key }}</h4>
+                <h4 class="break-words text-sm font-bold text-ink">{{ notificationText(n, language.current()).title }}</h4>
                 @if (!n.read) {
                   <span class="w-2 h-2 rounded-full bg-primary"></span>
                 }
               </div>
-              <p class="mt-1 break-words text-xs leading-relaxed text-ink-2">{{ n.body_key }}</p>
+              <p class="mt-1 break-words text-xs leading-relaxed text-ink-2">{{ notificationText(n, language.current()).body }}</p>
               <span class="text-[11px] text-ink-3 mt-2 block">{{ n.created_at | date:'medium' }}</span>
             </div>
           </div>

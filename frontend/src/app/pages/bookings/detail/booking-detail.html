@@ -51,6 +51,15 @@
             </dt>
             <dd class="mt-1 text-[15px] font-bold">{{ shortDate(b.move_in_date) || 'Not specified' }}</dd>
           </div>
+          @if (b.end_date) {
+            <div class="rounded-xl bg-surface-2 p-3">
+              <dt class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-3">
+                <app-icon name="calendar" [size]="13" />
+                <span>Move-out</span>
+              </dt>
+              <dd class="mt-1 text-[15px] font-bold">{{ shortDate(b.end_date) }}</dd>
+            </div>
+          }
           <div class="rounded-xl bg-surface-2 p-3">
             <dt class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-3">
               <app-icon name="send" [size]="13" />
@@ -83,30 +92,23 @@
               </button>
             }
           } @else {
-            @if (b.status === 'Approved') {
-              <button type="button" class="btn btn-primary" [disabled]="isBusy()" (click)="confirmApproval()">
-                <app-icon name="check" [size]="16" />
-                <span>Confirm rental</span>
+            @if ((b.status === 'Approved' || b.status === 'Confirmed') && !b.payment_id) {
+              <button type="button" class="btn btn-primary" [disabled]="isBusy()" (click)="openPay()">
+                <app-icon name="dollar" [size]="16" />
+                <span>Pay now</span>
               </button>
+            }
+            @if (b.payment_id) {
+              <a [routerLink]="['/payments', b.payment_id]" class="btn btn-primary">
+                <app-icon name="receipt" [size]="16" />
+                <span>Payment details</span>
+              </a>
             }
             @if (b.can_cancel) {
               <button type="button" class="btn btn-danger-soft" [disabled]="isBusy()" (click)="cancel()">
                 <app-icon name="x-circle" [size]="16" />
                 <span>Cancel request</span>
               </button>
-            }
-            @if (b.status === 'Confirmed') {
-              @if (b.payment_id) {
-                <a [routerLink]="['/payments', b.payment_id]" class="btn btn-primary">
-                  <app-icon name="receipt" [size]="16" />
-                  <span>Payment details</span>
-                </a>
-              } @else {
-                <button type="button" class="btn btn-primary" (click)="openPay()">
-                  <app-icon name="dollar" [size]="16" />
-                  <span>Pay now</span>
-                </button>
-              }
             }
           }
           <a [routerLink]="backLink()" class="btn btn-ghost">
@@ -204,11 +206,13 @@
       </div>
 
       <label class="form-label mt-4" for="pay-method">Payment method</label>
-      <select id="pay-method" class="form-input" [(ngModel)]="selectedMethod">
-        @for (m of methods; track m) {
-          <option [value]="m">{{ m }}</option>
-        }
-      </select>
+      <app-searchable-select
+        [options]="methodOptions"
+        [(ngModel)]="selectedMethod"
+        [ngModelOptions]="{ standalone: true }"
+        [placeholder]="language.t('Payment method', 'វិធីសាស្ត្រទូទាត់')"
+        [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+      />
 
       @if (payError()) {
         <div class="toast toast-error mt-3" role="alert">

@@ -11,12 +11,14 @@
   <section class="app-card p-4">
     <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); load()">
       <input #q type="search" class="form-input" [placeholder]="language.t('Search by title, location or owner', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬម្ចាស់')" [value]="query()" (input)="query.set(q.value)" />
-      <select class="form-input" [value]="owner()" #o (change)="owner.set(o.value)">
-        <option value="">{{ language.t('All owners', 'ម្ចាស់ទាំងអស់') }}</option>
-        @for (item of owners(); track item.id) {
-          <option [value]="item.id">{{ item.display_name }}</option>
-        }
-      </select>
+      <app-searchable-select
+        [options]="ownerOptions()"
+        [ngModel]="owner()"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="owner.set($event)"
+        [placeholder]="language.t('All owners', 'ម្ចាស់ទាំងអស់')"
+        [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+      />
       <button type="submit" class="btn btn-primary">{{ language.t('Filter', 'តម្រង') }}</button>
     </form>
   </section>

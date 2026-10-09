@@ -1,13 +1,18 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { Booking } from '../../../models';
 import { bookingPill, shortDate, usd } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-bookings',
-  imports: [IconComponent],
+  imports: [IconComponent, FormsModule, SearchableSelectComponent],
   templateUrl: './console-bookings.html',
 })
 export class ConsoleBookingsComponent implements OnInit, OnDestroy {
@@ -54,6 +59,13 @@ export class ConsoleBookingsComponent implements OnInit, OnDestroy {
       { value: 'Cancelled', label: `Cancelled (${c['Cancelled'] ?? 0})` },
     ];
   });
+
+  readonly statusSelectOptions = computed<SelectOption[]>(() =>
+    this.statusOptions().map((o) => ({
+      value: o.value,
+      label: this.formatStatusOption(o.value, o.label),
+    }))
+  );
 
   ngOnInit(): void {
     this.load();

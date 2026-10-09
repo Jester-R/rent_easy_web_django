@@ -1,0 +1,51 @@
+<div class="relative">
+  <button
+    type="button"
+    class="form-input flex w-full items-center gap-2 text-start"
+    [class.opacity-60]="disabled()"
+    [disabled]="disabled()"
+    [attr.aria-label]="ariaLabel || placeholder"
+    [attr.aria-expanded]="open()"
+    (click)="toggle()"
+  >
+    <span class="flex-1 truncate" [class.text-ink-3]="!selectedLabel()">
+      {{ selectedLabel() || placeholder }}
+    </span>
+    <svg class="h-4 w-4 shrink-0 text-ink-3 transition-transform" [class.rotate-180]="open()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 9.5 6 6 6-6"/></svg>
+  </button>
+
+  @if (open()) {
+    <div class="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-hairline bg-surface shadow-pop">
+      <div class="border-b border-hairline p-2">
+        <input
+          type="text"
+          class="form-input h-9 text-[13px]"
+          [placeholder]="searchPlaceholder"
+          [value]="query()"
+          (input)="onSearch($any($event.target).value)"
+          (keydown)="onKeydown($event)"
+          autofocus
+        />
+      </div>
+      <ul class="max-h-60 overflow-y-auto py-1" role="listbox">
+        @for (option of filtered(); track option.value; let i = $index) {
+          <li
+            role="option"
+            [attr.aria-selected]="option.value === value()"
+            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-[13px] transition-colors hover:bg-surface-2"
+            [class.bg-primary-soft]="i === activeIndex()"
+            (mouseenter)="activeIndex.set(i)"
+            (click)="choose(option)"
+          >
+            <span class="flex-1 truncate">{{ option.label }}</span>
+            @if (option.value === value()) {
+              <svg class="h-4 w-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
+            }
+          </li>
+        } @empty {
+          <li class="px-3 py-2 text-[13px] text-ink-3">—</li>
+        }
+      </ul>
+    </div>
+  }
+</div>

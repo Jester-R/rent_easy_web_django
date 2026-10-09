@@ -1,28 +1,48 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnDestroy, PLATFORM_ID } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
 import { AppNotification } from '../../models';
 import { ThemeService } from '../../services/theme.service';
 import { LanguageService } from '../../services/language.service';
+import { notificationText } from '../../shared/ui';
 
 @Component({
   selector: 'app-navbar',
   imports: [CommonModule, RouterLink, RouterLinkActive],
   templateUrl: './navbar.html',
 })
-export class NavbarComponent {
+export class NavbarComponent implements OnDestroy {
   readonly auth = inject(AuthService);
   readonly notifService = inject(NotificationService);
   readonly themeService = inject(ThemeService);
   readonly language = inject(LanguageService);
+  readonly notificationText = notificationText;
   private readonly router = inject(Router);
+  private readonly platformId = inject(PLATFORM_ID);
 
   isMobileMenuOpen = signal(false);
   isProfileMenuOpen = signal(false);
   isNotifMenuOpen = signal(false);
   notifications = signal<AppNotification[]>([]);
+
+  private badgeTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    if (isPlatformBrowser(this.platformId)) {
+      this.badgeTimer = setInterval(() => this.refreshBadge(), 20000);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.badgeTimer) clearInterval(this.badgeTimer);
+  }
+
+  private refreshBadge(): void {
+    if (!this.auth.isAuthenticated()) return;
+    this.notifService.getBadge().subscribe({ error: () => undefined });
+  }
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen.update((v) => !v);
@@ -60,7 +80,15 @@ export class NavbarComponent {
   openNotification(notification: AppNotification): void {
     this.isNotifMenuOpen.set(false);
     if (!notification.read) {
-      this.notifService.toggleRead(notification.id).subscribe();
+      this.notifService.toggleRead(notification.id).subscribe({
+        next: () => {
+          this.notifications.update((list) =>
+            list.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
+          );
+          this.refreshBadge();
+        },
+        error: () => undefined,
+      });
     }
     const link = notification.link || '';
     const bookingMatch = link.match(/(?:rent|owner)\/bookings\/(?:#?BK-)?(\d+)/i);

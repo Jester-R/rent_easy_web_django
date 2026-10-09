@@ -1,0 +1,109 @@
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+  <div>
+    <h1 class="text-2xl font-black text-ink">{{ language.t('Settings', 'ការកំណត់') }}</h1>
+    <p class="text-xs text-ink-3 mt-1">{{ language.t('Manage your appearance, language and notifications.', 'គ្រប់គ្រងរូបរាង ភាសា និងការជូនដំណឹងរបស់អ្នក។') }}</p>
+  </div>
+
+  <!-- Account -->
+  <section class="app-card p-6">
+    <h2 class="text-base font-bold text-ink mb-4">{{ language.t('Account', 'គណនី') }}</h2>
+    <div class="flex items-center gap-4">
+      @if (auth.currentUser()?.avatar_url) {
+        <img [src]="auth.currentUser()?.avatar_url" [alt]="auth.currentUser()?.display_name" class="h-14 w-14 rounded-full object-cover border border-hairline" />
+      } @else {
+        <span class="grid h-14 w-14 place-items-center rounded-full text-sm font-bold"
+          [style.background-color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 42% 92%)'"
+          [style.color]="'hsl(' + (auth.currentUser()?.avatar_hue || 160) + ' 55% 28%)'">
+          {{ auth.currentUser()?.display_name?.substring(0, 2) || 'U' }}
+        </span>
+      }
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-bold text-ink">{{ auth.currentUser()?.display_name }}</p>
+        <p class="truncate text-xs text-ink-3">{{ auth.currentUser()?.email }}</p>
+        <span class="pill pill-approved mt-1.5 capitalize">{{ auth.currentUser()?.role }}</span>
+      </div>
+      <a routerLink="/profile" class="btn btn-outline btn-sm">{{ language.t('Edit profile', 'កែប្រវត្តិរូប') }}</a>
+    </div>
+  </section>
+
+  <!-- Appearance -->
+  <section class="app-card p-6">
+    <h2 class="text-base font-bold text-ink mb-4">{{ language.t('Appearance', 'រូបរាង') }}</h2>
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-ink">{{ language.t('Dark mode', 'របៀបងងឹត') }}</p>
+        <p class="text-xs text-ink-3">{{ language.t('Switch between light and dark themes.', 'ប្តូររវាងផ្ទាំងភ្លឺ និងងងឹត។') }}</p>
+      </div>
+      <button
+        type="button"
+        (click)="themeService.toggle()"
+        class="btn btn-outline btn-sm"
+        [attr.aria-pressed]="themeService.isDark()"
+      >
+        {{ themeService.isDark() ? language.t('Dark', 'ងងឹត') : language.t('Light', 'ភ្លឺ') }}
+      </button>
+    </div>
+  </section>
+
+  <!-- Language -->
+  <section class="app-card p-6">
+    <h2 class="text-base font-bold text-ink mb-4">{{ language.t('Language', 'ភាសា') }}</h2>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        (click)="setLanguage('en')"
+        class="btn btn-sm"
+        [class.btn-primary]="language.current() === 'en'"
+        [class.btn-outline]="language.current() !== 'en'"
+      >
+        English
+      </button>
+      <button
+        type="button"
+        (click)="setLanguage('km')"
+        class="btn btn-sm"
+        [class.btn-primary]="language.current() === 'km'"
+        [class.btn-outline]="language.current() !== 'km'"
+      >
+        ខ្មែរ
+      </button>
+    </div>
+  </section>
+
+  <!-- Notifications -->
+  <section class="app-card p-6">
+    <h2 class="text-base font-bold text-ink mb-4">{{ language.t('Notifications', 'ការជូនដំណឹង') }}</h2>
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-ink">
+          {{ language.t('Unread', 'មិនទាន់អាន') }}:
+          <span class="text-primary">{{ notifService.unreadCount() }}</span>
+        </p>
+        @if (markedRead()) {
+          <p class="text-xs text-emerald-600">{{ language.t('All notifications marked as read.', 'ការជូនដំណឹងទាំងអស់ត្រូវបានសម្គាល់ថាបានអាន។') }}</p>
+        }
+      </div>
+      <div class="flex gap-2">
+        <a routerLink="/notifications" class="btn btn-outline btn-sm">{{ language.t('View all', 'មើលទាំងអស់') }}</a>
+        <button type="button" (click)="markAllRead()" [disabled]="markingRead() || notifService.unreadCount() === 0" class="btn btn-primary btn-sm">
+          {{ language.t('Mark all read', 'សម្គាល់ថាបានអានទាំងអស់') }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="app-card p-6">
+    <h2 class="text-base font-bold text-ink mb-4">{{ language.t('About', 'អំពី') }}</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between gap-4">
+        <dt class="text-ink-3">{{ language.t('Application', 'កម្មវិធី') }}</dt>
+        <dd class="font-semibold text-ink">RentEasy Web</dd>
+      </div>
+      <div class="flex justify-between gap-4">
+        <dt class="text-ink-3">{{ language.t('API endpoint', 'ចំណុចបញ្ចប់ API') }}</dt>
+        <dd class="font-mono text-xs text-ink-2">/api</dd>
+      </div>
+    </dl>
+  </section>
+</div>

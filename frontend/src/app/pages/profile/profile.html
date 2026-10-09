@@ -30,6 +30,14 @@
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4 max-w-xl">
         <div>
+          <label class="form-label">{{ language.t('Profile Photo URL', 'តំណរូបផ្ទាល់ខ្លួន') }}</label>
+          <input type="url" formControlName="avatar_url" placeholder="https://..." class="form-input" />
+          <p class="text-xs text-ink-3 mt-1">
+            {{ language.t('Image link will show as your avatar in the header.', 'រូបភាពនឹងបង្ហាញជារូបតំណាងនៅក្នុងប៊ូតុងគណនី។') }}
+          </p>
+        </div>
+
+        <div>
           <label class="form-label">{{ language.t('Full Name', 'ឈ្មោះពេញ') }}</label>
           <input
             type="text"

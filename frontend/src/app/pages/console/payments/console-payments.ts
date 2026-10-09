@@ -1,11 +1,16 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { Payment, Refund } from '../../../models';
 import {
+  PAYMENT_METHODS,
   methodIcon,
   methodLabel,
   paymentPill,
@@ -19,7 +24,7 @@ import {
 
 @Component({
   selector: 'app-console-payments',
-  imports: [CommonModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SearchableSelectComponent],
   templateUrl: './console-payments.html',
 })
 export class ConsolePaymentsComponent implements OnInit, OnDestroy {
@@ -55,6 +60,24 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   selected = signal<number[]>([]);
 
+  readonly methods = PAYMENT_METHODS;
+  readonly paymentStatuses = ['Success', 'Failed'];
+  readonly refundStatuses = ['None', 'Pending', 'Processed'];
+
+  readonly methodOptions: SelectOption[] = PAYMENT_METHODS.map((m) => ({ value: m, label: m }));
+  readonly paymentStatusOptions: SelectOption[] = this.paymentStatuses.map((s) => ({
+    value: s,
+    label: this.statusText(this.paymentStatusLabel(s)),
+  }));
+  readonly refundStatusOptions: SelectOption[] = this.refundStatuses.map((s) => ({
+    value: s,
+    label: this.statusText(this.refundStatusLabel(s)),
+  }));
+
+  editing = signal<Payment | null>(null);
+  isSaving = signal(false);
+  editForm = { amount: 0, method: PAYMENT_METHODS[0], status: 'Success', refund_status: 'None' };
+
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   pendingRefunds = computed(() => this.refunds().filter((r) => r.status === 'Pending').length);
@@ -73,6 +96,10 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
       { value: 'Refunded', label: `Refunded (${c['Refunded'] ?? 0})` },
     ];
   });
+
+  readonly statusSelectOptions = computed<SelectOption[]>(() =>
+    this.statusOptions().map((o) => ({ value: o.value, label: o.label }))
+  );
 
   ngOnInit(): void {
     this.load();
@@ -146,6 +173,45 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
       next: () => this.load(),
       error: (err) => this.setError(err, 'Failed to issue refund.'),
     });
+  }
+
+  openEdit(p: Payment): void {
+    this.editForm = {
+      amount: p.amount,
+      method: p.method,
+      status: p.status,
+      refund_status: p.refund_status,
+    };
+    this.editing.set(p);
+  }
+
+  closeEdit(): void {
+    if (this.isSaving()) return;
+    this.editing.set(null);
+  }
+
+  saveEdit(): void {
+    const p = this.editing();
+    if (!p) return;
+    this.isSaving.set(true);
+    this.console
+      .updatePayment(p.id, {
+        amount: Number(this.editForm.amount),
+        method: this.editForm.method,
+        status: this.editForm.status,
+        refund_status: this.editForm.refund_status,
+      })
+      .subscribe({
+        next: () => {
+          this.isSaving.set(false);
+          this.editing.set(null);
+          this.load();
+        },
+        error: (err) => {
+          this.isSaving.set(false);
+          this.setError(err, 'Failed to update payment.');
+        },
+      });
   }
 
   removePayment(p: Payment): void {

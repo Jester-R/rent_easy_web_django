@@ -4,6 +4,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap, catchError, of } from 'rxjs';
 import { User, RenterDashboardData, OwnerDashboardData } from '../models';
 
+export interface RegisterResult {
+  status: 'active' | 'pending_approval';
+  role: 'renter' | 'owner';
+  user?: User;
+  home_url?: string;
+  message?: string;
+  redirect: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -64,12 +73,25 @@ export class AuthService {
       );
   }
 
-  register(data: { full_name?: string; username: string; email: string; password?: string; password_confirm?: string }): Observable<{ user_id: number; redirect: string }> {
-    return this.http.post<{ user_id: number; redirect: string }>(
-      `${this.baseUrl}/auth/register/`,
-      data,
-      { withCredentials: true }
-    );
+  register(data: {
+    full_name?: string;
+    username: string;
+    email: string;
+    password?: string;
+    password_confirm?: string;
+    role?: 'renter' | 'owner';
+  }): Observable<RegisterResult> {
+    return this.http
+      .post<RegisterResult>(`${this.baseUrl}/auth/register/`, data, {
+        withCredentials: true,
+      })
+      .pipe(
+        tap((res) => {
+          if (res.status === 'active' && res.user) {
+            this.currentUser.set(res.user);
+          }
+        })
+      );
   }
 
   selectRole(role: 'renter' | 'owner'): Observable<{ ok: boolean; role: string; home_url: string; redirect: string }> {
@@ -106,7 +128,7 @@ export class AuthService {
     });
   }
 
-  updatePreferences(data: { full_name?: string; email?: string; username?: string }): Observable<{ user: User }> {
+  updatePreferences(data: { full_name?: string; email?: string; username?: string; avatar_url?: string }): Observable<{ user: User }> {
     return this.http
       .post<{ user: User }>(`${this.baseUrl}/auth/preferences/`, data, {
         withCredentials: true,

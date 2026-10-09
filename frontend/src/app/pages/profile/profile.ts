@@ -22,6 +22,7 @@ export class ProfileComponent implements OnInit {
     full_name: [''],
     username: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
+    avatar_url: [''],
   });
 
   ngOnInit(): void {
@@ -31,6 +32,7 @@ export class ProfileComponent implements OnInit {
         full_name: user.full_name,
         username: user.username,
         email: user.email,
+        avatar_url: user.avatar_url || '',
       });
     }
   }
@@ -44,11 +46,12 @@ export class ProfileComponent implements OnInit {
 
     const val = this.form.value;
     this.auth
-      .updatePreferences({
-        full_name: val.full_name || '',
-        username: val.username || '',
-        email: val.email || '',
-      })
+        .updatePreferences({
+          full_name: val.full_name || '',
+          username: val.username || '',
+          email: val.email || '',
+          avatar_url: val.avatar_url || '',
+        })
       .subscribe({
         next: () => {
           this.isLoading.set(false);

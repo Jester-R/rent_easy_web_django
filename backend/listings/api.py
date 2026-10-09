@@ -27,7 +27,7 @@ from core.bolt import (
     renter_required,
 )
 from core.bolt_serializers import property as serialize_property
-from listings.models import Favorite, Property
+from listings.models import Favorite, Property, PropertyCategory
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -35,8 +35,15 @@ api = BoltAPI(
 )
 
 ALL_LOCATIONS = "__all__"
+ALL_CATEGORIES = "__all__"
 MAX_PRICE_CEILING = Decimal(5000)
 MIN_PRICE_FLOOR = Decimal(300)
+
+
+def _category_options() -> list[dict]:
+    return [
+        {"value": value, "label": label} for value, label in PropertyCategory.choices
+    ]
 
 
 def _counts(queryset):
@@ -60,6 +67,40 @@ async def _owned_property(pk: int, user) -> Property:
     return prop
 
 
+CATEGORY_VALUES = {value for value, _ in PropertyCategory.choices}
+MAX_IMAGES = 12
+
+
+def _clean_images(data: dict) -> list[str]:
+    raw = data.get("images")
+    if isinstance(raw, str):
+        raw = [line.strip() for line in raw.splitlines()]
+    if not isinstance(raw, list):
+        return []
+    images = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        url = item.strip()
+        if url and url not in images:
+            images.append(url)
+        if len(images) >= MAX_IMAGES:
+            break
+    return images
+
+
+def _clean_coordinate(value, limit: float) -> float | None:
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number < -limit or number > limit:
+        return None
+    return number
+
+
 def _validate_property_payload(data: dict) -> dict:
     title = body_str(data, "title")
     location = body_str(data, "location")
@@ -70,6 +111,16 @@ def _validate_property_payload(data: dict) -> dict:
         raise HTTPException(status_code=422, detail="location_required")
     if price is None or price <= 0:
         raise HTTPException(status_code=422, detail="price_required")
+
+    category = body_str(data, "category")
+    if category and category not in CATEGORY_VALUES:
+        category = ""
+
+    latitude = _clean_coordinate(data.get("latitude"), 90)
+    longitude = _clean_coordinate(data.get("longitude"), 180)
+    if (latitude is None) != (longitude is None):
+        latitude = longitude = None
+
     return {
         "title": title,
         "location": location,
@@ -77,6 +128,10 @@ def _validate_property_payload(data: dict) -> dict:
         "bedrooms": max(0, body_int(data, "bedrooms", 0)),
         "bathrooms": max(0, body_int(data, "bathrooms", 0)),
         "description": body_str(data, "description"),
+        "category": category,
+        "latitude": latitude,
+        "longitude": longitude,
+        "images": _clean_images(data),
     }
 
 
@@ -112,6 +167,10 @@ async def renter_browse(request):
     location = q(request, "location")
     if location and location != ALL_LOCATIONS:
         queryset = queryset.filter(location__iexact=location)
+
+    category = q(request, "category")
+    if category and category != ALL_CATEGORIES:
+        queryset = queryset.filter(category=category)
 
     min_bedrooms = int(q(request, "min_bedrooms") or 0)
     if min_bedrooms:
@@ -181,10 +240,13 @@ async def renter_browse(request):
             "price_floor": float(bounds["lo"] or MIN_PRICE_FLOOR),
             "price_ceiling": float(bounds["hi"] or MAX_PRICE_CEILING),
             "all_locations_token": ALL_LOCATIONS,
+            "categories": _category_options(),
+            "all_categories_token": ALL_CATEGORIES,
         },
         "filters": {
             "q": search,
             "location": location,
+            "category": category,
             "min_bedrooms": min_bedrooms,
             "max_price": raw_max,
             "sort": sort,
@@ -278,6 +340,7 @@ async def booking_request(request):
         property_obj=prop,
         renter=user,
         move_in_date=body_str(data, "move_in_date") or None,
+        end_date=body_str(data, "end_date") or None,
         lease_months=body_int(data, "lease_months", 12) or 12,
         note=body_str(data, "note"),
     )
@@ -330,6 +393,14 @@ async def owner_delete(request):
 # ---------------------------------------------------------------------------
 # Public
 # ---------------------------------------------------------------------------
+
+
+@api.get("/property-categories/")
+async def property_categories(request):
+    return {
+        "categories": _category_options(),
+        "all_token": ALL_CATEGORIES,
+    }
 
 
 @api.get("/property/{pk}/")

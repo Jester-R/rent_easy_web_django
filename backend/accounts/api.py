@@ -14,12 +14,16 @@ from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
 
 from accounts.models import (
+    ApprovalStatus,
     AuditLog,
+    PlatformSettings,
     Role,
     User,
     is_valid_username,
     normalize_identity,
 )
+from notifications.models import Notification
+from notifications.services import notify
 from bookings.models import Booking, BookingStatus
 from core.bolt import (
     body_str,
@@ -54,6 +58,46 @@ async def _flash(request, key: str) -> None:
     await session_set(request, FLASH_KEY, key)
 
 
+def _approval_block_detail(identifier: str, password: str) -> str | None:
+    """Explain why an inactive account cannot sign in (Django's ``authenticate``
+    rejects inactive users before we can inspect ``approval_status``)."""
+    user = (
+        User.objects.filter(
+            Q(username__iexact=identifier) | Q(email__iexact=identifier)
+        )
+        .order_by("id")
+        .first()
+    )
+    if user is None or not user.check_password(password):
+        return None
+    if user.approval_status == ApprovalStatus.PENDING:
+        return "approval_pending"
+    if user.approval_status == ApprovalStatus.REJECTED:
+        return "registration_rejected"
+    if not user.is_active:
+        return "not_authorized"
+    return None
+
+
+def _notify_admins_of_owner_request(owner: User) -> None:
+    """Alert every superadmin/staff account that an owner awaits approval."""
+    admins = User.objects.filter(
+        Q(role=Role.SUPERADMIN) | Q(is_superuser=True) | Q(is_staff=True)
+    ).distinct()
+    for admin in admins:
+        if admin.pk == owner.pk:
+            continue
+        notify(
+            admin,
+            Notification.Kind.OWNER_APPROVAL_REQUEST,
+            "notif_owner_request",
+            "notif_owner_request_body",
+            params={"name": owner.display_name, "email": owner.email},
+            link="/console/users/",
+            action="owner_approval",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
@@ -83,6 +127,9 @@ async def login_view(request):
         authenticate, request, username=identifier, password=password
     )
     if user is None:
+        block = await in_thread(_approval_block_detail, identifier, password)
+        if block:
+            raise HTTPException(status_code=403, detail=block)
         raise HTTPException(status_code=401, detail="invalid_credentials")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="not_authorized")
@@ -108,6 +155,7 @@ async def register_view(request):
     email = normalize_identity(body_str(data, "email"))
     password = body_str(data, "password")
     confirm = body_str(data, "password_confirm")
+    role = body_str(data, "role") or Role.RENTER
 
     if not email:
         raise HTTPException(status_code=422, detail="email_required")
@@ -117,10 +165,33 @@ async def register_view(request):
         raise HTTPException(status_code=422, detail="password_mismatch")
     if not is_valid_username(username):
         raise HTTPException(status_code=422, detail="username_invalid")
+    if role not in {Role.RENTER, Role.OWNER}:
+        raise HTTPException(status_code=422, detail="invalid_role")
     if await User.objects.filter(email__iexact=email).aexists():
         raise HTTPException(status_code=409, detail="email_taken")
     if await User.objects.filter(username__iexact=username).aexists():
         raise HTTPException(status_code=409, detail="username_taken")
+
+    settings_obj, _ = await PlatformSettings.objects.aget_or_create(pk=1)
+
+    if role == Role.OWNER and not settings_obj.auto_approve_owners:
+        user = await in_thread(
+            User.objects.create_user,
+            email=email,
+            username=username,
+            password=password,
+            full_name=full_name,
+            role=Role.OWNER,
+            is_active=False,
+            approval_status=ApprovalStatus.PENDING,
+        )
+        await in_thread(_notify_admins_of_owner_request, user)
+        return {
+            "status": "pending_approval",
+            "role": Role.OWNER,
+            "message": "approval_pending",
+            "redirect": "/login/",
+        }
 
     user = await in_thread(
         User.objects.create_user,
@@ -128,10 +199,15 @@ async def register_view(request):
         username=username,
         password=password,
         full_name=full_name,
-        role=Role.RENTER,
+        role=role,
     )
-    await session_set(request, PENDING_ROLE_KEY, str(user.pk))
-    return {"user_id": user.pk, "redirect": "/role/"}
+    await in_thread(login, request, user)
+    return {
+        "status": "active",
+        "user": await serialize_user(user),
+        "home_url": user.home_url,
+        "redirect": user.home_url,
+    }
 
 
 @api.post("/auth/role/")
@@ -150,7 +226,22 @@ async def role_select_view(request):
     if role not in {Role.RENTER, Role.OWNER}:
         raise HTTPException(status_code=422, detail="select_role_hint")
 
+    platform, _ = await PlatformSettings.objects.aget_or_create(pk=1)
     user.role = role
+    if role == Role.OWNER and not platform.auto_approve_owners:
+        user.is_active = False
+        user.approval_status = ApprovalStatus.PENDING
+        await user.asave(update_fields=["role", "is_active", "approval_status"])
+        await in_thread(_notify_admins_of_owner_request, user)
+        await AuditLog.objects.acreate(
+            actor=user,
+            action=AuditLog.Action.UPDATE,
+            entity="user",
+            entity_id=str(user.pk),
+            summary="owner registration pending approval",
+        )
+        await session_pop(request, PENDING_ROLE_KEY, None)
+        return {"ok": True, "status": "pending_approval", "role": role, "redirect": "/login/"}
     await user.asave(update_fields=["role"])
     await AuditLog.objects.acreate(
         actor=user,
@@ -161,7 +252,7 @@ async def role_select_view(request):
     )
     await session_pop(request, PENDING_ROLE_KEY, None)
     await _flash(request, "registration_complete")
-    return {"ok": True, "role": role, "home_url": user.home_url, "redirect": "/login/"}
+    return {"ok": True, "status": "active", "role": role, "home_url": user.home_url, "redirect": "/login/"}
 
 
 @api.post("/auth/logout/")
@@ -218,6 +309,8 @@ async def profile_update(request):
         user.email = email
     if username:
         user.username = username
+    if "avatar_url" in data:
+        user.avatar_url = body_str(data, "avatar_url")
     await user.asave()
     await _flash(request, "account_updated")
     return {"user": await serialize_user(user)}

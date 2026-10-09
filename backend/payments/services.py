@@ -15,6 +15,26 @@ from payments.models import Payment, Refund
 MOCK_SUCCESS_RATE = 0.90
 MOCK_LATENCY_MS = 1200
 
+#: Accept the Flutter wire values (``aba``/``wing``/``card``) as well as the
+#: canonical labels already stored in the database.
+_METHOD_ALIASES: dict[str, str] = {
+    "aba": Payment.Method.ABA,
+    "aba pay": Payment.Method.ABA,
+    "aba pay (mock)": Payment.Method.ABA,
+    "wing": Payment.Method.WING,
+    "wing (mock)": Payment.Method.WING,
+    "card": Payment.Method.CARD,
+    "credit card": Payment.Method.CARD,
+    "credit card (mock)": Payment.Method.CARD,
+}
+
+
+def normalize_method(value: str | None, default: str = Payment.Method.ABA) -> str:
+    """Map a client-supplied payment method onto a canonical ``Method`` value."""
+    if not value:
+        return default
+    return _METHOD_ALIASES.get(str(value).strip().lower(), default)
+
 
 class MockGateway:
     """Simulated payment gateway (deterministic-friendly 90% success rate)."""
@@ -30,7 +50,13 @@ class MockGateway:
 
 @transaction.atomic
 def create_booking(
-    *, property_obj, renter, move_in_date=None, lease_months: int = 12, note: str = ""
+    *,
+    property_obj,
+    renter,
+    move_in_date=None,
+    end_date=None,
+    lease_months: int = 12,
+    note: str = "",
 ):
     """Create a pending booking request, guarding the active-booking rule."""
     from listings.models import Property
@@ -49,6 +75,7 @@ def create_booking(
         status=BookingStatus.PENDING,
         monthly_rent=property_obj.price_per_month,
         move_in_date=move_in_date,
+        end_date=end_date,
         lease_months=lease_months,
         note=(note or "").strip(),
     )
@@ -77,11 +104,7 @@ def transition_booking(
     booking: Booking, new_status: str, actor=None
 ) -> tuple[bool, str]:
     """Apply a validated booking transition and notify both parties."""
-    if (
-        new_status == BookingStatus.CANCELLED
-        and booking.status == BookingStatus.CONFIRMED
-        and booking.payment_id
-    ):
+    if new_status == BookingStatus.CANCELLED and booking.payment_id:
         return False, "already_paid"
     if not booking.can_transition_to(new_status):
         return False, "invalid_transition"
@@ -108,7 +131,7 @@ def transition_booking(
             "notif_booking_approved_body",
             params={"title": booking.property_title},
             link=booking.get_absolute_url(),
-            action="renter_confirm",
+            action="renter_pay_now",
         )
     elif new_status == BookingStatus.CONFIRMED:
         notify(
@@ -168,7 +191,7 @@ def pay_booking(*, booking: Booking, method: str, simulate: str = "") -> Payment
         user=booking.renter,
         booking=booking,
         amount=booking.monthly_rent,
-        method=method,
+        method=normalize_method(method),
         status=Payment.Status.SUCCESS if success else Payment.Status.FAILED,
     )
     if success:

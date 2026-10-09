@@ -5,11 +5,16 @@ import { FormsModule } from '@angular/forms';
 import { BookingService, BookingListResponse } from '../../../services/booking.service';
 import { Booking } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { LanguageService } from '../../../services/language.service';
+import { PAYMENT_METHODS } from '../../../shared/ui';
 
 @Component({
   selector: 'app-renter-bookings',
-  imports: [CommonModule, RouterLink, FormsModule, IconComponent],
+  imports: [CommonModule, RouterLink, FormsModule, IconComponent, SearchableSelectComponent],
   templateUrl: './renter-bookings.html',
 })
 export class RenterBookingsComponent implements OnInit {
@@ -20,7 +25,6 @@ export class RenterBookingsComponent implements OnInit {
   counts = signal<Record<string, number>>({});
   activeTab = signal<string>('all');
   isLoading = signal(true);
-  confirmError = signal<string | null>(null);
 
   label(value: string): string {
     const khmer: Record<string, string> = {
@@ -31,8 +35,11 @@ export class RenterBookingsComponent implements OnInit {
   }
 
   // Pay modal state
+  readonly methods = PAYMENT_METHODS;
+
+  readonly methodOptions: SelectOption[] = PAYMENT_METHODS.map((m) => ({ value: m, label: m }));
   selectedBookingForPay = signal<Booking | null>(null);
-  selectedPaymentMethod = 'ABA';
+  selectedPaymentMethod = PAYMENT_METHODS[0];
   simulateOutcome = 'success';
   isPaying = signal(false);
   paySuccessMessage = signal<string | null>(null);
@@ -55,27 +62,13 @@ export class RenterBookingsComponent implements OnInit {
     });
   }
 
-  cancelBooking(id: number, confirmed = false): void {
-    const prompt = confirmed
-      ? 'Cancel this confirmed rental? The property will become available again and any eligible payment refund will be queued.'
-      : 'Are you sure you want to cancel this booking request?';
-    if (!confirm(prompt)) return;
+  cancelBooking(id: number): void {
+    if (!confirm('Are you sure you want to cancel this booking request?')) return;
 
     this.bookingService.cancelBooking(id).subscribe({
       next: () => {
         this.loadBookings();
       },
-    });
-  }
-
-  confirmBooking(id: number): void {
-    if (!confirm('Confirm this rental? The property will be removed from available listings.')) return;
-    this.confirmError.set(null);
-    this.bookingService.confirmBooking(id).subscribe({
-      next: () => this.loadBookings(),
-      error: (err) => this.confirmError.set(
-        err.error?.detail || 'Could not confirm this rental. Please try again.'
-      ),
     });
   }
 

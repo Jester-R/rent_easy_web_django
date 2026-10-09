@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Property } from '../../models';
 import { PropertyService } from '../../services/property.service';
 import { AuthService } from '../../services/auth.service';
+import { categoryLabel } from '../../shared/ui';
 
 @Component({
   selector: 'app-property-card',
@@ -13,6 +14,8 @@ import { AuthService } from '../../services/auth.service';
 export class PropertyCardComponent {
   readonly property = input.required<Property>();
   readonly favoriteToggled = output<{ propertyId: number; favorited: boolean }>();
+
+  readonly categoryLabel = categoryLabel;
 
   private readonly propertyService = inject(PropertyService);
   readonly auth = inject(AuthService);

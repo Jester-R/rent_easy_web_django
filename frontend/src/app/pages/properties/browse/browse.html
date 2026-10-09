@@ -2,8 +2,8 @@
 
   <section class="app-card p-4 sm:p-5">
     <div class="space-y-4">
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <div class="relative flex-1">
+      <div class="space-y-3">
+        <div class="relative w-full">
           <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="10.75" cy="10.75" r="6.25"/><path d="m15.5 15.5 4.5 4.5"/></svg>
           </span>
@@ -15,36 +15,57 @@
             [placeholder]="language.t('Search by title, location or keywords...', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬពាក្យគន្លឹះ...')"
           />
         </div>
-        <button type="button" (click)="onFilterChange()" class="btn btn-primary sm:shrink-0">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="10.75" cy="10.75" r="6.25"/><path d="m15.5 15.5 4.5 4.5"/></svg>
-          <span>{{ language.t('Search', 'ស្វែងរក') }}</span>
-        </button>
+        <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button type="button" (click)="onFilterChange()" class="btn btn-primary sm:shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="10.75" cy="10.75" r="6.25"/><path d="m15.5 15.5 4.5 4.5"/></svg>
+            <span>{{ language.t('Search', 'ស្វែងរក') }}</span>
+          </button>
+          <button type="button" (click)="onFilterChange()" class="btn btn-primary sm:shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 5.5h17l-6.6 7.6V19l-3.8-2.2v-3.7L3.5 5.5Z"/></svg>
+            <span>{{ language.t('Apply Filters', 'អនុវត្តតម្រង') }}</span>
+          </button>
+        </div>
       </div>
 
 
-      <div class="flex flex-wrap items-end gap-3">
-        <div class="min-w-[10rem]">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div class="min-w-0">
           <label class="form-label">{{ language.t('Location', 'ទីតាំង') }}</label>
-          <select [(ngModel)]="selectedLocation" (change)="onFilterChange()" class="form-input">
-            <option value="__all__">{{ language.t('All Locations', 'គ្រប់ទីតាំង') }}</option>
-            @for (loc of locations(); track loc) {
-              <option [value]="loc">{{ loc }}</option>
-            }
-          </select>
+          <app-searchable-select
+            [options]="locationOptions()"
+            [ngModel]="selectedLocation"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="selectedLocation = $event; onFilterChange()"
+            [placeholder]="language.t('All Locations', 'គ្រប់ទីតាំង')"
+            [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+          />
         </div>
 
-        <div class="min-w-[9rem]">
+        <div class="min-w-0">
+          <label class="form-label">{{ language.t('Category', 'ប្រភេទ') }}</label>
+          <app-searchable-select
+            [options]="categoryOptions"
+            [ngModel]="selectedCategory"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="selectedCategory = $event; onFilterChange()"
+            [placeholder]="language.t('All Categories', 'គ្រប់ប្រភេទ')"
+            [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+          />
+        </div>
+
+        <div class="min-w-0">
           <label class="form-label">{{ language.t('Min Bedrooms', 'ចំនួនបន្ទប់គេងអប្បបរមា') }}</label>
-          <select [(ngModel)]="minBedrooms" (change)="onFilterChange()" class="form-input">
-            <option [ngValue]="0">{{ language.t('Any', 'ទាំងអស់') }}</option>
-            <option [ngValue]="1">1+</option>
-            <option [ngValue]="2">2+</option>
-            <option [ngValue]="3">3+</option>
-            <option [ngValue]="4">4+</option>
-          </select>
+          <app-searchable-select
+            [options]="bedroomOptions"
+            [ngModel]="minBedrooms.toString()"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="minBedrooms = +$event; onFilterChange()"
+            [placeholder]="language.t('Any', 'ទាំងអស់')"
+            [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+          />
         </div>
 
-        <div class="min-w-[9rem]">
+        <div class="min-w-0">
           <label class="form-label">{{ language.t('Max Price', 'តម្លៃអតិបរមា') }}</label>
           <input
             type="number"
@@ -55,28 +76,26 @@
           />
         </div>
 
-        <div class="min-w-[11rem]">
+        <div class="min-w-0">
           <label class="form-label">{{ language.t('Sort By', 'តម្រៀបតាម') }}</label>
-          <select [(ngModel)]="sort" (change)="onFilterChange()" class="form-input">
-            <option value="recommended">{{ language.t('Recommended', 'ណែនាំ') }}</option>
-            <option value="price_low">{{ language.t('Price: Low to High', 'តម្លៃ៖ ទាបទៅខ្ពស់') }}</option>
-            <option value="price_high">{{ language.t('Price: High to Low', 'តម្លៃ៖ ខ្ពស់ទៅទាប') }}</option>
-            <option value="bedrooms">{{ language.t('Most Bedrooms', 'បន្ទប់គេងច្រើនបំផុត') }}</option>
-          </select>
+          <app-searchable-select
+            [options]="sortOptions"
+            [ngModel]="sort"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="sort = $event; onFilterChange()"
+            [placeholder]="language.t('Recommended', 'ណែនាំ')"
+            [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+          />
         </div>
 
-        <div class="flex w-full gap-2 sm:w-auto sm:ms-auto">
-          <button type="button" (click)="onFilterChange()" class="btn btn-primary flex-1 sm:flex-none">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 5.5h17l-6.6 7.6V19l-3.8-2.2v-3.7L3.5 5.5Z"/></svg>
-            <span>{{ language.t('Apply Filters', 'អនុវត្តតម្រង') }}</span>
-          </button>
-          @if (searchTerm || selectedLocation !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
+        @if (searchTerm || selectedLocation !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
+          <div class="col-span-2 flex sm:col-span-3 sm:justify-end lg:col-span-5">
             <button type="button" (click)="resetFilters()" class="btn btn-ghost flex-1 sm:flex-none">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 6 12 12M18 6 6 18"/></svg>
               <span>{{ language.t('Reset', 'កំណត់ឡើងវិញ') }}</span>
             </button>
-          }
-        </div>
+          </div>
+        }
       </div>
     </div>
   </section>

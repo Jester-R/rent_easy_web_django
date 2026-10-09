@@ -18,7 +18,15 @@ from django.db.models.functions import TruncMonth
 from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
 
-from accounts.models import AuditLog, Role, User, is_valid_username, normalize_identity
+from accounts.models import (
+    ApprovalStatus,
+    AuditLog,
+    PlatformSettings,
+    Role,
+    User,
+    is_valid_username,
+    normalize_identity,
+)
 from bookings.models import Booking
 from core.bolt import (
     body_bool,
@@ -38,6 +46,8 @@ from core.bolt_serializers import property as serialize_property
 from core.bolt_serializers import refund as serialize_refund
 from core.bolt_serializers import user as serialize_user
 from listings.models import Favorite, Property
+from notifications.models import Notification
+from notifications.services import notify
 from payments.models import Payment, Refund
 from payments.services import process_refund
 
@@ -174,6 +184,32 @@ async def dashboard(request):
 
 
 # ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+
+@console_api.get("/settings/")
+async def settings_get(request):
+    await superadmin_required(request)
+    platform, _ = await PlatformSettings.objects.aget_or_create(pk=1)
+    return {"settings": {"auto_approve_owners": platform.auto_approve_owners}}
+
+
+@console_api.post("/settings/")
+async def settings_update(request):
+    actor = await superadmin_required(request)
+    data = json_body(request)
+    platform, _ = await PlatformSettings.objects.aget_or_create(pk=1)
+    if "auto_approve_owners" in data:
+        platform.auto_approve_owners = body_bool(
+            data, "auto_approve_owners", platform.auto_approve_owners
+        )
+    await platform.asave()
+    await audit(actor, AuditLog.Action.UPDATE, "settings", platform.pk, "updated platform settings")
+    return {"settings": {"auto_approve_owners": platform.auto_approve_owners}}
+
+
+# ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
 
@@ -185,6 +221,7 @@ async def users_list(request):
 
     query = q(request, "q")
     role = q(request, "role", "all")
+    approval = q(request, "approval", "all")
     queryset = User.objects.all().order_by("-date_joined")
     if query:
         queryset = queryset.filter(
@@ -194,6 +231,8 @@ async def users_list(request):
         )
     if role in dict(Role.choices):
         queryset = queryset.filter(role=role)
+    if approval in dict(ApprovalStatus.choices):
+        queryset = queryset.filter(approval_status=approval)
     queryset = queryset.annotate(
         property_count=Count("properties", distinct=True),
         booking_count=Count("renters_bookings", distinct=True),
@@ -205,7 +244,14 @@ async def users_list(request):
         ],
         "query": query,
         "role": role,
+        "approval": approval,
         "roles": [{"value": v, "label": label} for v, label in Role.choices],
+        "approvals": [
+            {"value": v, "label": label} for v, label in ApprovalStatus.choices
+        ],
+        "pending_count": await User.objects.filter(
+            approval_status=ApprovalStatus.PENDING
+        ).acount(),
         "total": await User.objects.acount(),
     }
 
@@ -285,12 +331,74 @@ async def user_edit(request):
         user.role = role
     if "is_active" in data:
         user.is_active = body_bool(data, "is_active", user.is_active)
+    if "approval_status" in data:
+        status = body_str(data, "approval_status")
+        if status not in dict(ApprovalStatus.choices):
+            raise HTTPException(status_code=422, detail="approval_invalid")
+        user.approval_status = status
+        if status == ApprovalStatus.APPROVED and "is_active" not in data:
+            user.is_active = True
 
     password = body_str(data, "password")
     if password:
         await in_thread(user.set_password, password)
     await user.asave()
     await audit(actor, AuditLog.Action.UPDATE, "user", user.pk, f"updated {user.email}")
+    return {"user": await serialize_user(user)}
+
+
+def _notify_owner_decision(owner: User, approved: bool) -> None:
+    if approved:
+        notify(
+            owner,
+            Notification.Kind.OWNER_APPROVED,
+            "notif_owner_approved",
+            "notif_owner_approved_body",
+            link="/login/",
+            action="login",
+        )
+    else:
+        notify(
+            owner,
+            Notification.Kind.OWNER_REJECTED,
+            "notif_owner_rejected",
+            "notif_owner_rejected_body",
+            link="/login/",
+            action="login",
+        )
+
+
+@console_api.post("/users/{pk}/approve/")
+async def user_approve(request):
+    pk = param_int(request, "pk")
+    actor = await superadmin_required(request)
+    user = await User.objects.filter(pk=pk).afirst()
+    if user is None:
+        raise _not_found("user")
+    user.approval_status = ApprovalStatus.APPROVED
+    user.is_active = True
+    await user.asave(update_fields=["approval_status", "is_active"])
+    await in_thread(_notify_owner_decision, user, True)
+    await audit(
+        actor, AuditLog.Action.UPDATE, "user", user.pk, f"approved owner {user.email}"
+    )
+    return {"user": await serialize_user(user)}
+
+
+@console_api.post("/users/{pk}/reject/")
+async def user_reject(request):
+    pk = param_int(request, "pk")
+    actor = await superadmin_required(request)
+    user = await User.objects.filter(pk=pk).afirst()
+    if user is None:
+        raise _not_found("user")
+    user.approval_status = ApprovalStatus.REJECTED
+    user.is_active = False
+    await user.asave(update_fields=["approval_status", "is_active"])
+    await in_thread(_notify_owner_decision, user, False)
+    await audit(
+        actor, AuditLog.Action.UPDATE, "user", user.pk, f"rejected owner {user.email}"
+    )
     return {"user": await serialize_user(user)}
 
 

@@ -11,10 +11,13 @@ export interface PropertyBrowseResponse {
     price_floor: number;
     price_ceiling: number;
     all_locations_token: string;
+    categories: { value: string; label: string }[];
+    all_categories_token: string;
   };
   filters: {
     q: string;
     location: string;
+    category: string;
     min_bedrooms: number;
     max_price: string;
     sort: string;
@@ -37,6 +40,7 @@ export class PropertyService {
   browse(filters?: {
     q?: string;
     location?: string;
+    category?: string;
     min_bedrooms?: number;
     max_price?: number;
     sort?: string;
@@ -45,6 +49,8 @@ export class PropertyService {
     if (filters?.q) params = params.set('q', filters.q);
     if (filters?.location && filters.location !== '__all__')
       params = params.set('location', filters.location);
+    if (filters?.category && filters.category !== '__all__')
+      params = params.set('category', filters.category);
     if (filters?.min_bedrooms)
       params = params.set('min_bedrooms', filters.min_bedrooms.toString());
     if (filters?.max_price)
@@ -93,7 +99,7 @@ export class PropertyService {
 
   requestBooking(
     id: number,
-    data: { move_in_date?: string; lease_months?: number; note?: string }
+    data: { move_in_date?: string; end_date?: string; lease_months?: number; note?: string }
   ): Observable<{ booking_id: number; reference: string }> {
     return this.http.post<{ booking_id: number; reference: string }>(
       `${this.baseUrl}/rent/property/${id}/request/`,

@@ -14,10 +14,17 @@ export interface User extends UserBrief {
   is_renter: boolean;
   is_owner: boolean;
   is_superadmin_role: boolean;
+  approval_status?: 'approved' | 'pending' | 'rejected';
   home_url: string;
   avatar_hue: number;
+  avatar_url?: string;
   date_joined?: string;
   last_login_at?: string | null;
+}
+
+export interface CategoryOption {
+  value: string;
+  label: string;
 }
 
 export interface Property {
@@ -31,6 +38,12 @@ export interface Property {
   bedrooms: number;
   bathrooms: number;
   description: string;
+  category?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  images?: string[];
+  cover_image?: string;
+  has_coordinates?: boolean;
   owner: UserBrief;
   owner_id: number;
   created_at: string;
@@ -49,6 +62,7 @@ export interface Booking {
   monthly_rent: number;
   rent_display: string;
   move_in_date?: string | null;
+  end_date?: string | null;
   lease_months: number;
   note: string;
   is_paid: boolean;
@@ -63,6 +77,9 @@ export interface Booking {
   approved_at?: string | null;
   rejected_at?: string | null;
   cancelled_at?: string | null;
+  can_approve?: boolean;
+  can_reject?: boolean;
+  can_cancel?: boolean;
 }
 
 export interface Payment {
@@ -100,6 +117,31 @@ export interface Refund {
   payment?: Payment;
   created_at: string;
   processed_at?: string | null;
+}
+
+export interface ConversationSummary {
+  id: number;
+  property_id: number;
+  property_title: string;
+  property_cover: string;
+  renter_id: number;
+  owner_id: number;
+  other_party: UserBrief;
+  last_message: string;
+  last_message_at: string;
+  unread: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  conversation_id: number;
+  sender: UserBrief;
+  sender_id: number;
+  body: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface AppNotification {
@@ -216,8 +258,15 @@ export interface ConsoleUsersResponse {
   users: ConsoleUserItem[];
   query: string;
   role: string;
+  approval: string;
   roles: RoleOption[];
+  approvals: RoleOption[];
+  pending_count: number;
   total: number;
+}
+
+export interface ConsoleSettings {
+  auto_approve_owners: boolean;
 }
 
 export type ConsolePropertyItem = Property & {

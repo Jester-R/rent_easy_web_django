@@ -49,11 +49,14 @@
           </span>
           <input #q type="search" class="form-input ps-11" [placeholder]="language.t('Search by reference, property or email', 'ស្វែងរកតាមលេខយោង អចលនទ្រព្យ ឬអ៊ីមែល')" [value]="query()" (input)="onSearch(q.value)" />
         </div>
-        <select class="form-input" [value]="status()" #s (change)="onStatusChange(s.value)">
-          @for (o of statusOptions(); track o.value) {
-            <option [value]="o.value">{{ o.label }}</option>
-          }
-        </select>
+        <app-searchable-select
+          [options]="statusSelectOptions()"
+          [ngModel]="status()"
+          [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="onStatusChange($event)"
+          [placeholder]="language.t('All statuses', 'ស្ថានភាពទាំងអស់')"
+          [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+        />
         <div class="flex gap-2">
           <button type="submit" class="btn btn-primary flex-1">
             <app-icon name="filter" [size]="15" /><span>{{ language.t('Filter', 'តម្រង') }}</span>
@@ -118,9 +121,9 @@
                         <app-icon name="rotate-ccw" [size]="16" />
                       </button>
                     }
-                    <a [routerLink]="['/console/payments', p.id, 'edit']" class="btn btn-ghost btn-icon" [title]="language.t('Edit', 'កែសម្រួល')">
+                    <button type="button" class="btn btn-ghost btn-icon" [title]="language.t('Edit', 'កែសម្រួល')" (click)="openEdit(p)">
                       <app-icon name="edit" [size]="16" />
-                    </a>
+                    </button>
                     <button type="button" class="btn btn-ghost btn-icon text-danger" [title]="language.t('Delete', 'លុប')" (click)="removePayment(p)">
                       <app-icon name="trash" [size]="16" />
                     </button>
@@ -199,4 +202,70 @@
       <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No refunds yet', 'មិនទាន់មានការសងប្រាក់ទេ') }}</p>
     }
   </section>
+
+  @if (editing(); as p) {
+    <div class="modal-backdrop" (click)="closeEdit()">
+      <div class="modal-panel max-w-md p-5 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="payment-edit-title" (click)="$event.stopPropagation()">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 id="payment-edit-title" class="text-[16px] font-extrabold">{{ language.t('Edit Payment', 'កែសម្រួលការទូទាត់') }}</h3>
+            <p class="mt-1 break-words font-mono text-[12px] text-ink-3">{{ p.reference }}</p>
+          </div>
+          <button type="button" (click)="closeEdit()" class="btn btn-ghost btn-icon shrink-0" aria-label="Close">
+            <app-icon name="x" [size]="18" />
+          </button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div>
+            <label class="form-label" for="edit-amount">{{ language.t('Amount', 'ចំនួនទឹកប្រាក់') }}</label>
+            <input id="edit-amount" type="number" min="0" step="0.01" class="form-input" [(ngModel)]="editForm.amount" />
+          </div>
+          <div>
+            <label class="form-label" for="edit-method">{{ language.t('Method', 'វិធីសាស្ត្រ') }}</label>
+            <app-searchable-select
+              [options]="methodOptions"
+              [(ngModel)]="editForm.method"
+              [ngModelOptions]="{ standalone: true }"
+              [placeholder]="language.t('Method', 'វិធីសាស្ត្រ')"
+              [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="form-label" for="edit-status">{{ language.t('Status', 'ស្ថានភាព') }}</label>
+              <app-searchable-select
+                [options]="paymentStatusOptions"
+                [(ngModel)]="editForm.status"
+                [ngModelOptions]="{ standalone: true }"
+                [placeholder]="language.t('Status', 'ស្ថានភាព')"
+                [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+              />
+            </div>
+            <div>
+              <label class="form-label" for="edit-refund">{{ language.t('Refund', 'ការសងប្រាក់') }}</label>
+              <app-searchable-select
+                [options]="refundStatusOptions"
+                [(ngModel)]="editForm.refund_status"
+                [ngModelOptions]="{ standalone: true }"
+                [placeholder]="language.t('Refund', 'ការសងប្រាក់')"
+                [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="btn btn-ghost" (click)="closeEdit()" [disabled]="isSaving()">{{ language.t('Cancel', 'បោះបង់') }}</button>
+          <button type="button" class="btn btn-primary" (click)="saveEdit()" [disabled]="isSaving()">
+            @if (isSaving()) {
+              <span>{{ language.t('Saving…', 'កំពុងរក្សាទុក…') }}</span>
+            } @else {
+              <span>{{ language.t('Save changes', 'រក្សាទុកការផ្លាស់ប្តូរ') }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

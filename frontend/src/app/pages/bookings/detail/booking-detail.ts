@@ -3,6 +3,10 @@ import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { LanguageService } from '../../../services/language.service';
@@ -21,7 +25,7 @@ type BookingExt = Booking & { can_approve?: boolean; can_cancel?: boolean; can_r
 
 @Component({
   selector: 'app-booking-detail',
-  imports: [RouterLink, FormsModule, IconComponent],
+  imports: [RouterLink, FormsModule, IconComponent, SearchableSelectComponent],
   templateUrl: './booking-detail.html',
 })
 export class BookingDetailComponent implements OnInit {
@@ -44,6 +48,8 @@ export class BookingDetailComponent implements OnInit {
   readonly payError = signal<string | null>(null);
   selectedMethod = 'ABA Pay (Mock)';
   readonly methods = ['ABA Pay (Mock)', 'Wing (Mock)', 'Credit Card (Mock)'];
+
+  readonly methodOptions: SelectOption[] = this.methods.map((m) => ({ value: m, label: m }));
 
   readonly usd = usd;
   readonly prettyDate = prettyDate;
@@ -135,25 +141,6 @@ export class BookingDetailComponent implements OnInit {
     });
   }
 
-  confirmApproval(): void {
-    const b = this.booking();
-    if (!b || !confirm('Confirm this rental? The property will be removed from available listings.')) return;
-    this.actionError.set(null);
-    this.isBusy.set(true);
-    this.bookingService.confirmBooking(b.id).subscribe({
-      next: (res) => {
-        this.isBusy.set(false);
-        this.booking.update((current) => current ? { ...current, ...res.booking } : current);
-        this.load();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isBusy.set(false);
-        this.actionError.set(err.error?.detail || 'Could not confirm this rental. Please try again.');
-        this.onError(err);
-      },
-    });
-  }
-
   reject(): void {
     const b = this.booking();
     if (!b) return;
@@ -174,10 +161,7 @@ export class BookingDetailComponent implements OnInit {
   cancel(): void {
     const b = this.booking();
     if (!b) return;
-    const message = b.status === 'Confirmed'
-      ? `Cancel this confirmed rental? The property will become available again and any eligible payment refund will be queued.\n${b.property?.title}`
-      : `Cancel this booking request?\n${b.property?.title}`;
-    if (!confirm(message)) return;
+    if (!confirm(`Cancel this booking request?\n${b.property?.title}`)) return;
     this.isBusy.set(true);
     this.bookingService.cancelBooking(b.id).subscribe({
       next: () => {

@@ -2,6 +2,10 @@ import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
+import {
+  SearchableSelectComponent,
+  SelectOption,
+} from '../../../components/searchable-select/searchable-select';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { User } from '../../../models';
@@ -9,7 +13,7 @@ import { prettyDate, roleLabel } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-user-form',
-  imports: [ReactiveFormsModule, RouterLink, IconComponent],
+  imports: [ReactiveFormsModule, RouterLink, IconComponent, SearchableSelectComponent],
   templateUrl: './console-user-form.html',
 })
 export class ConsoleUserFormComponent implements OnInit {
@@ -50,6 +54,11 @@ export class ConsoleUserFormComponent implements OnInit {
   });
 
   roleOptions = ['renter', 'owner', 'superadmin'];
+
+  readonly roleSelectOptions: SelectOption[] = this.roleOptions.map((role) => ({
+    value: role,
+    label: this.roleLabelTranslated(role),
+  }));
 
   ngOnInit(): void {
     const editId = this.id();

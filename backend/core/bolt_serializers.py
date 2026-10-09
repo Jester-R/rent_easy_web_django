@@ -57,8 +57,10 @@ class UserSerializer(UserBriefSerializer):
     is_renter: bool
     is_owner: bool
     is_superadmin_role: bool
+    approval_status: str = "approved"
     home_url: str
     avatar_hue: int
+    avatar_url: str = ""
     date_joined: str
     last_login_at: str | None = None
 
@@ -87,6 +89,12 @@ class PropertySerializer(Serializer):
     bedrooms: int
     bathrooms: int
     description: str
+    category: str
+    latitude: float | None = None
+    longitude: float | None = None
+    images: list[str] = []
+    cover_image: str = ""
+    has_coordinates: bool = False
     owner: UserBriefSerializer
     owner_id: int
     created_at: str
@@ -117,6 +125,7 @@ class BookingSerializer(Serializer):
     monthly_rent: float
     rent_display: str
     move_in_date: str | None = None
+    end_date: str | None = None
     lease_months: int
     note: str
     is_paid: bool
@@ -138,6 +147,10 @@ class BookingSerializer(Serializer):
 
     @field_validator("move_in_date")
     def _move(cls, value):
+        return _iso(value)
+
+    @field_validator("end_date")
+    def _end(cls, value):
         return _iso(value)
 
     @field_validator("created_at")
@@ -170,9 +183,7 @@ class BookingSerializer(Serializer):
 
     @computed_field
     def can_cancel(self) -> bool:
-        if self.status == "Confirmed" and self.is_paid:
-            return False
-        return "Cancelled" in VALID_TRANSITIONS.get(self.status, ())
+        return self.status == "Pending" and not self.is_paid
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +253,44 @@ class RefundSerializer(Serializer):
 
     @field_validator("processed_at")
     def _proc(cls, value):
+        return _iso(value)
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+
+class ConversationSerializer(Serializer):
+    id: int
+    property_id: int
+    property_title: str = ""
+    property_cover: str = ""
+    renter_id: int
+    owner_id: int
+    created_at: str
+    updated_at: str
+
+    @field_validator("created_at")
+    def _create(cls, value):
+        return _iso(value)
+
+    @field_validator("updated_at")
+    def _update(cls, value):
+        return _iso(value)
+
+
+class MessageSerializer(Serializer):
+    id: int
+    conversation_id: int
+    sender: UserBriefSerializer
+    sender_id: int
+    body: str
+    is_read: bool = field(source="is_read", default=False)
+    created_at: str
+
+    @field_validator("created_at")
+    def _create(cls, value):
         return _iso(value)
 
 
@@ -369,6 +418,14 @@ async def refund(item, **extra) -> dict:
     return await _adump(RefundSerializer, item, extra or None)
 
 
+async def conversation(item, **extra) -> dict:
+    return await _adump(ConversationSerializer, item, extra or None)
+
+
+async def message_item(item, **extra) -> dict:
+    return await _adump(MessageSerializer, item, extra or None)
+
+
 async def notification(item) -> dict:
     return await _adump(NotificationSerializer, item, None)
 
@@ -380,6 +437,8 @@ async def audit(item) -> dict:
 __all__ = [
     "AuditSerializer",
     "BookingSerializer",
+    "ConversationSerializer",
+    "MessageSerializer",
     "NotificationSerializer",
     "PaymentSerializer",
     "PropertySerializer",
@@ -388,6 +447,8 @@ __all__ = [
     "UserSerializer",
     "audit",
     "booking",
+    "conversation",
+    "message_item",
     "notification",
     "payment",
     "property",

@@ -7,6 +7,7 @@ import {
   ConsoleDashboardData,
   ConsolePaymentsResponse,
   ConsolePropertiesResponse,
+  ConsoleSettings,
   ConsoleUsersResponse,
   Payment,
   Refund,
@@ -28,16 +29,39 @@ export class ConsoleService {
     return this.http.get<ConsoleDashboardData>(`${this.base}/`, this.opts);
   }
 
+  /* ------------------------------- settings -------------------------------- */
+
+  getSettings(): Observable<{ settings: ConsoleSettings }> {
+    return this.http.get<{ settings: ConsoleSettings }>(`${this.base}/settings/`, this.opts);
+  }
+
+  updateSettings(settings: Partial<ConsoleSettings>): Observable<{ settings: ConsoleSettings }> {
+    return this.http.post<{ settings: ConsoleSettings }>(
+      `${this.base}/settings/`,
+      settings,
+      this.opts
+    );
+  }
+
   /* --------------------------------- users --------------------------------- */
 
-  getUsers(filters?: { q?: string; role?: string }): Observable<ConsoleUsersResponse> {
+  getUsers(filters?: { q?: string; role?: string; approval?: string }): Observable<ConsoleUsersResponse> {
     let params = new HttpParams();
     if (filters?.q) params = params.set('q', filters.q);
     if (filters?.role && filters.role !== 'all') params = params.set('role', filters.role);
+    if (filters?.approval && filters.approval !== 'all') params = params.set('approval', filters.approval);
     return this.http.get<ConsoleUsersResponse>(`${this.base}/users/`, {
       params,
       withCredentials: true,
     });
+  }
+
+  approveUser(id: number): Observable<{ user: User }> {
+    return this.http.post<{ user: User }>(`${this.base}/users/${id}/approve/`, {}, this.opts);
+  }
+
+  rejectUser(id: number): Observable<{ user: User }> {
+    return this.http.post<{ user: User }>(`${this.base}/users/${id}/reject/`, {}, this.opts);
   }
 
   getUser(id: number): Observable<{ user: User }> {

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "bookings",
     "payments",
     "notifications",
+    "chat",
 ]
 
 MIDDLEWARE = [

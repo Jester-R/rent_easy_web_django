@@ -1,0 +1,68 @@
+<div class="max-w-3xl mx-auto">
+  <div class="app-card overflow-hidden flex flex-col" style="height: calc(100vh - 7rem);">
+    <!-- Header -->
+    <div class="flex items-center gap-3 border-b border-hairline px-3 py-2.5">
+      <a routerLink="/messages" class="btn btn-ghost btn-icon" [attr.aria-label]="language.t('Back', 'ត្រឡប់')">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg>
+      </a>
+      @if (conversation()?.property_cover) {
+        <img [src]="conversation()?.property_cover" [alt]="conversation()?.property_title" class="h-10 w-10 rounded-lg object-cover" />
+      }
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-bold text-ink">{{ otherParty()?.display_name || 'Conversation' }}</p>
+        @if (conversation(); as conv) {
+          <a [routerLink]="['/properties', conversation()?.property_id]" class="truncate text-xs text-primary hover:underline">{{ conversation()?.property_title }}</a>
+        }
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div #scroller class="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
+      @if (isLoading()) {
+        <div class="animate-pulse space-y-3">
+          <div class="h-10 w-2/3 bg-surface-2 rounded-2xl"></div>
+          <div class="h-10 w-1/2 bg-surface-2 rounded-2xl ml-auto"></div>
+        </div>
+      } @else if (messages().length === 0) {
+        <p class="text-center text-xs text-ink-3 py-8">{{ language.t('No messages yet. Say hello!', 'មិនទាន់មានសារទេ។ សូមស្វាគមន៍!') }}</p>
+      } @else {
+        @for (m of messages(); track m.id) {
+          <div class="flex flex-col" [class.items-end]="isMine(m)" [class.items-start]="!isMine(m)">
+            <div
+              class="max-w-[75%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-line break-words"
+              [class.bg-primary]="isMine(m)"
+              [class.text-white]="isMine(m)"
+              [class.bg-surface-2]="!isMine(m)"
+              [class.text-ink]="!isMine(m)"
+            >{{ m.body }}</div>
+            <span class="mt-0.5 text-[10px] text-ink-3">{{ prettyDate(m.created_at) }}</span>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Composer -->
+    <div class="border-t border-hairline px-3 py-2.5">
+      @if (sendError()) {
+        <p class="mb-2 text-xs text-danger">{{ language.t('Could not send message. Try again.', 'មិនអាចផ្ញើសារបានទេ។ ព្យាយាមម្តងទៀត។') }}</p>
+      }
+      <div class="flex items-end gap-2">
+        <textarea
+          [(ngModel)]="draft"
+          (keydown.enter)="$event.preventDefault(); send()"
+          rows="1"
+          [placeholder]="language.t('Type a message...', 'វាយសារ...')"
+          class="form-input flex-1 resize-none"
+        ></textarea>
+        <button
+          type="button"
+          (click)="send()"
+          [disabled]="!draft.trim() || isSending()"
+          class="btn btn-primary"
+        >
+          {{ language.t('Send', 'ផ្ញើ') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

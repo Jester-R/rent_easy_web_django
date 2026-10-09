@@ -1,0 +1,59 @@
+<div class="space-y-4">
+  <div>
+    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Platform Settings', 'ការកំណត់វេទិកា') }}</h1>
+    <p class="text-[12px] text-ink-3">{{ language.t('Platform-wide switches controlled by system admins', 'ការកំណត់ទូទាំងវេទិកា គ្រប់គ្រងដោយអ្នកគ្រប់គ្រងប្រព័ន្ធ') }}</p>
+  </div>
+
+  @if (error(); as message) {
+    <div class="toast toast-error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="error.set(null)" aria-label="Dismiss">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="app-card skeleton h-24"></div>
+  } @else {
+    <section class="app-card p-5">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="max-w-xl">
+          <p class="flex items-center gap-2 text-[14px] font-bold text-ink">
+            <app-icon name="shield" [size]="17" />
+            <span>{{ language.t('Auto-approve property owners', 'អនុម័តម្ចាស់អចលនទ្រព្យដោយស្វ័យប្រវត្តិ') }}</span>
+          </p>
+          <p class="mt-1 text-[12px] leading-relaxed text-ink-3">
+            {{ language.t('When enabled, new owner registrations are activated immediately. When disabled, an admin must approve each owner request before they can sign in.', 'នៅពេលបើក ការចុះឈ្មោះម្ចាស់ថ្មីត្រូវបានអនុម័តភ្លាមៗ។ នៅពេលបិទ អ្នកគ្រប់គ្រងត្រូវអនុម័តសំណើម្ចាស់នីមួយៗ មុនពេលពួកគេអាចចូលគណនីបាន។') }}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          [attr.aria-checked]="autoApproveOwners()"
+          [disabled]="isSaving()"
+          (click)="toggleAutoApprove()"
+          class="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors"
+          [class.bg-primary]="autoApproveOwners()"
+          [class.bg-surface-2]="!autoApproveOwners()"
+          [class.border-2]="!autoApproveOwners()"
+          [class.border-hairline]="!autoApproveOwners()"
+        >
+          <span
+            class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform"
+            [class.translate-x-6]="autoApproveOwners()"
+            [class.translate-x-1]="!autoApproveOwners()"
+          ></span>
+        </button>
+      </div>
+      <p class="mt-4 text-[12px] font-bold" [class.text-success]="autoApproveOwners()" [class.text-ink-3]="!autoApproveOwners()">
+        @if (autoApproveOwners()) {
+          {{ language.t('Owner registrations are approved automatically.', 'ការចុះឈ្មោះម្ចាស់ត្រូវបានអនុម័តដោយស្វ័យប្រវត្តិ។') }}
+        } @else {
+          {{ language.t('Owner registrations require admin approval.', 'ការចុះឈ្មោះម្ចាស់ត្រូវការការអនុម័តពីអ្នកគ្រប់គ្រង។') }}
+        }
+      </p>
+    </section>
+  }
+</div>

@@ -11,7 +11,7 @@
 
   <!-- Status Tabs -->
   <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-hairline mb-6">
-    @for (tab of ['all', 'Pending', 'Approved', 'Confirmed', 'Rejected', 'Cancelled']; track tab) {
+    @for (tab of ['all', 'Pending', 'Approved', 'Rejected', 'Cancelled']; track tab) {
       <button
         (click)="loadBookings(tab)"
         class="chip shrink-0 whitespace-nowrap capitalize"
@@ -24,9 +24,6 @@
   </div>
 
   <!-- Bookings List -->
-  @if (confirmError()) {
-    <div class="toast toast-error mb-4" role="alert">{{ confirmError() }}</div>
-  }
   @if (isLoading()) {
     <div class="space-y-4">
       @for (i of [1, 2, 3]; track i) {
@@ -77,6 +74,9 @@
                 <div class="flex flex-wrap items-center gap-4 text-xs text-ink-3 mt-2">
                   <span>📍 {{ b.property.location }}</span>
                   <span>📅 {{ language.t('Move-in', 'ថ្ងៃចូលនៅ') }}: {{ b.move_in_date || language.t('Flexible', 'អាចបត់បែន') }}</span>
+                  @if (b.end_date) {
+                    <span>🏁 {{ language.t('Move-out', 'ថ្ងៃបញ្ចប់') }}: {{ b.end_date }}</span>
+                  }
                   <span>⏳ {{ language.t('Lease', 'រយៈពេលជួល') }}: {{ b.lease_months }} {{ language.t('months', 'ខែ') }}</span>
                   <span>👤 {{ language.t('Owner', 'ម្ចាស់ផ្ទះ') }}: {{ b.owner.display_name }}</span>
                 </div>
@@ -90,11 +90,7 @@
               </div>
 
               <div class="flex items-center gap-2">
-                @if (b.status === 'Approved') {
-                  <button (click)="confirmBooking(b.id)" class="btn btn-primary btn-sm">{{ language.t('Confirm rental', 'បញ្ជាក់ការជួល') }}</button>
-                }
-
-                @if (b.status === 'Confirmed' && !b.is_paid) {
+                @if ((b.status === 'Approved' || b.status === 'Confirmed') && !b.is_paid) {
                   <button
                     (click)="openPayModal(b)"
                     class="btn btn-primary btn-sm"
@@ -103,12 +99,18 @@
                   </button>
                 }
 
-                @if (b.status === 'Pending' || (b.status === 'Confirmed' && !b.is_paid)) {
+                @if (b.status === 'Approved' && b.is_paid) {
+                  <a [routerLink]="['/payments', b.payment_id]" class="btn btn-outline btn-sm">
+                    {{ language.t('Payment details', 'ព័ត៌មានលម្អិតការទូទាត់') }}
+                  </a>
+                }
+
+                @if (b.can_cancel) {
                   <button
-                    (click)="cancelBooking(b.id, b.status === 'Confirmed')"
+                    (click)="cancelBooking(b.id)"
                     class="btn btn-ghost btn-sm text-danger hover:bg-rose-50"
                   >
-                    {{ b.status === 'Confirmed' ? language.t('Cancel rental', 'បោះបង់ការជួល') : language.t('Cancel', 'បោះបង់') }}
+                    {{ language.t('Cancel', 'បោះបង់') }}
                   </button>
                 }
               </div>
@@ -153,11 +155,13 @@
         <div class="space-y-4">
           <div>
             <label class="form-label">{{ language.t('Payment Method', 'វិធីបង់ប្រាក់') }}</label>
-            <select [(ngModel)]="selectedPaymentMethod" class="form-input">
-              <option value="ABA">ABA Pay (Mock)</option>
-              <option value="Bakong KHQR">Bakong KHQR (Mock)</option>
-              <option value="Credit Card">Credit Card (Mock)</option>
-            </select>
+            <app-searchable-select
+              [options]="methodOptions"
+              [(ngModel)]="selectedPaymentMethod"
+              [ngModelOptions]="{ standalone: true }"
+              [placeholder]="language.t('Payment Method', 'វិធីបង់ប្រាក់')"
+              [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+            />
           </div>
 
           <button

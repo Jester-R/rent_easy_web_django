@@ -18,7 +18,8 @@ from django.utils import timezone
 
 from accounts.models import AuditLog, Role, User
 from bookings.models import Booking, BookingStatus
-from listings.models import Favorite, Property
+from chat.models import Conversation, Message
+from listings.models import Favorite, Property, PropertyCategory
 from notifications.models import Notification
 from notifications.services import notify
 from payments.models import Payment, Refund
@@ -79,6 +80,42 @@ AMENITIES_NOTE = [
     "Backup generator for the building and 24/7 security at the entrance.",
 ]
 
+CATEGORY_CYCLE = [value for value, _ in PropertyCategory.choices]
+
+IMAGE_POOL = [
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1200&q=80",
+]
+
+CITY_CENTERS = {
+    "Phnom Penh": (11.5564, 104.9282),
+    "Siem Reap": (13.3622, 103.8597),
+}
+
+
+def _coords_for(location: str, rng) -> tuple[float, float]:
+    for city, (lat, lng) in CITY_CENTERS.items():
+        if location.startswith(city):
+            return (
+                round(lat + rng.uniform(-0.03, 0.03), 6),
+                round(lng + rng.uniform(-0.03, 0.03), 6),
+            )
+    return (11.5564, 104.9282)
+
+
+def _images_for(index: int) -> list[str]:
+    return [IMAGE_POOL[(index * 2 + offset) % len(IMAGE_POOL)] for offset in range(3)]
+
 
 class Command(BaseCommand):
     help = "Create demo accounts, properties, bookings, payments and notifications."
@@ -99,6 +136,8 @@ class Command(BaseCommand):
             for model in (
                 Refund,
                 Payment,
+                Message,
+                Conversation,
                 Notification,
                 Favorite,
                 Booking,
@@ -134,6 +173,7 @@ class Command(BaseCommand):
         self._ensure_favorites(renters, properties, rng)
         bookings = self._ensure_bookings(properties, renters, rng)
         self._ensure_payments(bookings, rng)
+        self._ensure_conversations(properties, renters, rng)
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -175,27 +215,50 @@ class Command(BaseCommand):
 
     # -- listings ------------------------------------------------------
     def _ensure_properties(self, owners, rng) -> list[Property]:
-        properties = list(Property.objects.select_related("owner"))
-        if len(properties) >= 10:
-            return properties
+        properties = list(Property.objects.select_related("owner").order_by("pk"))
         start = len(properties)
         for index in range(start, 10):
             owner = owners[index % len(owners)]
+            location = LOCATIONS[index % len(LOCATIONS)]
             low, high = dict((o[0], (o[3], o[4])) for o in OWNERS)[owner.email]
             created = timezone.now() - timedelta(days=rng.randint(1, 90))
+            latitude, longitude = _coords_for(location, rng)
             properties.append(
                 Property.objects.create(
                     title=TITLES[index % len(TITLES)],
-                    location=LOCATIONS[index % len(LOCATIONS)],
+                    location=location,
                     price_per_month=Decimal(rng.randrange(low, high, 10)),
                     bedrooms=rng.choice([0, 1, 1, 2, 2, 3]),
                     bathrooms=rng.choice([1, 1, 2]),
                     description=f"{DESCRIPTIONS[index % len(DESCRIPTIONS)]} {AMENITIES_NOTE[index % len(AMENITIES_NOTE)]}",
+                    category=CATEGORY_CYCLE[index % len(CATEGORY_CYCLE)],
+                    latitude=latitude,
+                    longitude=longitude,
+                    images=_images_for(index),
                     owner=owner,
                     created_at=created,
                 )
             )
-        self.stdout.write(f"Created {10 - start} properties.")
+        if 10 - start > 0:
+            self.stdout.write(f"Created {10 - start} properties.")
+
+        updated = 0
+        for index, prop in enumerate(properties):
+            fields = []
+            if not prop.category:
+                prop.category = CATEGORY_CYCLE[index % len(CATEGORY_CYCLE)]
+                fields.append("category")
+            if prop.latitude is None or prop.longitude is None:
+                prop.latitude, prop.longitude = _coords_for(prop.location, rng)
+                fields.extend(["latitude", "longitude"])
+            if not prop.images:
+                prop.images = _images_for(index)
+                fields.append("images")
+            if fields:
+                prop.save(update_fields=fields)
+                updated += 1
+        if updated:
+            self.stdout.write(f"Backfilled location/category/images on {updated} properties.")
         return properties
 
     def _ensure_favorites(self, renters, properties, rng) -> None:
@@ -227,14 +290,17 @@ class Command(BaseCommand):
                 prop_index += 1
                 renter = rng.choice(renters)
                 created = timezone.now() - timedelta(days=rng.randint(1, 45))
+                lease_months = rng.choice([6, 12, 12, 24])
+                move_in = created + timedelta(days=rng.randint(5, 30))
                 booking = Booking.objects.create(
                     property=prop,
                     renter=renter,
                     owner=prop.owner,
                     status=status,
                     monthly_rent=prop.price_per_month,
-                    lease_months=rng.choice([6, 12, 12, 24]),
-                    move_in_date=(created + timedelta(days=rng.randint(5, 30))).date(),
+                    lease_months=lease_months,
+                    move_in_date=move_in.date(),
+                    end_date=(move_in + timedelta(days=30 * lease_months)).date(),
                     note=rng.choice(
                         [
                             "I can move in within two weeks and can pay the deposit up front.",
@@ -266,6 +332,36 @@ class Command(BaseCommand):
             booking.save(update_fields=fields)
 
     # -- money ---------------------------------------------------------
+    def _ensure_conversations(self, properties, renters, rng) -> None:
+        created = 0
+        for prop in properties[:4]:
+            candidates = [r for r in renters if r.pk != prop.owner_id]
+            if not candidates:
+                continue
+            renter = rng.choice(candidates)
+            conv, was_created = Conversation.objects.get_or_create(
+                property=prop, renter=renter, owner=prop.owner
+            )
+            if was_created:
+                Message.objects.create(
+                    conversation=conv,
+                    sender=renter,
+                    body=f"Hi, is '{prop.title}' still available?",
+                )
+                Message.objects.create(
+                    conversation=conv,
+                    sender=prop.owner,
+                    body="Yes, it is. When would you like to move in?",
+                )
+                Message.objects.create(
+                    conversation=conv,
+                    sender=renter,
+                    body="Next month, is that okay?",
+                )
+                created += 1
+        if created:
+            self.stdout.write(f"Created {created} conversations.")
+
     def _ensure_payments(self, bookings, rng) -> None:
         if Payment.objects.exists():
             return

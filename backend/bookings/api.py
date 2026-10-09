@@ -128,7 +128,7 @@ async def renter_pay(request):
     user = await renter_required(request)
     booking = await _renter_booking(pk, user)
 
-    if booking.status != BookingStatus.CONFIRMED:
+    if booking.status not in (BookingStatus.APPROVED, BookingStatus.CONFIRMED):
         raise HTTPException(status_code=409, detail="invalid_transition")
     if booking.payment_id:
         return {
