@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.utils import timezone
 
 from .models import Notification, NotificationSeen
+from .default_messages import DEFAULT_NOTIFICATION_MESSAGES
 
 
 def notify(
@@ -20,14 +21,41 @@ def notify(
         return None
     if not link:
         link = "/notifications/"
+    params = dict(params or {})
+    message = next(
+        (item for item in _notification_messages() if item.get("key") == title_key),
+        None,
+    )
+    if message:
+        params["message_overrides"] = {
+            "title_en": message.get("title_en", ""),
+            "title_km": message.get("title_km", ""),
+            "body_en": message.get("body_en", ""),
+            "body_km": message.get("body_km", ""),
+        }
     return Notification.objects.create(
         recipient=recipient,
         kind=kind,
         title_key=title_key,
         body_key=body_key,
-        params=params or {},
+        params=params,
         link=link,
         action=action,
+    )
+
+
+def _notification_messages():
+    from accounts.models import PlatformSettings
+
+    configured = (
+        PlatformSettings.objects.filter(pk=1)
+        .values_list("notification_messages", flat=True)
+        .first()
+    )
+    return (
+        configured
+        if isinstance(configured, list) and configured
+        else DEFAULT_NOTIFICATION_MESSAGES
     )
 
 

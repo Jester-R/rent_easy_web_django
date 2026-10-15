@@ -18,7 +18,7 @@
 
       <div class="p-5">
         <div class="flex flex-wrap items-start gap-2">
-          <h2 class="text-[18px] font-extrabold tracking-tight">{{ b.property?.title }}</h2>
+          <h2 class="text-[18px] font-extrabold tracking-tight">{{ title(b.property) }}</h2>
           <span [class]="'pill ' + bookingPill(b.status)">{{ b.status }}</span>
         </div>
 
@@ -90,9 +90,25 @@
                 <app-icon name="x" [size]="16" />
                 <span>Reject</span>
               </button>
+              @if (b.can_cancel) {
+                <button type="button" class="btn btn-danger-soft" [disabled]="isBusy()" (click)="ownerCancel()">
+                  <app-icon name="x-circle" [size]="16" />
+                  <span>Cancel booking &amp; request refund</span>
+                </button>
+              }
+            } @else if (b.can_cancel) {
+              <button type="button" class="btn btn-danger-soft" [disabled]="isBusy()" (click)="ownerCancel()">
+                <app-icon name="x-circle" [size]="16" />
+                <span>Cancel &amp; refund renter</span>
+              </button>
+            } @else if (b.can_reject) {
+              <button type="button" class="btn btn-danger-soft" [disabled]="isBusy()" (click)="reject()">
+                <app-icon name="x" [size]="16" />
+                <span>Reject</span>
+              </button>
             }
           } @else {
-            @if ((b.status === 'Approved' || b.status === 'Confirmed') && !b.payment_id) {
+            @if ((b.status === 'Pending' || b.status === 'Approved' || b.status === 'Confirmed') && !b.payment_id) {
               <button type="button" class="btn btn-primary" [disabled]="isBusy()" (click)="openPay()">
                 <app-icon name="dollar" [size]="16" />
                 <span>Pay now</span>
@@ -107,7 +123,7 @@
             @if (b.can_cancel) {
               <button type="button" class="btn btn-danger-soft" [disabled]="isBusy()" (click)="cancel()">
                 <app-icon name="x-circle" [size]="16" />
-                <span>Cancel request</span>
+                <span>{{ b.payment_id ? 'Cancel & request refund' : 'Cancel request' }}</span>
               </button>
             }
           }
@@ -193,7 +209,7 @@
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 id="detail-rent-payment-title" class="text-[16px] font-extrabold">Complete Rent Payment</h3>
-          <p class="mt-1 break-words text-[12px] text-ink-3">{{ b.property?.title }}</p>
+          <p class="mt-1 break-words text-[12px] text-ink-3">{{ title(b.property) }}</p>
         </div>
         <button type="button" (click)="closePay()" class="btn btn-ghost btn-icon shrink-0" aria-label="Close payment dialog">
           <app-icon name="x" [size]="18" />

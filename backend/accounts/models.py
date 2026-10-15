@@ -35,6 +35,18 @@ ROLE_VALUES = {value for value, _ in Role.choices}
 APPROVAL_VALUES = {value for value, _ in ApprovalStatus.choices}
 
 
+class PayoutMethod(models.TextChoices):
+    """Where an owner wants the platform to send collected rent."""
+
+    ABA = "aba", "ABA Bank"
+    WING = "wing", "Wing Bank"
+    ACLEDA = "acleda", "ACLEDA Bank"
+    OTHER = "other", "Other"
+
+
+PAYOUT_METHOD_VALUES = {value for value, _ in PayoutMethod.choices}
+
+
 class PlatformSettings(models.Model):
     """Singleton row holding platform-wide switches controlled by superadmins."""
 
@@ -42,6 +54,9 @@ class PlatformSettings(models.Model):
         default=False,
         help_text="When enabled, new property owners are approved automatically.",
     )
+    property_categories = models.JSONField(default=list, blank=True)
+    notification_messages = models.JSONField(default=dict, blank=True)
+    home_promotion = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -111,7 +126,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=30, unique=True, validators=[USERNAME_VALIDATOR]
     )
     full_name = models.CharField(max_length=120, blank=True)
-    avatar_url = models.URLField(max_length=500, blank=True)
+    # Supports either an external avatar URL or a small uploaded image data URL.
+    avatar_url = models.TextField(blank=True)
     role = models.CharField(
         max_length=16, choices=Role.choices, default=Role.RENTER, db_index=True
     )
@@ -125,6 +141,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
     last_login_at = models.DateTimeField(null=True, blank=True)
+
+    # Owner payout account (shown only to the owner and superadmins).
+    payout_method = models.CharField(
+        max_length=16, choices=PayoutMethod.choices, blank=True
+    )
+    payout_account_name = models.CharField(max_length=120, blank=True)
+    payout_account_number = models.CharField(max_length=64, blank=True)
+    payout_bank_name = models.CharField(max_length=120, blank=True)
+    payout_phone = models.CharField(max_length=32, blank=True)
+    payout_note = models.CharField(max_length=255, blank=True)
+    payout_updated_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
@@ -164,6 +191,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.approval_status == ApprovalStatus.REJECTED
 
     @property
+    def has_payout_details(self) -> bool:
+        """A payout can only be sent when the owner supplied the essentials."""
+        return bool(
+            self.payout_method
+            and self.payout_account_name.strip()
+            and self.payout_account_number.strip()
+        )
+
+    @property
     def home_url(self) -> str:
         if self.is_superadmin_role:
             return "/console/"
@@ -200,6 +236,7 @@ class AuditLog(models.Model):
         DELETE = "delete", "Delete"
         STATUS = "status", "Status change"
         PAYMENT = "payment", "Payment"
+        PAYOUT = "payout", "Payout"
         REFUND = "refund", "Refund"
 
     actor = models.ForeignKey(

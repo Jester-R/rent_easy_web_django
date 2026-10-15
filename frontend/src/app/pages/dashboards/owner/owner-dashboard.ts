@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { OwnerDashboardData } from '../../../models';
 import { LanguageService } from '../../../services/language.service';
+import { propertyLocation, propertyTitle } from '../../../shared/property-text';
+import type { Property } from '../../../models';
 
 @Component({
   selector: 'app-owner-dashboard',
@@ -12,6 +14,14 @@ import { LanguageService } from '../../../services/language.service';
 })
 export class OwnerDashboardComponent implements OnInit {
   readonly language = inject(LanguageService);
+
+  title(property: Property): string {
+    return propertyTitle(property, this.language.current());
+  }
+
+  location(property: Property): string {
+    return propertyLocation(property, this.language.current());
+  }
   readonly auth = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
 

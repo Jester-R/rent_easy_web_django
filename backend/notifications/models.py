@@ -13,10 +13,14 @@ class Notification(models.Model):
         BOOKING_UPDATE = "booking_update", "Booking update"
         BOOKING_APPROVED = "booking_approved", "Booking approved"
         PAYMENT_RECEIVED = "payment_received", "Payment received"
+        REFUND_REQUESTED = "refund_requested", "Refund requested"
         REFUND_PROCESSED = "refund_processed", "Refund processed"
+        REFUND_REJECTED = "refund_rejected", "Refund request rejected"
+        PAYOUT_PAID = "payout_paid", "Payout paid"
         OWNER_APPROVAL_REQUEST = "owner_approval_request", "Owner approval request"
         OWNER_APPROVED = "owner_approved", "Owner approved"
         OWNER_REJECTED = "owner_rejected", "Owner rejected"
+        ANNOUNCEMENT = "announcement", "Announcement"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"

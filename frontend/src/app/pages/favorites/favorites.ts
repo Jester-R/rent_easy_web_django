@@ -5,11 +5,12 @@ import { PropertyService } from '../../services/property.service';
 import { Property } from '../../models';
 import { PropertyCardComponent } from '../../components/property-card/property-card';
 import { IconComponent } from '../../components/icon/icon';
+import { DataPaginationComponent } from '../../components/data-pagination/data-pagination';
 import { LanguageService } from '../../services/language.service';
 
 @Component({
   selector: 'app-renter-favorites',
-  imports: [CommonModule, RouterLink, PropertyCardComponent, IconComponent],
+  imports: [CommonModule, RouterLink, PropertyCardComponent, IconComponent, DataPaginationComponent],
   templateUrl: './favorites.html',
 })
 export class RenterFavoritesComponent implements OnInit {
@@ -17,6 +18,9 @@ export class RenterFavoritesComponent implements OnInit {
   private readonly propertyService = inject(PropertyService);
 
   favorites = signal<Property[]>([]);
+  total = signal(0);
+  page = signal(1);
+  readonly pageSize = 24;
   isLoading = signal(true);
 
   ngOnInit(): void {
@@ -25,13 +29,20 @@ export class RenterFavoritesComponent implements OnInit {
 
   loadFavorites(): void {
     this.isLoading.set(true);
-    this.propertyService.getFavorites().subscribe({
+    this.propertyService.getFavorites(this.page(), this.pageSize).subscribe({
       next: (res) => {
         this.favorites.set(res.favorites);
+        this.total.set(res.total);
+        this.page.set(res.page);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false),
     });
+  }
+
+  changePage(page: number): void {
+    this.page.set(page);
+    this.loadFavorites();
   }
 
   onFavoriteToggled(event: { propertyId: number; favorited: boolean }): void {

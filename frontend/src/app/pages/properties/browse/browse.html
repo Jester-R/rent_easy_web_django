@@ -44,7 +44,7 @@
         <div class="min-w-0">
           <label class="form-label">{{ language.t('browse.category') }}</label>
           <app-searchable-select
-            [options]="categoryOptions"
+            [options]="categoryOptions()"
             [ngModel]="selectedCategory"
             [ngModelOptions]="{ standalone: true }"
             (ngModelChange)="selectedCategory = $event; onFilterChange()"
@@ -128,5 +128,6 @@
         <app-property-card [property]="property" />
       }
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 </div>

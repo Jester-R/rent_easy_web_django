@@ -2,6 +2,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
+import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import {
   SearchableSelectComponent,
   SelectOption,
@@ -14,7 +15,7 @@ import { initials, roleLabel, rolePill, shortDate } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-users',
-  imports: [RouterLink, IconComponent, FormsModule, SearchableSelectComponent],
+  imports: [RouterLink, IconComponent, FormsModule, SearchableSelectComponent, DataPaginationComponent],
   templateUrl: './console-users.html',
 })
 export class ConsoleUsersComponent implements OnInit, OnDestroy {
@@ -29,6 +30,8 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
 
   users = signal<ConsoleUserItem[]>([]);
   total = signal(0);
+  page = signal(1);
+  readonly pageSize = 25;
   roles = signal<RoleOption[]>([]);
   approvals = signal<RoleOption[]>([]);
   pendingCount = signal(0);
@@ -75,11 +78,12 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
   load(): void {
     this.isLoading.set(true);
     this.console
-      .getUsers({ q: this.query(), role: this.role(), approval: this.approval() })
+      .getUsers({ q: this.query(), role: this.role(), approval: this.approval(), page: this.page(), page_size: this.pageSize })
       .subscribe({
         next: (res) => {
           this.users.set(res.users);
           this.total.set(res.total);
+          this.page.set(res.page);
           this.roles.set(res.roles);
           this.approvals.set(res.approvals ?? []);
           this.pendingCount.set(res.pending_count ?? 0);
@@ -93,18 +97,21 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
 
   onSearch(value: string): void {
     this.query.set(value);
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => this.load(), 550);
   }
 
   onRoleChange(value: string): void {
     this.role.set(value);
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
 
   onApprovalChange(value: string): void {
     this.approval.set(value);
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
@@ -113,6 +120,7 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
     this.query.set('');
     this.role.set('all');
     this.approval.set('pending');
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
@@ -126,7 +134,13 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
     this.query.set('');
     this.role.set('all');
     this.approval.set('all');
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
+    this.load();
+  }
+
+  changePage(page: number): void {
+    this.page.set(page);
     this.load();
   }
 

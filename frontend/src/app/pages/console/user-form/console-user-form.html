@@ -86,6 +86,51 @@
             </span>
           </label>
 
+          @if (isOwnerSelected()) {
+            <section class="space-y-4 rounded-2xl border border-hairline bg-surface-2 p-4">
+              <div>
+                <h3 class="text-[14px] font-extrabold">{{ language.t('consoleUserForm.payoutDetails') }}</h3>
+                <p class="mt-1 text-[11px] text-ink-3">{{ language.t('consoleUserForm.payoutDetailsHelp') }}</p>
+                @if (isEdit() && !user()?.has_payout_details) {
+                  <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+                    {{ language.t('consoleUserForm.noPayoutDetails') }}
+                  </p>
+                }
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="form-label" for="payout_method">{{ language.t('consoleUserForm.payoutMethod') }}</label>
+                  <select id="payout_method" formControlName="payout_method" class="form-input">
+                    <option value="">{{ language.t('consoleUserForm.selectPayoutMethod') }}</option>
+                    @for (method of payoutMethods; track method.value) {
+                      <option [value]="method.value">{{ method.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="payout_account_name">{{ language.t('consoleUserForm.accountName') }}</label>
+                  <input id="payout_account_name" type="text" formControlName="payout_account_name" class="form-input" maxlength="120" />
+                </div>
+                <div>
+                  <label class="form-label" for="payout_account_number">{{ language.t('consoleUserForm.accountNumber') }}</label>
+                  <input id="payout_account_number" type="text" formControlName="payout_account_number" class="form-input" maxlength="64" />
+                </div>
+                <div>
+                  <label class="form-label" for="payout_bank_name">{{ language.t('consoleUserForm.bankName') }}</label>
+                  <input id="payout_bank_name" type="text" formControlName="payout_bank_name" class="form-input" maxlength="120" />
+                </div>
+                <div>
+                  <label class="form-label" for="payout_phone">{{ language.t('consoleUserForm.phone') }}</label>
+                  <input id="payout_phone" type="tel" formControlName="payout_phone" class="form-input" maxlength="32" />
+                </div>
+                <div>
+                  <label class="form-label" for="payout_note">{{ language.t('consoleUserForm.note') }}</label>
+                  <input id="payout_note" type="text" formControlName="payout_note" class="form-input" maxlength="255" />
+                </div>
+              </div>
+            </section>
+          }
+
           @if (isEdit() && user(); as account) {
             <div class="rounded-xl bg-surface-2 p-3.5 text-[12px] text-ink-3">
               <p class="flex flex-wrap items-center gap-x-3 gap-y-1">

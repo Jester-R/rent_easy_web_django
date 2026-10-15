@@ -2,7 +2,10 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
+import { propertyTitle } from '../../../shared/property-text';
+import type { Property } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
+import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import {
   SearchableSelectComponent,
   SelectOption,
@@ -12,11 +15,15 @@ import { bookingPill, shortDate, usd } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-bookings',
-  imports: [IconComponent, FormsModule, SearchableSelectComponent],
+  imports: [IconComponent, FormsModule, SearchableSelectComponent, DataPaginationComponent],
   templateUrl: './console-bookings.html',
 })
 export class ConsoleBookingsComponent implements OnInit, OnDestroy {
   readonly language = inject(LanguageService);
+
+  title(property: Property | null | undefined): string {
+    return propertyTitle(property, this.language.current());
+  }
   private readonly console = inject(ConsoleService);
 
   readonly bookingPill = bookingPill;
@@ -35,6 +42,8 @@ export class ConsoleBookingsComponent implements OnInit, OnDestroy {
 
   bookings = signal<Booking[]>([]);
   total = signal(0);
+  page = signal(1);
+  readonly pageSize = 25;
   statusCounts = signal<Record<string, number>>({});
   query = signal('');
   status = signal('all');
@@ -71,10 +80,11 @@ export class ConsoleBookingsComponent implements OnInit, OnDestroy {
 
   load(): void {
     this.isLoading.set(true);
-    this.console.getBookings({ q: this.query(), status: this.status() }).subscribe({
+    this.console.getBookings({ q: this.query(), status: this.status(), page: this.page(), page_size: this.pageSize }).subscribe({
       next: (res) => {
         this.bookings.set(res.bookings);
         this.total.set(res.total);
+        this.page.set(res.page);
         this.statusCounts.set(res.status_counts);
         this.error.set(null);
         this.isLoading.set(false);
@@ -85,12 +95,14 @@ export class ConsoleBookingsComponent implements OnInit, OnDestroy {
 
   onSearch(value: string): void {
     this.query.set(value);
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => this.load(), 550);
   }
 
   onStatusChange(value: string): void {
     this.status.set(value);
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
@@ -103,7 +115,13 @@ export class ConsoleBookingsComponent implements OnInit, OnDestroy {
   refresh(): void {
     this.query.set('');
     this.status.set('all');
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
+    this.load();
+  }
+
+  changePage(page: number): void {
+    this.page.set(page);
     this.load();
   }
 

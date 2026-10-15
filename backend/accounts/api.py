@@ -22,6 +22,7 @@ from accounts.models import (
     is_valid_username,
     normalize_identity,
 )
+from accounts.payouts import apply_payout_fields
 from notifications.models import Notification
 from notifications.services import notify
 from bookings.models import Booking, BookingStatus
@@ -324,7 +325,16 @@ async def profile_update(request):
     if username:
         user.username = username
     if "avatar_url" in data:
-        user.avatar_url = body_str(data, "avatar_url")
+        avatar_url = body_str(data, "avatar_url")
+        if avatar_url.startswith("data:") and (
+            len(avatar_url) > 2_800_000
+            or not avatar_url.startswith(
+                ("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,", "data:image/gif;base64,")
+            )
+        ):
+            raise HTTPException(status_code=422, detail="invalid_avatar_image")
+        user.avatar_url = avatar_url
+    apply_payout_fields(user, data)
     await user.asave()
     await _flash(request, "account_updated")
     return {"user": await serialize_user(user)}
@@ -363,7 +373,7 @@ async def renter_dashboard(request):
     )
     bookings = (
         Booking.objects.filter(renter=user)
-        .select_related("property", "owner", "payment")
+        .select_related("property", "owner", "payment", "payment__payout")
         .order_by("-created_at")
     )
     payments = (
@@ -430,7 +440,7 @@ async def owner_dashboard(request):
     )
     bookings = (
         Booking.objects.filter(owner=user)
-        .select_related("property", "renter", "payment")
+        .select_related("property", "renter", "payment", "payment__payout")
         .order_by("-created_at")
     )
     payments = (

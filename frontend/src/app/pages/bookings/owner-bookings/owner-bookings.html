@@ -70,7 +70,7 @@
                 </div>
 
                 <a [routerLink]="['/properties', b.property.id]" class="text-base font-bold text-ink hover:text-primary transition-colors block mt-1">
-                  {{ b.property.title }}
+                  {{ title(b.property) }}
                 </a>
 
                 <div class="flex flex-wrap items-center gap-4 text-xs text-ink-3 mt-2">
@@ -108,11 +108,17 @@
                     {{ language.t('ownerBookings.reject') }}
                   </button>
                 }
+                @if (b.can_cancel) {
+                  <button type="button" class="btn btn-danger-soft btn-sm" (click)="cancelBooking(b)">
+                    Cancel{{ b.payment_id ? ' & request refund' : '' }}
+                  </button>
+                }
               </div>
             </div>
           </div>
         </div>
       }
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 </div>

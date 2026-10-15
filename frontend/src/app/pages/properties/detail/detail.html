@@ -9,7 +9,7 @@
     <div class="flex items-center gap-2 text-xs text-ink-3 mb-4">
       <a routerLink="/browse" class="hover:text-primary transition-colors">{{ language.t('propertyDetail.rentals') }}</a>
       <span>/</span>
-      <span class="text-ink font-medium truncate">{{ prop.title }}</span>
+      <span class="text-ink font-medium truncate">{{ titleLabel(prop) }}</span>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -21,7 +21,7 @@
             @if (prop.images?.length || prop.cover_image) {
               <img
                 [src]="prop.images?.[activeImage()] || prop.cover_image"
-                [alt]="prop.title"
+                [alt]="titleLabel(prop)"
                 class="absolute inset-0 h-full w-full object-cover"
               />
               <div class="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"></div>
@@ -41,7 +41,7 @@
                 </span>
               }
               <span class="bg-white/90 backdrop-blur text-ink text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
-                📍 {{ prop.location }}
+                📍 {{ locationLabel(prop) }}
               </span>
             </div>
 
@@ -74,7 +74,7 @@
                   [class.border-primary]="activeImage() === i"
                   [class.border-transparent]="activeImage() !== i"
                 >
-                  <img [src]="img" [alt]="prop.title + ' photo ' + (i + 1)" class="h-full w-full object-cover" />
+                  <img [src]="img" [alt]="titleLabel(prop) + ' photo ' + (i + 1)" class="h-full w-full object-cover" />
                 </button>
               }
             </div>
@@ -83,7 +83,7 @@
           <div class="p-6 sm:p-8">
             <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 border-b border-hairline pb-6">
               <div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ prop.title }}</h1>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ titleLabel(prop) }}</h1>
                 <p class="text-sm text-ink-3 mt-1">{{ language.t('propertyDetail.listedBy') }} <span class="font-semibold text-ink-2">{{ prop.owner.display_name }}</span></p>
               </div>
               <div class="text-left sm:text-right">
@@ -116,7 +116,7 @@
             <div class="pt-6">
               <h2 class="text-base font-bold text-ink mb-3">{{ language.t('propertyDetail.aboutThisRental') }}</h2>
               <p class="text-sm text-ink-2 leading-relaxed whitespace-pre-line">
-                {{ prop.description || 'No description provided by the owner.' }}
+                {{ descriptionLabel(prop) || 'No description provided by the owner.' }}
               </p>
             </div>
 
@@ -124,11 +124,6 @@
             <div class="pt-6 mt-6 border-t border-hairline">
               <div class="flex items-center justify-between gap-3 mb-3">
                 <h2 class="text-base font-bold text-ink">{{ language.t('propertyDetail.location') }}</h2>
-                @if (prop.has_coordinates) {
-                  <a [href]="mapsUrl(prop)" target="_blank" rel="noopener" class="text-xs font-semibold text-primary hover:underline">
-                    {{ language.t('propertyDetail.openInGoogleMaps') }}
-                  </a>
-                }
               </div>
               @if (prop.has_coordinates) {
                 <app-leaflet-map
@@ -137,7 +132,7 @@
                   [height]="280"
                 />
                 <p class="text-xs text-ink-3 mt-2">
-                  {{ prop.location }} · {{ formatCoordinates(prop.latitude, prop.longitude) }}
+                  {{ locationLabel(prop) }} · {{ formatCoordinates(prop.latitude, prop.longitude) }}
                 </p>
               } @else {
                 <div class="rounded-2xl border border-hairline bg-surface-2 p-6 text-center text-xs text-ink-3">

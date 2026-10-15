@@ -7,6 +7,7 @@ Handlers are native async Django-Bolt handlers; only the payment service
 from __future__ import annotations
 
 import contextlib
+import re
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import Count, Max, Min, Q
@@ -22,12 +23,14 @@ from core.bolt import (
     json_body,
     mark_full_request,
     owner_required,
+    pagination,
     param_int,
     q,
     renter_required,
 )
 from core.bolt_serializers import property as serialize_property
-from listings.models import Favorite, Property, PropertyCategory
+from listings.category_config import DEFAULT_PROPERTY_CATEGORIES
+from listings.models import Favorite, Property
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -40,10 +43,26 @@ MAX_PRICE_CEILING = Decimal(5000)
 MIN_PRICE_FLOOR = Decimal(300)
 
 
-def _category_options() -> list[dict]:
-    return [
-        {"value": value, "label": label} for value, label in PropertyCategory.choices
-    ]
+async def _category_options() -> list[dict]:
+    from accounts.models import PlatformSettings
+
+    # This endpoint is public and is called by property forms on first load.
+    # Keep the read side-effect free so it works with a fresh database and
+    # read-only database replicas; admin settings create the singleton row.
+    settings = await PlatformSettings.objects.filter(pk=1).afirst()
+    configured = settings.property_categories if settings is not None else None
+    if isinstance(configured, list) and configured:
+        categories = [
+            item
+            for item in configured
+            if isinstance(item, dict)
+            and item.get("value")
+            and item.get("label_en")
+            and item.get("label_km")
+        ]
+        if categories:
+            return categories
+    return DEFAULT_PROPERTY_CATEGORIES
 
 
 def _counts(queryset):
@@ -71,7 +90,6 @@ async def _owned_property(pk: int, user) -> Property:
     return prop
 
 
-CATEGORY_VALUES = {value for value, _ in PropertyCategory.choices}
 MAX_IMAGES = 12
 
 
@@ -98,7 +116,7 @@ def _clean_coordinate(value, limit: float) -> float | None:
         return None
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if number < -limit or number > limit:
         return None
@@ -107,17 +125,26 @@ def _clean_coordinate(value, limit: float) -> float | None:
 
 def _validate_property_payload(data: dict) -> dict:
     title = body_str(data, "title")
+    title_km = body_str(data, "title_km")
     location = body_str(data, "location")
+    location_km = body_str(data, "location_km")
     price = body_float(data, "price_per_month", 0)
-    if not title:
+    if not title and not title_km:
         raise HTTPException(status_code=422, detail="title_required")
-    if not location:
+    if not location and not location_km:
         raise HTTPException(status_code=422, detail="location_required")
     if price is None or price <= 0:
         raise HTTPException(status_code=422, detail="price_required")
 
+    # The English columns are the canonical fallback used by search and
+    # non-localised clients, so mirror whichever side was supplied.
+    if not title:
+        title = title_km
+    if not location:
+        location = location_km
+
     category = body_str(data, "category")
-    if category and category not in CATEGORY_VALUES:
+    if len(category) > 24 or (category and not re.fullmatch(r"[a-z0-9_-]+", category)):
         category = ""
 
     latitude = _clean_coordinate(data.get("latitude"), 90)
@@ -127,11 +154,14 @@ def _validate_property_payload(data: dict) -> dict:
 
     return {
         "title": title,
+        "title_km": title_km,
         "location": location,
+        "location_km": location_km,
         "price_per_month": Decimal(str(price)),
         "bedrooms": max(0, body_int(data, "bedrooms", 0)),
         "bathrooms": max(0, body_int(data, "bathrooms", 0)),
         "description": body_str(data, "description"),
+        "description_km": body_str(data, "description_km"),
         "category": category,
         "latitude": latitude,
         "longitude": longitude,
@@ -164,13 +194,18 @@ async def renter_browse(request):
     if search:
         queryset = queryset.filter(
             Q(title__icontains=search)
+            | Q(title_km__icontains=search)
             | Q(location__icontains=search)
+            | Q(location_km__icontains=search)
             | Q(description__icontains=search)
+            | Q(description_km__icontains=search)
         )
 
     location = q(request, "location")
     if location and location != ALL_LOCATIONS:
-        queryset = queryset.filter(location__iexact=location)
+        queryset = queryset.filter(
+            Q(location__iexact=location) | Q(location_km__iexact=location)
+        )
 
     category = q(request, "category")
     if category and category != ALL_CATEGORIES:
@@ -195,6 +230,9 @@ async def renter_browse(request):
     else:
         queryset = queryset.order_by("-created_at", "title")
 
+    page, page_size = pagination(request)
+    total = await queryset.acount()
+    queryset = queryset[(page - 1) * page_size : page * page_size]
     properties = [p async for p in queryset]
     ids = [p.pk for p in properties]
     favorite_ids = set()
@@ -234,18 +272,28 @@ async def renter_browse(request):
             for p in properties
         ],
         "meta": {
-            "locations": [
-                loc
-                async for loc in Property.objects.exclude(location="")
-                .order_by("location")
-                .values_list("location", flat=True)
-                .distinct()
-            ],
+            "locations": sorted(
+                {
+                    loc
+                    async for loc in Property.objects.exclude(location="")
+                    .values_list("location", flat=True)
+                    .distinct()
+                }
+                | {
+                    loc
+                    async for loc in Property.objects.exclude(location_km="")
+                    .values_list("location_km", flat=True)
+                    .distinct()
+                }
+            ),
             "avg_price": avg_price,
             "price_floor": float(bounds["lo"] or MIN_PRICE_FLOOR),
             "price_ceiling": float(bounds["hi"] or MAX_PRICE_CEILING),
+            "total": total,
+            "page": page,
+            "page_size": page_size,
             "all_locations_token": ALL_LOCATIONS,
-            "categories": _category_options(),
+            "categories": await _category_options(),
             "all_categories_token": ALL_CATEGORIES,
         },
         "filters": {
@@ -296,24 +344,22 @@ async def renter_detail(request):
 @api.get("/rent/favorites/")
 async def renter_favorites(request):
     user = await renter_required(request)
-    favorite_ids = set(
-        {
-            v
-            async for v in Favorite.objects.filter(user=user).values_list(
-                "property_id", flat=True
-            )
-        }
-    )
     favorites = _counts(
-        Property.objects.filter(pk__in=favorite_ids)
+        Property.objects.filter(favorites__user=user)
         .select_related("owner")
         .for_renter(user)
     ).order_by("-created_at")
+    page, page_size = pagination(request)
+    total = await favorites.acount()
+    favorites = favorites[(page - 1) * page_size : page * page_size]
     return {
         "favorites": [
             await serialize_property(p, is_favorite=True) async for p in favorites
         ],
-        "count": len(favorite_ids),
+        "count": total,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
     }
 
 
@@ -363,14 +409,25 @@ async def booking_request(request):
 async def owner_list(request):
     user = await owner_required(request)
     properties = _counts(Property.objects.filter(owner=user)).order_by("-created_at")
-    return {"properties": [await serialize_property(p) async for p in properties]}
+    page, page_size = pagination(request)
+    total = await properties.acount()
+    properties = properties[(page - 1) * page_size : page * page_size]
+    return {
+        "properties": [await serialize_property(p) async for p in properties],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @api.post("/owner/properties/new/")
 async def owner_create(request):
     user = await owner_required(request)
     data = _validate_property_payload(json_body(request))
-    prop = await Property.objects.acreate(owner=user, **data)
+    created = await Property.objects.acreate(owner=user, **data)
+    # The serializer includes owner details. A newly-created instance only
+    # has owner_id populated, so fetch the relation before serializing it.
+    prop = await Property.objects.select_related("owner").aget(pk=created.pk)
     return {"property": await serialize_property(prop)}
 
 
@@ -379,6 +436,8 @@ async def owner_edit(request):
     pk = param_int(request, "pk")
     user = await owner_required(request)
     prop = await _owned_property(pk, user)
+    if not prop.is_active:
+        raise HTTPException(status_code=409, detail="property_removed")
     data = _validate_property_payload(json_body(request))
     for field, value in data.items():
         setattr(prop, field, value)
@@ -390,9 +449,17 @@ async def owner_edit(request):
 async def owner_delete(request):
     pk = param_int(request, "pk")
     user = await owner_required(request)
-    prop = await _owned_property(pk, user)
-    await prop.adelete()
-    return {"ok": True, "deleted": pk}
+    from listings.services import soft_delete_owner_property
+
+    prop, refunds_requested = await in_thread(soft_delete_owner_property, pk, user)
+    if prop is None:
+        raise HTTPException(status_code=404, detail="property_not_found")
+    return {
+        "ok": True,
+        "deleted": pk,
+        "is_active": prop.is_active,
+        "refunds_requested": refunds_requested,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -403,7 +470,7 @@ async def owner_delete(request):
 @api.get("/property-categories/")
 async def property_categories(request):
     return {
-        "categories": _category_options(),
+        "categories": await _category_options(),
         "all_token": ALL_CATEGORIES,
     }
 

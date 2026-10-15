@@ -15,7 +15,7 @@
     </div>
   }
 
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
     <div class="stat-card">
       <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
       <span class="min-w-0">
@@ -32,6 +32,14 @@
     </div>
     <div class="stat-card">
       <span class="stat-icon"><app-icon name="wallet" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consolePayments.readyPayouts') }}</span>
+        <span class="block truncate text-[19px] font-extrabold leading-tight">{{ usd(eligiblePayoutTotal()) }}</span>
+        <span class="block truncate text-[11px] text-ink-3">{{ eligiblePayouts().length }} {{ language.t('consolePayments.ownerPayoutsReady') }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="users" [size]="20" /></span>
       <span class="min-w-0">
         <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consolePayments.payments') }}</span>
         <span class="block truncate text-[19px] font-extrabold leading-tight">{{ total() }}</span>
@@ -75,13 +83,10 @@
         }
       </div>
     } @else if (payments().length) {
-      <div class="table-wrap app-card overflow-hidden">
+      <div class="table-wrap table-scroll app-card" role="region" tabindex="0" [attr.aria-label]="language.t('consolePayments.payments')">
         <table class="data-table">
           <thead>
             <tr>
-              <th class="w-px">
-                <input type="checkbox" class="form-checkbox" [checked]="allSelected()" (change)="toggleAll()" [attr.aria-label]="language.t('consolePayments.selectAll')" />
-              </th>
               <th class="text-start">{{ language.t('consolePayments.paymentRef') }}</th>
               <th class="text-start">{{ language.t('consolePayments.property') }}</th>
               <th class="text-start">{{ language.t('consolePayments.user') }}</th>
@@ -94,9 +99,6 @@
           <tbody>
             @for (p of payments(); track p.id) {
               <tr>
-                <td class="w-px">
-                  <input type="checkbox" class="form-checkbox" [checked]="isSelected(p.id)" (change)="toggle(p.id)" [attr.aria-label]="p.reference" />
-                </td>
                 <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ p.reference }}</td>
                 <td class="min-w-[11rem]"><span class="block truncate font-bold">{{ p.property_title || '—' }}</span></td>
                 <td class="whitespace-nowrap text-ink-2">{{ p.user.display_name }}</td>
@@ -117,16 +119,10 @@
                 <td class="w-px">
                   <div class="flex items-center justify-end gap-1">
                     @if (p.refund_status === 'None') {
-                      <button type="button" class="btn btn-ghost btn-icon text-amber-600" [title]="language.t('consolePayments.issueRefund')" (click)="refund(p)">
-                        <app-icon name="rotate-ccw" [size]="16" />
+                      <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-amber-700" [title]="language.t('consolePayments.issueRefund')" (click)="refund(p)">
+                        <app-icon name="rotate-ccw" [size]="14" /><span>{{ language.t('consolePayments.issueRefund') }}</span>
                       </button>
                     }
-                    <button type="button" class="btn btn-ghost btn-icon" [title]="language.t('consolePayments.edit')" (click)="openEdit(p)">
-                      <app-icon name="edit" [size]="16" />
-                    </button>
-                    <button type="button" class="btn btn-ghost btn-icon text-danger" [title]="language.t('consolePayments.delete')" (click)="removePayment(p)">
-                      <app-icon name="trash" [size]="16" />
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -134,23 +130,8 @@
           </tbody>
         </table>
       </div>
+      <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
 
-      @if (selected().length) {
-        <div class="sticky bottom-3 z-30 mt-3">
-          <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
-            <span class="flex items-center gap-2 text-[13px] font-bold">
-              <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">{{ selected().length }}</span>
-              {{ language.t('consolePayments.selected') }}
-            </span>
-            <div class="ms-auto flex flex-wrap items-center gap-2">
-              <button type="button" class="btn btn-ghost btn-sm" (click)="clearSelection()">{{ language.t('consolePayments.reset') }}</button>
-              <button type="button" class="btn btn-danger btn-sm" (click)="bulkDelete()">
-                <app-icon name="trash" [size]="15" /><span>{{ language.t('consolePayments.delete') }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      }
     } @else {
       <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
         <span class="empty-state-icon"><app-icon name="dollar" [size]="30" /></span>
@@ -160,17 +141,112 @@
   </div>
 
   <section class="app-card p-5">
-    <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
-      <app-icon name="rotate-ccw" [size]="17" /> {{ language.t('consolePayments.recentRefunds') }}
-    </h2>
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+      <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
+        <app-icon name="wallet" [size]="17" /> {{ language.t('consolePayments.ownerPayouts') }}
+      </h2>
+      <span class="text-[12px] text-ink-3">
+        {{ language.t('consolePayments.ownerPayoutsHelp') }}
+        · {{ language.t('consolePayments.onHold') }} {{ usd(payoutTotals().scheduled) }}
+        · {{ language.t('consolePayments.paidOut') }} {{ usd(payoutTotals().paid) }}
+      </span>
+    </div>
+    @if (payouts().length) {
+      <div class="table-wrap table-scroll overflow-x-auto" role="region" tabindex="0" [attr.aria-label]="language.t('consolePayments.ownerPayouts')">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="text-start">{{ language.t('consolePayments.ref') }}</th>
+              <th class="text-start">{{ language.t('consolePayments.owner') }}</th>
+              <th class="text-start">{{ language.t('consolePayments.property') }}</th>
+              <th class="text-end">{{ language.t('consolePayments.amount') }}</th>
+              <th class="text-start">{{ language.t('consolePayments.status') }}</th>
+              <th class="text-start">{{ language.t('consolePayments.releaseDate') }}</th>
+              <th class="text-end w-px">{{ language.t('consolePayments.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (payout of payouts(); track payout.id) {
+              <tr>
+                <td class="whitespace-nowrap font-mono text-[12px] font-bold">
+                  {{ payout.reference }}
+                  <span class="block text-[10px] font-normal text-ink-3">{{ payout.payment_reference }}</span>
+                </td>
+                <td class="min-w-[13rem]">
+                  <span class="block font-bold">{{ payout.owner.display_name }}</span>
+                  @if (payout.owner.has_payout_details) {
+                    <span class="block text-[11px] text-ink-3">
+                      {{ payoutMethodLabel(payout.owner.payout_method) }} · {{ payout.owner.payout_account_name }}
+                    </span>
+                    <span class="block font-mono text-[11px] text-ink-2">{{ payout.owner.payout_account_number }}</span>
+                  } @else {
+                    <span class="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                      {{ language.t('consolePayments.payoutDetailsMissing') }}
+                    </span>
+                  }
+                </td>
+                <td class="min-w-[10rem]"><span class="block truncate font-medium">{{ payout.property_title }}</span></td>
+                <td class="whitespace-nowrap text-end font-bold text-primary">{{ payout.amount_display }}</td>
+                <td>
+                  <span [class]="'pill whitespace-nowrap ' + payoutPill(payout.status)">{{ statusText(payout.status) }}</span>
+                  @if (payout.status === 'Paid' && payout.paid_at) {
+                    <span class="block text-[10px] text-ink-3">{{ shortDate(payout.paid_at) }}</span>
+                  }
+                </td>
+                <td class="whitespace-nowrap text-ink-2">{{ shortDate(payout.available_at) }}</td>
+                <td class="w-px text-end">
+                  <div class="flex items-center justify-end gap-2 whitespace-nowrap">
+                    <button type="button" class="btn btn-outline btn-xs" (click)="viewPayout(payout)">
+                      {{ language.t('consolePayments.details') }}
+                    </button>
+                  @if (payout.can_pay && payout.owner.has_payout_details) {
+                    <button type="button" class="btn btn-primary btn-xs" [disabled]="isSaving()" (click)="payPayout(payout)">
+                      <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.markPaid') }}</span>
+                    </button>
+                  } @else if (payout.status === 'Scheduled') {
+                    <span class="whitespace-nowrap text-[11px] text-ink-3">{{ language.t('consolePayments.onHold') }}</span>
+                  } @else if (payout.status === 'Eligible' && !payout.owner.has_payout_details) {
+                    <span class="whitespace-nowrap text-[11px] font-medium text-amber-700">{{ language.t('consolePayments.payoutDetailsMissing') }}</span>
+                  }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('consolePayments.noPayoutsYet') }}</p>
+    }
+    <app-data-pagination [page]="payoutPage()" [pageSize]="payoutPageSize" [total]="payoutsTotal()" (pageChange)="changePayoutPage($event)" />
+  </section>
+
+  <section class="app-card p-5">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
+        <app-icon name="rotate-ccw" [size]="17" /> {{ language.t('consolePayments.recentRefunds') }}
+      </h2>
+      <label class="flex items-center gap-2 text-[12px] font-semibold text-ink-2">
+        <span>{{ language.t('consolePayments.filterByRefundStatus') }}</span>
+        <select class="form-input !w-auto" [value]="refundStatus()" (change)="onRefundStatusChange($any($event.target).value)">
+          <option value="all">{{ language.t('consolePayments.allRefundStatuses') }}</option>
+          <option value="Pending">{{ language.t('consolePayments.refundPending') }}</option>
+          <option value="Processed">{{ language.t('consolePayments.refundProcessed') }}</option>
+          <option value="Rejected">{{ language.t('consolePayments.refundCancelled') }}</option>
+        </select>
+      </label>
+    </div>
     @if (refunds().length) {
-      <div class="table-wrap overflow-x-auto">
+      <div class="table-wrap table-scroll overflow-x-auto" role="region" tabindex="0" [attr.aria-label]="language.t('consolePayments.recentRefunds')">
         <table class="data-table">
           <thead>
             <tr>
               <th class="text-start">{{ language.t('consolePayments.paymentRef2') }}</th>
+              <th class="text-start">Property / renter</th>
               <th class="text-end">{{ language.t('consolePayments.amount') }}</th>
               <th class="text-start">{{ language.t('consolePayments.reason') }}</th>
+              <th class="text-start">Request details</th>
+              <th class="text-start">Requested by</th>
               <th class="text-start">{{ language.t('consolePayments.status') }}</th>
               <th class="text-start">{{ language.t('consolePayments.created') }}</th>
               <th class="text-end w-px"></th>
@@ -180,17 +256,39 @@
             @for (r of refunds(); track r.id) {
               <tr>
                 <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ r.payment?.reference }}</td>
+                <td class="min-w-48">
+                  <div class="flex items-center gap-2">
+                    @if (r.payment?.property?.cover_image) {
+                      <img class="h-10 w-12 shrink-0 rounded-lg object-cover" [src]="r.payment?.property?.cover_image" alt="" />
+                    }
+                    <div>
+                      <span class="block font-semibold text-ink">{{ r.payment?.property?.title || '—' }}</span>
+                      <span class="block text-[11px] text-ink-3">{{ r.payment?.property?.location }} · {{ r.payment?.user?.display_name }}</span>
+                    </div>
+                  </div>
+                </td>
                 <td class="whitespace-nowrap text-end font-bold">{{ usd(r.amount) }}</td>
                 <td class="whitespace-nowrap text-ink-2">{{ refundReasonLabel(r.reason) }}</td>
+                <td class="min-w-64 max-w-md whitespace-pre-wrap text-[12px] text-ink-2">{{ r.request_note || '—' }}</td>
+                <td class="whitespace-nowrap text-ink-2">{{ r.requested_by?.display_name || r.requested_by?.email || 'Automatic booking refund' }}</td>
                 <td>
                   <span class="pill {{ refundPill(r.status) }}">{{ r.status }}</span>
                 </td>
                 <td class="whitespace-nowrap text-ink-2">{{ shortDate(r.created_at) }}</td>
-                <td class="w-px text-end">
+                <td class="text-end">
                   @if (r.status === 'Pending') {
-                    <button type="button" class="btn btn-primary btn-xs" (click)="process(r)">
-                      <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.process') }}</span>
-                    </button>
+                    <div class="flex min-w-max items-center justify-end gap-2">
+                      @if (r.payment?.can_refund_locally === false) {
+                        <button type="button" class="btn btn-outline btn-xs whitespace-nowrap" (click)="process(r, true)">
+                          <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.confirmPaywayRefund') }}</span>
+                        </button>
+                      } @else {
+                        <button type="button" class="btn btn-primary btn-xs whitespace-nowrap" (click)="process(r)">
+                          <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.approveRefund') }}</span>
+                        </button>
+                      }
+                      <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-rose-700" (click)="reject(r)">Cancel request</button>
+                    </div>
                   }
                 </td>
               </tr>
@@ -198,74 +296,36 @@
           </tbody>
         </table>
       </div>
+      <app-data-pagination [page]="refundPage()" [pageSize]="refundPageSize" [total]="refundsTotal()" (pageChange)="changeRefundPage($event)" />
     } @else {
       <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('consolePayments.noRefundsYet') }}</p>
     }
   </section>
 
-  @if (editing(); as p) {
-    <div class="modal-backdrop" (click)="closeEdit()">
-      <div class="modal-panel max-w-md p-5 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="payment-edit-title" (click)="$event.stopPropagation()">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <h3 id="payment-edit-title" class="text-[16px] font-extrabold">{{ language.t('consolePayments.editPayment') }}</h3>
-            <p class="mt-1 break-words font-mono text-[12px] text-ink-3">{{ p.reference }}</p>
-          </div>
-          <button type="button" (click)="closeEdit()" class="btn btn-ghost btn-icon shrink-0" aria-label="Close">
-            <app-icon name="x" [size]="18" />
-          </button>
-        </div>
-
-        <div class="mt-4 space-y-4">
+  @if (selectedPayout(); as payout) {
+    <div class="modal-backdrop" role="presentation" (click)="selectedPayout.set(null)">
+      <section class="modal-panel app-card w-full max-w-lg p-5" role="dialog" aria-modal="true" [attr.aria-label]="language.t('consolePayments.payoutDetails')" (click)="$event.stopPropagation()">
+        <div class="mb-4 flex items-start justify-between gap-3">
           <div>
-            <label class="form-label" for="edit-amount">{{ language.t('consolePayments.amount') }}</label>
-            <input id="edit-amount" type="number" min="0" step="0.01" class="form-input" [(ngModel)]="editForm.amount" />
+            <h2 class="text-lg font-extrabold">{{ language.t('consolePayments.payoutDetails') }}</h2>
+            <p class="mt-1 font-mono text-xs text-ink-3">{{ payout.reference }}</p>
           </div>
-          <div>
-            <label class="form-label" for="edit-method">{{ language.t('consolePayments.method') }}</label>
-            <app-searchable-select
-              [options]="methodOptions"
-              [(ngModel)]="editForm.method"
-              [ngModelOptions]="{ standalone: true }"
-              [placeholder]="language.t('consolePayments.method')"
-              [searchPlaceholder]="language.t('consolePayments.search')"
-            />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="form-label" for="edit-status">{{ language.t('consolePayments.status') }}</label>
-              <app-searchable-select
-                [options]="paymentStatusOptions"
-                [(ngModel)]="editForm.status"
-                [ngModelOptions]="{ standalone: true }"
-                [placeholder]="language.t('consolePayments.status')"
-                [searchPlaceholder]="language.t('consolePayments.search')"
-              />
-            </div>
-            <div>
-              <label class="form-label" for="edit-refund">{{ language.t('consolePayments.refund') }}</label>
-              <app-searchable-select
-                [options]="refundStatusOptions"
-                [(ngModel)]="editForm.refund_status"
-                [ngModelOptions]="{ standalone: true }"
-                [placeholder]="language.t('consolePayments.refund')"
-                [searchPlaceholder]="language.t('consolePayments.search')"
-              />
-            </div>
-          </div>
+          <button type="button" class="btn btn-outline btn-sm" (click)="selectedPayout.set(null)">{{ language.t('consolePayments.close') }}</button>
         </div>
-
-        <div class="mt-5 flex justify-end gap-2">
-          <button type="button" class="btn btn-ghost" (click)="closeEdit()" [disabled]="isSaving()">{{ language.t('consolePayments.cancel') }}</button>
-          <button type="button" class="btn btn-primary" (click)="saveEdit()" [disabled]="isSaving()">
-            @if (isSaving()) {
-              <span>{{ language.t('consolePayments.saving') }}</span>
-            } @else {
-              <span>{{ language.t('consolePayments.saveChanges') }}</span>
-            }
-          </button>
-        </div>
-      </div>
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.owner') }}</dt><dd class="font-semibold">{{ payout.owner.display_name }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.property') }}</dt><dd class="font-semibold">{{ payout.property_title }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.amount') }}</dt><dd class="font-semibold">{{ payout.amount_display }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.status') }}</dt><dd class="font-semibold">{{ statusText(payout.status) }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.method') }}</dt><dd class="font-semibold">{{ payoutMethodLabel(payout.payout_method) }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.releaseDate') }}</dt><dd class="font-semibold">{{ shortDate(payout.paid_at || payout.available_at) }}</dd></div>
+          <div class="sm:col-span-2"><dt class="text-xs text-ink-3">{{ language.t('consolePayments.account') }}</dt><dd class="break-words font-semibold">{{ payout.payout_account_name }} · {{ payout.payout_account_number }}<span *ngIf="payout.payout_bank_name"> · {{ payout.payout_bank_name }}</span></dd></div>
+          @if (payout.note) {
+            <div class="sm:col-span-2"><dt class="text-xs text-ink-3">{{ language.t('consolePayments.transferNote') }}</dt><dd class="break-words font-semibold">{{ payout.note }}</dd></div>
+          }
+        </dl>
+      </section>
     </div>
   }
+
 </div>

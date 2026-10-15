@@ -72,12 +72,14 @@
 
         <!-- Notifications Bell dropdown -->
         <div class="relative">
-          <button (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative" [attr.aria-label]="language.t('navbar.notifications')">
+          <button type="button" (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative cursor-pointer" [attr.aria-label]="language.t('navbar.notifications')" [attr.aria-expanded]="isNotifMenuOpen()">
             <svg class="w-5 h-5 text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
               <path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/>
             </svg>
             @if (notifService.unreadCount() > 0) {
-              <span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-600 ring-2 ring-surface"></span>
+              <span class="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-surface">
+                {{ notifService.unreadCount() > 99 ? '99+' : notifService.unreadCount() }}
+              </span>
             }
           </button>
 
@@ -92,10 +94,15 @@
                   <p class="p-6 text-center text-[12px] text-ink-3">{{ language.t('navbar.noNotifications') }}</p>
                 } @else {
                   @for (n of notifications(); track n.id) {
-                    <button type="button" (click)="openNotification(n)" class="block w-full p-2.5 text-start hover:bg-surface-2 transition-colors" [class.bg-primary-soft/30]="!n.read">
-                      <p class="break-words text-[12px] font-bold text-ink">{{ notificationText(n, language.current()).title }}</p>
-                      <p class="mt-0.5 break-words text-[11px] text-ink-2">{{ notificationText(n, language.current()).body }}</p>
-                      <span class="text-[10px] text-ink-3 mt-1 block">{{ n.created_at | date:'shortTime' }}</span>
+                    <button type="button" (click)="openNotification(n)" class="flex w-full items-start gap-2.5 p-2.5 text-start hover:bg-surface-2 transition-colors" [class.bg-primary-soft/30]="!n.read">
+                      <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg" [class.bg-primary-soft]="!n.read" [class.text-primary-dark]="!n.read" [class.bg-surface-2]="n.read" [class.text-ink-3]="n.read">
+                        <app-icon [name]="notificationIcon(n.kind)" [size]="15" />
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block break-words text-[12px] font-bold text-ink">{{ notificationText(n, language.current()).title }}</span>
+                        <span class="mt-0.5 block break-words text-[11px] text-ink-2">{{ notificationText(n, language.current()).body }}</span>
+                        <span class="mt-1 block text-[10px] text-ink-3">{{ n.created_at | date:'shortTime' }}</span>
+                      </span>
                     </button>
                   }
                 }

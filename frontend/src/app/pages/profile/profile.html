@@ -2,9 +2,13 @@
   <div class="app-card overflow-hidden">
     <div class="hero-gradient px-6 py-7 text-white">
       <div class="flex flex-wrap items-center gap-4">
-        <span class="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/20 text-[22px] font-extrabold backdrop-blur uppercase">
-          {{ auth.currentUser()?.username?.substring(0, 2) || 'U' }}
-        </span>
+        @if (form.controls.avatar_url.value) {
+          <img [src]="form.controls.avatar_url.value" alt="Profile photo" class="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+        } @else {
+          <span class="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/20 text-[22px] font-extrabold backdrop-blur uppercase">
+            {{ auth.currentUser()?.username?.substring(0, 2) || 'U' }}
+          </span>
+        }
         <div class="min-w-0 flex-1">
           <h1 class="truncate text-xl font-extrabold tracking-tight">{{ auth.currentUser()?.display_name }}</h1>
           <p class="truncate text-[13px] text-white/80">&#64;{{ auth.currentUser()?.username }}</p>
@@ -30,10 +34,13 @@
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4 max-w-xl">
         <div>
-          <label class="form-label">{{ language.t('profile.profilePhotoURL') }}</label>
-          <input type="url" formControlName="avatar_url" placeholder="https://..." class="form-input" />
+          <label class="form-label">Upload profile photo</label>
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" (change)="onPhotoSelected($event)" class="form-input" />
+          @if (photoError()) {
+            <p class="mt-1 text-xs text-red-600" role="alert">{{ photoError() }}</p>
+          }
           <p class="text-xs text-ink-3 mt-1">
-            {{ language.t('profile.imageLinkWillShowAsYourAvatarInTheHeader') }}
+            Upload a JPG, PNG, WebP, or GIF up to 2 MB. Your photo appears in the header.
           </p>
         </div>
 
@@ -64,10 +71,62 @@
           />
         </div>
 
+        @if (auth.isOwner()) {
+          <section class="mt-2 space-y-4 rounded-2xl border border-hairline bg-surface-2 p-4 sm:p-5">
+            <div>
+              <h2 class="text-[15px] font-extrabold">{{ language.t('profile.payoutAccount') }}</h2>
+              <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.payoutAccountHelp') }}</p>
+              @if (!auth.currentUser()?.has_payout_details) {
+                <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700">
+                  {{ language.t('profile.payoutAccountMissing') }}
+                </p>
+              }
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="form-label">{{ language.t('profile.payoutMethod') }}</label>
+                <select formControlName="payout_method" class="form-input">
+                  <option value="">{{ language.t('profile.selectPayoutMethod') }}</option>
+                  @for (method of payoutMethods; track method.value) {
+                    <option [value]="method.value">{{ method.label }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="form-label">{{ language.t('profile.accountHolderName') }}</label>
+                <input type="text" formControlName="payout_account_name" class="form-input" maxlength="120" />
+              </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="form-label">{{ language.t('profile.accountNumber') }}</label>
+                <input type="text" formControlName="payout_account_number" class="form-input" maxlength="64" />
+              </div>
+              <div>
+                <label class="form-label">{{ language.t('profile.bankName') }}</label>
+                <input type="text" formControlName="payout_bank_name" class="form-input" maxlength="120" />
+              </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="form-label">{{ language.t('profile.phoneNumber') }}</label>
+                <input type="tel" formControlName="payout_phone" class="form-input" maxlength="32" />
+              </div>
+              <div>
+                <label class="form-label">{{ language.t('profile.payoutNote') }}</label>
+                <input type="text" formControlName="payout_note" class="form-input" maxlength="255" />
+              </div>
+            </div>
+          </section>
+        }
+
         <div class="pt-2">
           <button
             type="submit"
-            [disabled]="form.invalid || isLoading()"
+            [disabled]="form.invalid || isLoading() || isPhotoReading()"
             class="btn btn-primary"
           >
             @if (isLoading()) {

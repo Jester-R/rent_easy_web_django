@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { HttpParams } from '@angular/common/http';
 import { ChatMessage, ConversationSummary, UserBrief } from '../models';
 
 @Injectable({
@@ -10,10 +11,10 @@ export class ChatService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api';
 
-  getConversations(): Observable<{ conversations: ConversationSummary[] }> {
-    return this.http.get<{ conversations: ConversationSummary[] }>(
+  getConversations(page = 1, pageSize = 20): Observable<{ conversations: ConversationSummary[]; total: number; page: number; page_size: number }> {
+    return this.http.get<{ conversations: ConversationSummary[]; total: number; page: number; page_size: number }>(
       `${this.baseUrl}/conversations/`,
-      { withCredentials: true }
+      { withCredentials: true, params: new HttpParams().set('page', page).set('page_size', pageSize) }
     );
   }
 
@@ -28,16 +29,17 @@ export class ChatService {
     );
   }
 
-  getMessages(id: number): Observable<{
+  getMessages(id: number, page = 1, pageSize = 50): Observable<{
     messages: ChatMessage[];
     conversation: ConversationSummary;
     other_party: UserBrief;
+    total: number; page: number; page_size: number;
   }> {
     return this.http.get<{
       messages: ChatMessage[];
       conversation: ConversationSummary;
-      other_party: UserBrief;
-    }>(`${this.baseUrl}/conversations/${id}/messages/`, { withCredentials: true });
+      other_party: UserBrief; total: number; page: number; page_size: number;
+    }>(`${this.baseUrl}/conversations/${id}/messages/`, { withCredentials: true, params: new HttpParams().set('page', page).set('page_size', pageSize) });
   }
 
   sendMessage(id: number, body: string): Observable<{ message: ChatMessage }> {

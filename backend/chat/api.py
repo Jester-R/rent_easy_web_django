@@ -18,6 +18,7 @@ from core.bolt import (
     login_required,
     mark_full_request,
     param_int,
+    pagination,
     renter_required,
 )
 from core.bolt_serializers import conversation as serialize_conversation
@@ -64,13 +65,22 @@ async def _summary(conv: Conversation, user) -> dict:
 @api.get("/conversations/")
 async def conversations(request):
     user = await login_required(request)
-    rows = [
-        c
-        async for c in Conversation.objects.select_related(
-            "property", "renter", "owner"
-        ).filter(Q(renter=user) | Q(owner=user))
-    ]
-    return {"conversations": [await _summary(c, user) for c in rows]}
+    queryset = (
+        Conversation.objects.select_related("property", "renter", "owner")
+        .filter(Q(renter=user) | Q(owner=user))
+        .order_by("-updated_at", "-pk")
+    )
+    total = await queryset.acount()
+    page, page_size = pagination(
+        request, default_size=20, page_key="page", size_key="page_size"
+    )
+    rows = queryset[(page - 1) * page_size : page * page_size]
+    return {
+        "conversations": [await _summary(c, user) async for c in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @api.post("/conversations/")
@@ -116,12 +126,19 @@ async def conversation_messages(request):
         .exclude(sender_id=user.pk)
         .aupdate(read_at=timezone.now())
     )
-    items = [
-        m async for m in conv.messages.select_related("sender").order_by("created_at")
-    ]
+    queryset = conv.messages.select_related("sender").order_by("-created_at", "-pk")
+    total = await queryset.acount()
+    page, page_size = pagination(
+        request, default_size=50, page_key="page", size_key="page_size"
+    )
+    items = [m async for m in queryset[(page - 1) * page_size : page * page_size]]
+    items.reverse()
     other = conv.other_party(user)
     return {
         "messages": [await serialize_message(m) for m in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
         "conversation": await _summary(conv, user),
         "other_party": await serialize_user_brief(other),
     }

@@ -7,6 +7,7 @@ import {
   signal,
   computed,
   inject,
+  output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -30,12 +31,18 @@ export interface SelectOption {
   ],
 })
 export class SearchableSelectComponent implements ControlValueAccessor {
+  readonly opened = output<void>();
   private readonly host = inject(ElementRef<HTMLElement>);
 
-  @Input() options: SelectOption[] = [];
+  private readonly optionList = signal<SelectOption[]>([]);
+
+  @Input() set options(options: SelectOption[]) {
+    this.optionList.set(options ?? []);
+  }
   @Input() placeholder = '';
   @Input() searchPlaceholder = 'Search...';
   @Input() ariaLabel = '';
+  @Input() showPlaceholderOnEmpty = false;
 
   readonly value = signal<string>('');
   readonly disabled = signal(false);
@@ -48,12 +55,14 @@ export class SearchableSelectComponent implements ControlValueAccessor {
 
   readonly filtered = computed(() => {
     const q = this.query().trim().toLowerCase();
-    if (!q) return this.options;
-    return this.options.filter((o) => o.label.toLowerCase().includes(q));
+    if (!q) return this.optionList();
+    return this.optionList().filter((o) => o.label.toLowerCase().includes(q));
   });
 
   readonly selectedLabel = computed(
-    () => this.options.find((o) => o.value === this.value())?.label ?? ''
+    () => this.showPlaceholderOnEmpty && !this.value()
+      ? ''
+      : this.optionList().find((o) => o.value === this.value())?.label ?? ''
   );
 
   writeValue(value: string): void {
@@ -78,6 +87,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
     if (this.open()) {
       this.query.set('');
       this.activeIndex.set(Math.max(0, this.filtered().findIndex((o) => o.value === this.value())));
+      this.opened.emit();
     } else {
       this.onTouched();
     }

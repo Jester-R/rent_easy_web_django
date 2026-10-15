@@ -33,4 +33,20 @@ export const consoleUserForm: PageCatalog = {
   locationRequired: ['Location is required', 'ត្រូវបញ្ចូលទីតាំង។'],
   priceRequired: ['Enter a valid price', 'សូមបញ្ចូលតម្លៃត្រឹមត្រូវ។'],
   ownerRequired: ['Select an owner with the Property Owner role.', 'Select an owner with the Property Owner role.'],
+  payoutDetails: ['Payout Details', 'ព័ត៌មានគណនីទទួលប្រាក់'],
+  payoutDetailsHelp: [
+    'The bank or mobile-money account used to send rent to this owner.',
+    'គណនីធនាគារ ឬលុយតាមទូរស័ព្ទ ដែលប្រើដើម្បីផ្ទេរប្រាក់ជួលទៅម្ចាស់នេះ។',
+  ],
+  noPayoutDetails: [
+    'This owner has not added payout details yet. They cannot receive rent until these are filled in.',
+    'ម្ចាស់នេះមិនទាន់បានបន្ថែមព័ត៌មានគណនីទទួលប្រាក់ទេ។ ពួកគេមិនអាចទទួលប្រាក់ជួលបានទេ រហូតដល់បំពេញព័ត៌មាននេះ។',
+  ],
+  payoutMethod: ['Payout Method', 'វិធីទទួលប្រាក់'],
+  selectPayoutMethod: ['Select a payout method', 'ជ្រើសរើសវិធីទទួលប្រាក់'],
+  accountName: ['Account Name', 'ឈ្មោះគណនី'],
+  accountNumber: ['Account Number', 'លេខគណនី'],
+  bankName: ['Bank Name', 'ឈ្មោះធនាគារ'],
+  phone: ['Phone', 'ទូរស័ព្ទ'],
+  note: ['Note', 'កំណត់ចំណាំ'],
 };

@@ -10,13 +10,17 @@ import {
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { LanguageService } from '../../../services/language.service';
+import { propertyLocation, propertyTitle } from '../../../shared/property-text';
+import type { Property } from '../../../models';
 import { Booking, UserBrief } from '../../../models';
 import {
+  PAYMENT_METHODS,
   bookingPill,
   initials,
   prettyDate,
   roleLabel,
   shortDate,
+  submitHostedCheckout,
   usd,
 } from '../../../shared/ui';
 
@@ -30,6 +34,14 @@ type BookingExt = Booking & { can_approve?: boolean; can_cancel?: boolean; can_r
 })
 export class BookingDetailComponent implements OnInit {
   readonly language = inject(LanguageService);
+
+  title(property: Property | null | undefined): string {
+    return propertyTitle(property, this.language.current());
+  }
+
+  location(property: Property | null | undefined): string {
+    return propertyLocation(property, this.language.current());
+  }
   readonly id = input<string>();
 
   private readonly bookingService = inject(BookingService);
@@ -46,8 +58,8 @@ export class BookingDetailComponent implements OnInit {
   readonly payOpen = signal(false);
   readonly isPaying = signal(false);
   readonly payError = signal<string | null>(null);
-  selectedMethod = 'ABA Pay (Mock)';
-  readonly methods = ['ABA Pay (Mock)', 'Wing (Mock)', 'Credit Card (Mock)'];
+  selectedMethod = PAYMENT_METHODS[0];
+  readonly methods = PAYMENT_METHODS;
 
   readonly methodOptions: SelectOption[] = this.methods.map((m) => ({ value: m, label: m }));
 
@@ -109,6 +121,17 @@ export class BookingDetailComponent implements OnInit {
   private onError(err: HttpErrorResponse): void {
     if (err.status === 403) {
       this.router.navigate(['/denied']);
+      return;
+    }
+    const detail = err.error?.detail;
+    if (detail === 'payout_released') {
+      this.actionError.set(
+        'The 7-day hold has ended, so the rent is due to the owner. This booking can no longer be cancelled automatically.'
+      );
+    } else if (detail === 'invalid_transition') {
+      this.actionError.set('That action is not available for this booking anymore.');
+    } else if (typeof detail === 'string' && detail) {
+      this.actionError.set(detail.replaceAll('_', ' '));
     }
   }
 
@@ -161,9 +184,36 @@ export class BookingDetailComponent implements OnInit {
   cancel(): void {
     const b = this.booking();
     if (!b) return;
-    if (!confirm(`Cancel this booking request?\n${b.property?.title}`)) return;
+    const paidWarning = b.payment_id
+      ? '\n\nA refund request will be sent to the admin team for review.'
+      : '';
+    if (!confirm(`Cancel this booking request?\n${b.property?.title}${paidWarning}`)) return;
+    this.actionError.set(null);
     this.isBusy.set(true);
     this.bookingService.cancelBooking(b.id).subscribe({
+      next: () => {
+        this.isBusy.set(false);
+        this.load();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isBusy.set(false);
+        this.onError(err);
+      },
+    });
+  }
+
+  ownerCancel(): void {
+    const b = this.booking();
+    if (!b) return;
+    if (
+      !confirm(
+        `Cancel this paid booking?\n${b.renter.display_name} · ${b.property?.title}\n\nA refund request will be sent to the admin team for review.`
+      )
+    )
+      return;
+    this.actionError.set(null);
+    this.isBusy.set(true);
+    this.bookingService.ownerCancelBooking(b.id).subscribe({
       next: () => {
         this.isBusy.set(false);
         this.load();
@@ -191,9 +241,16 @@ export class BookingDetailComponent implements OnInit {
     this.isPaying.set(true);
     this.payError.set(null);
     this.bookingService
-      .payBooking(b.id, { method: this.selectedMethod, simulate: 'success' })
+      .payBooking(b.id, {
+        method: this.selectedMethod,
+        simulate: this.selectedMethod.includes('(Mock)') ? 'success' : undefined,
+      })
       .subscribe({
-        next: () => {
+        next: (res) => {
+          if (res.checkout) {
+            submitHostedCheckout(res.checkout);
+            return;
+          }
           this.isPaying.set(false);
           this.payOpen.set(false);
           this.load();
@@ -206,6 +263,10 @@ export class BookingDetailComponent implements OnInit {
           }
           if (err.status === 402 || err.error?.detail === 'payment_failed') {
             this.payError.set('Payment failed. Please try again.');
+            return;
+          }
+          if (String(err.error?.detail || '').startsWith('aba_payway_error')) {
+            this.payError.set('ABA PayWay is unavailable. Please try again.');
             return;
           }
           this.payError.set('Payment failed. Please try again.');

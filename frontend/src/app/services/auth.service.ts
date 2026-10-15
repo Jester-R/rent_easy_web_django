@@ -128,7 +128,18 @@ export class AuthService {
     });
   }
 
-  updatePreferences(data: { full_name?: string; email?: string; username?: string; avatar_url?: string }): Observable<{ user: User }> {
+  updatePreferences(data: {
+    full_name?: string;
+    email?: string;
+    username?: string;
+    avatar_url?: string;
+    payout_method?: string;
+    payout_account_name?: string;
+    payout_account_number?: string;
+    payout_bank_name?: string;
+    payout_phone?: string;
+    payout_note?: string;
+  }): Observable<{ user: User }> {
     return this.http
       .post<{ user: User }>(`${this.baseUrl}/auth/preferences/`, data, {
         withCredentials: true,

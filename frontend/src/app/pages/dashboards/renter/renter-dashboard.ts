@@ -5,6 +5,8 @@ import { AuthService } from '../../../services/auth.service';
 import { RenterDashboardData } from '../../../models';
 import { PropertyCardComponent } from '../../../components/property-card/property-card';
 import { LanguageService } from '../../../services/language.service';
+import { propertyTitle } from '../../../shared/property-text';
+import type { Property } from '../../../models';
 
 @Component({
   selector: 'app-renter-dashboard',
@@ -13,6 +15,10 @@ import { LanguageService } from '../../../services/language.service';
 })
 export class RenterDashboardComponent implements OnInit {
   readonly language = inject(LanguageService);
+
+  title(property: Property): string {
+    return propertyTitle(property, this.language.current());
+  }
   readonly auth = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
 

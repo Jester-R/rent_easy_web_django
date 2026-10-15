@@ -98,7 +98,7 @@
       </button>
     </div>
   } @else {
-    <div class="table-wrap app-card overflow-hidden">
+    <div class="table-wrap table-scroll app-card" role="region" tabindex="0" [attr.aria-label]="language.t('consoleUsers.users')">
       <table class="data-table">
         <thead>
           <tr>
@@ -144,6 +144,9 @@
                 } @else if (item.approval_status === 'rejected') {
                   <span class="pill pill-danger ms-1">{{ language.t('consoleUsers.rejected') }}</span>
                 }
+                @if (item.role === 'owner' && !item.has_payout_details) {
+                  <span class="pill pill-warning ms-1">{{ language.t('consoleUsers.payoutMissing') }}</span>
+                }
               </td>
               <td [attr.data-label]="language.t('consoleUsers.properties')" class="text-end text-ink-2 tabular-nums">{{ item.property_count ?? 0 }}</td>
               <td [attr.data-label]="language.t('consoleUsers.bookings')" class="text-end text-ink-2 tabular-nums">{{ item.booking_count ?? 0 }}</td>
@@ -173,6 +176,7 @@
         </tbody>
       </table>
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
 
     @if (selected().length) {
       <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl">

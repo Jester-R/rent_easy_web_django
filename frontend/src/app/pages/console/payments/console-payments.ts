@@ -4,17 +4,19 @@ import { FormsModule } from '@angular/forms';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { IconComponent } from '../../../components/icon/icon';
+import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import {
   SearchableSelectComponent,
   SelectOption,
 } from '../../../components/searchable-select/searchable-select';
-import { Payment, Refund } from '../../../models';
+import { Payment, Payout, PayoutTotals, Refund } from '../../../models';
 import {
-  PAYMENT_METHODS,
   methodIcon,
   methodLabel,
   paymentPill,
   paymentStatusLabel,
+  payoutMethodLabel,
+  payoutPill,
   refundPill,
   refundReasonLabel,
   refundStatusLabel,
@@ -24,7 +26,7 @@ import {
 
 @Component({
   selector: 'app-console-payments',
-  imports: [CommonModule, FormsModule, IconComponent, SearchableSelectComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SearchableSelectComponent, DataPaginationComponent],
   templateUrl: './console-payments.html',
 })
 export class ConsolePaymentsComponent implements OnInit, OnDestroy {
@@ -35,6 +37,8 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   readonly methodLabel = methodLabel;
   readonly paymentPill = paymentPill;
   readonly paymentStatusLabel = paymentStatusLabel;
+  readonly payoutMethodLabel = payoutMethodLabel;
+  readonly payoutPill = payoutPill;
   readonly refundPill = refundPill;
   readonly refundReasonLabel = refundReasonLabel;
   readonly refundStatusLabel = refundStatusLabel;
@@ -47,47 +51,41 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
 
   payments = signal<Payment[]>([]);
   refunds = signal<Refund[]>([]);
+  payouts = signal<Payout[]>([]);
+  selectedPayout = signal<Payout | null>(null);
+  payoutTotals = signal<PayoutTotals>({ scheduled: 0, eligible: 0, paid: 0 });
   total = signal(0);
+  page = signal(1);
+  readonly pageSize = 25;
+  payoutPage = signal(1);
+  readonly payoutPageSize = 25;
+  payoutsTotal = signal(0);
+  refundPage = signal(1);
+  readonly refundPageSize = 25;
+  refundsTotal = signal(0);
+  refundStatus = signal('all');
   revenue = signal(0);
   statusCounts = signal<Record<string, number>>({});
   query = signal('');
   status = signal('all');
   isLoading = signal(true);
   error = signal<string | null>(null);
-  selected = signal<number[]>([]);
-
-  readonly methods = PAYMENT_METHODS;
-  readonly paymentStatuses = ['Success', 'Failed'];
-  readonly refundStatuses = ['None', 'Pending', 'Processed'];
-
-  readonly methodOptions: SelectOption[] = PAYMENT_METHODS.map((m) => ({ value: m, label: m }));
-  readonly paymentStatusOptions: SelectOption[] = this.paymentStatuses.map((s) => ({
-    value: s,
-    label: this.statusText(this.paymentStatusLabel(s)),
-  }));
-  readonly refundStatusOptions: SelectOption[] = this.refundStatuses.map((s) => ({
-    value: s,
-    label: this.statusText(this.refundStatusLabel(s)),
-  }));
-
-  editing = signal<Payment | null>(null);
   isSaving = signal(false);
-  editForm = { amount: 0, method: PAYMENT_METHODS[0], status: 'Success', refund_status: 'None' };
 
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   pendingRefunds = computed(() => this.refunds().filter((r) => r.status === 'Pending').length);
-
-  allSelected = computed(() => {
-    const list = this.payments();
-    return list.length > 0 && list.every((p) => this.selected().includes(p.id));
-  });
+  eligiblePayouts = computed(() => this.payouts().filter((p) => p.status === 'Eligible'));
+  eligiblePayoutTotal = computed(() =>
+    this.eligiblePayouts().reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+  );
 
   statusOptions = computed(() => {
     const c = this.statusCounts();
     return [
       { value: 'all', label: `All (${c['all'] ?? 0})` },
       { value: 'Success', label: `Success (${c['Success'] ?? 0})` },
+      { value: 'Pending', label: `Pending (${c['Pending'] ?? 0})` },
       { value: 'Failed', label: `Failed (${c['Failed'] ?? 0})` },
       { value: 'Refunded', label: `Refunded (${c['Refunded'] ?? 0})` },
     ];
@@ -107,14 +105,25 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
 
   load(): void {
     this.isLoading.set(true);
-    this.console.getPayments({ q: this.query(), status: this.status() }).subscribe({
+    this.console.getPayments({
+      q: this.query(), status: this.status(), page: this.page(), page_size: this.pageSize,
+      payout_page: this.payoutPage(), payout_page_size: this.payoutPageSize,
+      refund_page: this.refundPage(), refund_page_size: this.refundPageSize,
+      refund_status: this.refundStatus(),
+    }).subscribe({
       next: (res) => {
         this.payments.set(res.payments);
         this.refunds.set(res.refunds);
+        this.refundsTotal.set(res.refunds_total);
+        this.refundPage.set(res.refund_page);
+        this.payouts.set(res.payouts);
+        this.payoutPage.set(res.payout_page);
+        this.payoutsTotal.set(res.payouts_total);
+        this.payoutTotals.set(res.payout_totals);
         this.total.set(res.total);
+        this.page.set(res.page);
         this.revenue.set(res.revenue);
         this.statusCounts.set(res.status_counts);
-        this.selected.set([]);
         this.error.set(null);
         this.isLoading.set(false);
       },
@@ -124,12 +133,16 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
 
   onSearch(value: string): void {
     this.query.set(value);
+    this.page.set(1);
+    this.payoutPage.set(1);
+    this.refundPage.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => this.load(), 550);
   }
 
   onStatusChange(value: string): void {
     this.status.set(value);
+    this.page.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
@@ -142,25 +155,37 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   refresh(): void {
     this.query.set('');
     this.status.set('all');
+    this.refundStatus.set('all');
+    this.page.set(1);
+    this.payoutPage.set(1);
+    this.refundPage.set(1);
     if (this.timer) clearTimeout(this.timer);
     this.load();
   }
 
-  isSelected(id: number): boolean {
-    return this.selected().includes(id);
+  changePage(page: number): void {
+    this.page.set(page);
+    this.load();
   }
 
-  toggle(id: number): void {
-    const cur = this.selected();
-    this.selected.set(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+  changePayoutPage(page: number): void {
+    this.payoutPage.set(page);
+    this.load();
   }
 
-  toggleAll(): void {
-    this.selected.set(this.allSelected() ? [] : this.payments().map((p) => p.id));
+  changeRefundPage(page: number): void {
+    this.refundPage.set(page);
+    this.load();
   }
 
-  clearSelection(): void {
-    this.selected.set([]);
+  onRefundStatusChange(value: string): void {
+    this.refundStatus.set(value);
+    this.refundPage.set(1);
+    this.load();
+  }
+
+  viewPayout(payout: Payout): void {
+    this.selectedPayout.set(payout);
   }
 
   refund(p: Payment): void {
@@ -171,68 +196,76 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
     });
   }
 
-  openEdit(p: Payment): void {
-    this.editForm = {
-      amount: p.amount,
-      method: p.method,
-      status: p.status,
-      refund_status: p.refund_status,
-    };
-    this.editing.set(p);
-  }
-
-  closeEdit(): void {
-    if (this.isSaving()) return;
-    this.editing.set(null);
-  }
-
-  saveEdit(): void {
-    const p = this.editing();
-    if (!p) return;
+  payPayout(payout: Payout): void {
+    const owner = payout.owner;
+    const account = [
+      this.payoutMethodLabel(owner.payout_method || payout.payout_method),
+      owner.payout_account_name || payout.payout_account_name,
+      owner.payout_account_number || payout.payout_account_number,
+      owner.payout_bank_name || payout.payout_bank_name,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    if (!owner.has_payout_details) {
+      this.error.set(
+        `The owner has not added payout details yet. Ask them to fill in Profile → Payout account.`
+      );
+      return;
+    }
+    const note = window.prompt(
+      `Send ${payout.amount_display} to:\n${account}\n\nEnter the transfer reference / note (optional):`,
+      'Manual bank transfer'
+    );
+    if (note === null) return;
+    if (
+      !confirm(
+        `Mark this payout as paid?\n\n${payout.reference} — ${payout.amount_display}\n${account}\n\nThis does not move money; only record it after the transfer is complete.`
+      )
+    )
+      return;
     this.isSaving.set(true);
-    this.console
-      .updatePayment(p.id, {
-        amount: Number(this.editForm.amount),
-        method: this.editForm.method,
-        status: this.editForm.status,
-        refund_status: this.editForm.refund_status,
-      })
-      .subscribe({
-        next: () => {
-          this.isSaving.set(false);
-          this.editing.set(null);
-          this.load();
-        },
-        error: (err) => {
-          this.isSaving.set(false);
-          this.setError(err, 'Failed to update payment.');
-        },
-      });
-  }
-
-  removePayment(p: Payment): void {
-    if (!confirm(`Delete this record? This cannot be undone?\n\n${p.reference}`)) return;
-    this.console.deletePayment(p.id).subscribe({
-      next: () => this.load(),
-      error: (err) => this.setError(err, 'Failed to delete payment.'),
+    this.console.payPayout(payout.id, note).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.load();
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        const detail = (err as { error?: { detail?: string } }).error?.detail;
+        const messages: Record<string, string> = {
+          payout_not_due: 'The 7-day hold period has not finished yet.',
+          payout_details_missing: 'The owner has not added payout details yet.',
+          payout_blocked: 'This payment was cancelled or refunded.',
+          payout_already_paid: 'This payout was already recorded as paid.',
+        };
+        this.setError(err, messages[detail || ''] || 'Failed to record payout.');
+      },
     });
   }
 
-  bulkDelete(): void {
-    const ids = this.selected();
-    if (!ids.length) return;
-    if (!confirm(`Delete this record? This cannot be undone?\n\n${ids.length} records`)) return;
-    this.console.bulkDeletePayments(ids).subscribe({
-      next: () => this.load(),
-      error: (err) => this.setError(err, 'Failed to delete payments.'),
-    });
-  }
-
-  process(r: Refund): void {
-    if (!confirm('Process this refund?')) return;
-    this.console.processRefund(r.id).subscribe({
+  process(r: Refund, external = false): void {
+    const message = external
+      ? 'Approve this refund request? First complete the refund in the ABA PayWay merchant portal. This action only records that the money was sent.'
+      : 'Approve and process this refund request?';
+    if (!confirm(message)) return;
+    const note = prompt('Review or processing note (optional):', '') ?? '';
+    this.console.processRefund(r.id, { external, note }).subscribe({
       next: () => this.load(),
       error: (err) => this.setError(err, 'Failed to process refund.'),
+    });
+  }
+
+  reject(r: Refund): void {
+    const note = prompt('Explain why the refund request is cancelled. This note will be shared with the renter and owner:', '');
+    if (note === null) return;
+    if (!note.trim()) {
+      this.error.set('Add a review note before cancelling the request.');
+      return;
+    }
+    if (!confirm(`Cancel refund request ${r.reference}?`)) return;
+    this.console.rejectRefund(r.id, note.trim()).subscribe({
+      next: () => this.load(),
+      error: (err) => this.setError(err, 'Failed to reject refund request.'),
     });
   }
 

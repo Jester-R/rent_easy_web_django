@@ -9,8 +9,9 @@ import { Property } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
 import { LeafletMapComponent } from '../../../components/leaflet-map/leaflet-map';
 import { LanguageService } from '../../../services/language.service';
-import { categoryLabel } from '../../../shared/ui';
-import { formatCoordinates, googleMapsUrl } from '../../../shared/coords';
+import { PropertyCategoryService } from '../../../services/property-category.service';
+import { formatCoordinates } from '../../../shared/coords';
+import { propertyDescription, propertyLocation, propertyTitle } from '../../../shared/property-text';
 
 @Component({
   selector: 'app-property-detail',
@@ -21,13 +22,20 @@ export class PropertyDetailComponent implements OnInit {
   readonly language = inject(LanguageService);
   readonly id = input.required<string>();
 
-  readonly categoryLabel = categoryLabel;
   readonly formatCoordinates = formatCoordinates;
 
   activeImage = signal(0);
 
-  mapsUrl(prop: Property): string {
-    return googleMapsUrl(prop.latitude!, prop.longitude!);
+  titleLabel(prop: Property): string {
+    return propertyTitle(prop, this.language.current());
+  }
+
+  locationLabel(prop: Property): string {
+    return propertyLocation(prop, this.language.current());
+  }
+
+  descriptionLabel(prop: Property): string {
+    return propertyDescription(prop, this.language.current());
   }
 
   selectImage(index: number): void {
@@ -35,6 +43,7 @@ export class PropertyDetailComponent implements OnInit {
   }
 
   private readonly propertyService = inject(PropertyService);
+  private readonly categories = inject(PropertyCategoryService);
   private readonly chat = inject(ChatService);
   readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
@@ -57,6 +66,14 @@ export class PropertyDetailComponent implements OnInit {
     lease_months: [12, [Validators.required, Validators.min(1)]],
     note: [''],
   });
+
+  constructor() {
+    this.categories.load();
+  }
+
+  categoryLabel(value?: string | null): string {
+    return this.categories.label(value, this.language.current());
+  }
 
   ngOnInit(): void {
     this.loadDetail();

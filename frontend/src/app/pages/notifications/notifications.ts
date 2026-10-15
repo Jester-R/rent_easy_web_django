@@ -4,23 +4,28 @@ import { Router } from '@angular/router';
 import { NotificationService } from '../../services/notification.service';
 import { AppNotification } from '../../models';
 import { IconComponent } from '../../components/icon/icon';
+import { DataPaginationComponent } from '../../components/data-pagination/data-pagination';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
-import { notificationText } from '../../shared/ui';
+import { notificationIcon, notificationText } from '../../shared/ui';
 
 @Component({
   selector: 'app-notifications',
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule, IconComponent, DataPaginationComponent],
   templateUrl: './notifications.html',
 })
 export class NotificationsComponent implements OnInit {
   readonly language = inject(LanguageService);
   readonly notificationText = notificationText;
+  readonly notificationIcon = notificationIcon;
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
 
   notifications = signal<AppNotification[]>([]);
+  total = signal(0);
+  page = signal(1);
+  readonly pageSize = 25;
   isLoading = signal(true);
 
   ngOnInit(): void {
@@ -29,13 +34,20 @@ export class NotificationsComponent implements OnInit {
 
   loadNotifications(): void {
     this.isLoading.set(true);
-    this.notificationService.getNotifications().subscribe({
+    this.notificationService.getNotifications(this.page(), this.pageSize).subscribe({
       next: (res) => {
         this.notifications.set(res.notifications);
+        this.total.set(res.total);
+        this.page.set(res.page);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false),
     });
+  }
+
+  changePage(page: number): void {
+    this.page.set(page);
+    this.loadNotifications();
   }
 
   toggleRead(id: number): void {
@@ -56,8 +68,11 @@ export class NotificationsComponent implements OnInit {
     }
 
     const link = notification.link || '';
+    const paymentMatch = link.match(/(?:rent\/)?payments\/(\d+)/i);
     const bookingMatch = link.match(/(?:rent|owner)\/bookings\/(?:#?BK-)?(\d+)/i);
-    if (bookingMatch) {
+    if (paymentMatch) {
+      this.router.navigate(['/payments', paymentMatch[1]]);
+    } else if (bookingMatch) {
       const base = this.auth.isOwner() ? '/owner/bookings' : '/bookings';
       this.router.navigate([base, bookingMatch[1]]);
     } else if (link && link !== '/notifications/') {

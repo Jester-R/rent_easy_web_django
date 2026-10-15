@@ -6,6 +6,8 @@ import { AuthService } from '../../services/auth.service';
 import { LandingData } from '../../models';
 import { PropertyCardComponent } from '../../components/property-card/property-card';
 import { LanguageService } from '../../services/language.service';
+import { propertyLocation, propertyTitle } from '../../shared/property-text';
+import type { Property } from '../../models';
 
 @Component({
   selector: 'app-landing',
@@ -20,6 +22,21 @@ export class LandingComponent implements OnInit {
 
   landingData = signal<LandingData | null>(null);
   isLoading = signal(true);
+
+  title(property: Property): string {
+    return propertyTitle(property, this.language.current());
+  }
+
+  location(property: Property): string {
+    return propertyLocation(property, this.language.current());
+  }
+
+  promotionText(field: 'eyebrow' | 'title' | 'body'): string {
+    const language = this.language.current();
+    const key = `landing.homePromotion${field[0].toUpperCase()}${field.slice(1)}`;
+    const custom = this.landingData()?.home_promotion?.[`${field}_${language}`];
+    return custom?.trim() || this.language.t(key);
+  }
 
   ngOnInit(): void {
     // Load the API data in the browser. The static landing content can render

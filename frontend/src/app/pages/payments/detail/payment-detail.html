@@ -90,7 +90,73 @@
     </section>
 
     <aside class="space-y-4">
-      @if (p.refund_status !== 'None') {
+      @if (p.status === 'Pending') {
+        <section class="app-card p-5">
+          <h3 class="mb-3 flex items-center gap-2 text-[14px] font-extrabold">
+            <app-icon name="clock" [size]="17" />
+            <span>Waiting for payment</span>
+          </h3>
+          <p class="text-[13px] text-ink-3">
+            Complete the payment on the ABA PayWay page. This receipt updates automatically once
+            PayWay confirms the transaction.
+          </p>
+          @if (refreshError()) {
+            <div class="toast toast-error mt-3" role="alert">{{ refreshError() }}</div>
+          }
+          <button
+            type="button"
+            class="btn btn-outline mt-3 w-full"
+            [disabled]="isRefreshing()"
+            (click)="refreshPayment()"
+          >
+            <app-icon name="refresh" [size]="16" />
+            <span>{{ isRefreshing() ? 'Checking…' : 'Check status' }}</span>
+          </button>
+        </section>
+      }
+
+      @if (p.status === 'Success' && p.refund_status === 'None' && (!refund() || refund()?.status === 'Rejected') && (audience() !== 'renter' || renterRefundWindowOpen(p))) {
+        <section class="app-card p-5">
+          <h3 class="mb-2 text-[14px] font-extrabold">{{ language.t('ownerPayments.requestRefund') }}</h3>
+          <p class="text-[12px] leading-relaxed text-ink-3">{{ language.t('ownerPayments.refundRequestHelp') }}</p>
+          @if (refundRequestMessage(); as message) {
+            <p class="toast toast-success mt-3" role="status">{{ message }}</p>
+          }
+          @if (refundRequestError(); as message) {
+            <p class="toast toast-error mt-3" role="alert">{{ message }}</p>
+          }
+          @if (!showRefundRequest()) {
+            <button type="button" class="btn btn-outline mt-3 w-full" (click)="showRefundRequest.set(true)">
+              {{ language.t('ownerPayments.requestRefund') }}
+            </button>
+          } @else {
+            <div class="mt-3 space-y-3">
+              <label class="block text-[11px] font-semibold text-ink-3">
+                {{ language.t('ownerPayments.refundRequestReason') }}
+                <select class="form-input mt-1" [value]="refundReason()" (change)="refundReason.set($any($event.target).value)">
+                  <option value="cancelled_by_renter">{{ language.t('ownerPayments.reasonCancelledByRenter') }}</option>
+                  <option value="cancelled_by_owner">{{ language.t('ownerPayments.reasonCancelledByOwner') }}</option>
+                  <option value="rejected_by_owner">{{ language.t('ownerPayments.reasonRejectedByOwner') }}</option>
+                  <option value="other">{{ language.t('ownerPayments.reasonOther') }}</option>
+                </select>
+              </label>
+              <label class="block text-[11px] font-semibold text-ink-3">
+                {{ language.t('ownerPayments.refundRequestDetails') }}
+                <textarea class="form-input mt-1" rows="4" maxlength="5000" [value]="refundRequestNote()" (input)="refundRequestNote.set($any($event.target).value)"></textarea>
+              </label>
+              <button type="button" class="btn btn-primary w-full" [disabled]="isRequestingRefund()" (click)="submitRefundRequest()">
+                {{ isRequestingRefund() ? language.t('profile.savingChanges') : language.t('ownerPayments.submitRefundRequest') }}
+              </button>
+            </div>
+          }
+        </section>
+      }
+
+      @if (audience() === 'renter' && p.status === 'Success' && p.refund_status === 'None' && (!refund() || refund()?.status === 'Rejected') && !renterRefundWindowOpen(p)) {
+        <p class="app-card p-4 text-[12px] leading-relaxed text-ink-3">{{ language.t('ownerPayments.refundWindowClosed') }}</p>
+      }
+
+      @if (p.refund_status !== 'None' || refund()) {
         <section class="app-card p-5">
           <h3 class="mb-4 flex items-center gap-2 text-[14px] font-extrabold">
             <app-icon name="refund" [size]="17" />
@@ -102,11 +168,14 @@
               <span [class]="'pill ' + refundPill(refund()?.status || p.refund_status)">{{ refundStatusLabel(refund()?.status || p.refund_status) }}</span>
               <span class="shrink-0 text-[13px] font-extrabold">{{ usd(p.refunded_amount || refund()?.amount) }}</span>
             </div>
+            @if (refund()?.request_note) {
+              <p class="mt-2.5 whitespace-pre-wrap text-[12px] text-ink-2">{{ refund()?.request_note }}</p>
+            }
+            @if (refund()?.status === 'Rejected' && refund()?.note) {
+              <p class="mt-2 text-[12px] text-rose-700">{{ refund()?.note }}</p>
+            }
             @if (audience() === 'owner' && refund()?.status === 'Pending') {
-              <button type="button" class="btn btn-primary btn-xs mt-2.5 w-full" [disabled]="isProcessing()" (click)="processRefund()">
-                <app-icon name="check" [size]="13" />
-                <span>Process refund</span>
-              </button>
+              <p class="mt-2.5 text-[12px] text-ink-3">{{ language.t('ownerPayments.adminWillNotifyYouWhenReviewed') }}</p>
             }
           </div>
         </section>

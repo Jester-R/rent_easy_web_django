@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Property } from '../../models';
 import { PropertyService } from '../../services/property.service';
+import { PropertyCategoryService } from '../../services/property-category.service';
 import { AuthService } from '../../services/auth.service';
-import { categoryLabel } from '../../shared/ui';
+import { LanguageService } from '../../services/language.service';
+import { propertyLocation, propertyTitle } from '../../shared/property-text';
 
 @Component({
   selector: 'app-property-card',
@@ -15,15 +17,27 @@ export class PropertyCardComponent {
   readonly property = input.required<Property>();
   readonly favoriteToggled = output<{ propertyId: number; favorited: boolean }>();
 
-  readonly categoryLabel = categoryLabel;
-
   private readonly propertyService = inject(PropertyService);
+  private readonly categories = inject(PropertyCategoryService);
   readonly auth = inject(AuthService);
+  readonly language = inject(LanguageService);
   readonly favoritePending = signal(false);
   readonly favoriteError = signal(false);
 
+  constructor() {
+    this.categories.load();
+  }
+
+  categoryLabel(value?: string | null): string {
+    return this.categories.label(value, this.language.current());
+  }
+
+  get titleLabel(): string {
+    return propertyTitle(this.property(), this.language.current());
+  }
+
   get locationLabel(): string {
-    return this.property().location
+    return propertyLocation(this.property(), this.language.current())
       .replace(/_/g, ' ')
       .replace(/\b(Phnom Penh)(?:\s+Phnom Penh|\s+Penh)+\b/gi, '$1')
       .trim();

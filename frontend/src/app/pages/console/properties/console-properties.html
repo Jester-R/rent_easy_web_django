@@ -9,13 +9,13 @@
   }
 
   <section class="app-card p-4">
-    <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); load()">
-      <input #q type="search" class="form-input" [placeholder]="language.t('consoleProperties.searchByTitleLocationOrOwner')" [value]="query()" (input)="query.set(q.value)" />
+    <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); page.set(1); load()">
+      <input #q type="search" class="form-input" [placeholder]="language.t('consoleProperties.searchByTitleLocationOrOwner')" [value]="query()" (input)="query.set(q.value); page.set(1)" />
       <app-searchable-select
         [options]="ownerOptions()"
         [ngModel]="owner()"
         [ngModelOptions]="{ standalone: true }"
-        (ngModelChange)="owner.set($event)"
+        (ngModelChange)="owner.set($event); page.set(1)"
         [placeholder]="language.t('consoleProperties.allOwners')"
         [searchPlaceholder]="language.t('consoleProperties.search')"
       />
@@ -30,7 +30,7 @@
   } @else if (!properties().length) {
     <div class="app-card p-8 text-center text-ink-3">{{ language.t('consoleProperties.noPropertiesFound') }}</div>
   } @else {
-    <div class="table-wrap app-card overflow-hidden">
+    <div class="table-wrap table-scroll app-card" role="region" tabindex="0" [attr.aria-label]="language.t('consoleProperties.properties')">
       <table class="data-table">
         <thead>
           <tr>
@@ -47,8 +47,8 @@
           @for (item of properties(); track item.id) {
             <tr>
               <td class="min-w-[14rem]">
-                <a [routerLink]="['/properties', item.id]" class="font-bold hover:text-primary">{{ item.title }}</a>
-                <span class="block text-[11px] text-ink-3">{{ item.location }} · {{ item.bedrooms }}bd/{{ item.bathrooms }}ba</span>
+                <a [routerLink]="['/properties', item.id]" class="font-bold hover:text-primary">{{ title(item) }}</a>
+                <span class="block text-[11px] text-ink-3">{{ location(item) }} · {{ item.bedrooms }}bd/{{ item.bathrooms }}ba</span>
               </td>
               <td class="text-ink-2">{{ item.owner.display_name }}</td>
               <td class="text-end font-bold text-primary">{{ usd(item.price_per_month) }}</td>
@@ -76,5 +76,6 @@
         </tbody>
       </table>
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 </div>
