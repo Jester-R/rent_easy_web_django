@@ -258,7 +258,9 @@ class Command(BaseCommand):
                 prop.save(update_fields=fields)
                 updated += 1
         if updated:
-            self.stdout.write(f"Backfilled location/category/images on {updated} properties.")
+            self.stdout.write(
+                f"Backfilled location/category/images on {updated} properties."
+            )
         return properties
 
     def _ensure_favorites(self, renters, properties, rng) -> None:

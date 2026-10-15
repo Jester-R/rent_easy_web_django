@@ -4,15 +4,27 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('notifications', '0001_initial'),
+        ("notifications", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='notification',
-            name='kind',
-            field=models.CharField(choices=[('booking_request', 'Booking request'), ('booking_update', 'Booking update'), ('booking_approved', 'Booking approved'), ('payment_received', 'Payment received'), ('refund_processed', 'Refund processed'), ('owner_approval_request', 'Owner approval request'), ('owner_approved', 'Owner approved'), ('owner_rejected', 'Owner rejected')], db_index=True, max_length=24),
+            model_name="notification",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("booking_request", "Booking request"),
+                    ("booking_update", "Booking update"),
+                    ("booking_approved", "Booking approved"),
+                    ("payment_received", "Payment received"),
+                    ("refund_processed", "Refund processed"),
+                    ("owner_approval_request", "Owner approval request"),
+                    ("owner_approved", "Owner approved"),
+                    ("owner_rejected", "Owner rejected"),
+                ],
+                db_index=True,
+                max_length=24,
+            ),
         ),
     ]

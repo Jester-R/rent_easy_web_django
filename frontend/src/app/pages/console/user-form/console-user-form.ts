@@ -28,13 +28,7 @@ export class ConsoleUserFormComponent implements OnInit {
   readonly roleLabel = roleLabel;
 
   roleLabelTranslated(role: string): string {
-    const label = roleLabel(role);
-    const khmer: Record<string, string> = {
-      'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
-      'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
-      Renter: 'អ្នកជួល',
-    };
-    return this.language.current() === 'km' ? (khmer[label] ?? label) : label;
+    return this.language.valueLabel(roleLabel(role));
   }
 
   isEdit = signal(false);
@@ -88,7 +82,7 @@ export class ConsoleUserFormComponent implements OnInit {
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(this.friendlyError(err, 'Failed to load user.'));
+        this.errorMessage.set(this.friendlyError(err, 'consoleUserForm.failedToLoadUser'));
       },
     });
   }
@@ -127,34 +121,33 @@ export class ConsoleUserFormComponent implements OnInit {
       },
       error: (err) => {
         this.isSaving.set(false);
-        this.errorMessage.set(this.friendlyError(err, 'Failed to save user.'));
+        this.errorMessage.set(this.friendlyError(err, 'consoleUserForm.failedToSaveUser'));
       },
     });
   }
 
-  private friendlyError(err: unknown, fallback: string): string {
+  private friendlyError(err: unknown, fallbackKey: string): string {
     const detail = (err as { error?: { detail?: string } }).error?.detail;
-    if (!detail) {
-      return this.language.t(fallback, fallback === 'Failed to load user.' ? 'មិនអាចផ្ទុកព័ត៌មានអ្នកប្រើប្រាស់បានទេ។' : 'មិនអាចរក្សាទុកអ្នកប្រើប្រាស់បានទេ។');
-    }
-    const messages: Record<string, string> = {
-      email_taken: 'Email or username already in use',
-      password_too_short: 'Password must be at least 6 characters.',
-      username_invalid: 'Username must be 3-30 characters using letters, numbers, ., _ or -',
-      title_required: 'Title is required',
-      location_required: 'Location is required',
-      price_required: 'Enter a valid price',
-      owner_required: 'Select an owner with the Property Owner role.',
+    if (!detail) return this.language.t(fallbackKey);
+    const detailKeys: Record<string, string> = {
+      email_taken: 'consoleUserForm.emailTaken',
+      password_too_short: 'consoleUserForm.passwordMustBeAtLeast6Characters',
+      username_invalid: 'consoleUserForm.usernameInvalid',
+      title_required: 'consoleUserForm.titleRequired',
+      location_required: 'consoleUserForm.locationRequired',
+      price_required: 'consoleUserForm.priceRequired',
+      owner_required: 'consoleUserForm.ownerRequired',
+      'Email or username already in use': 'consoleUserForm.emailTaken',
+      'Password must be at least 6 characters.': 'consoleUserForm.passwordMustBeAtLeast6Characters',
+      'Username must be 3-30 characters using letters, numbers, ., _ or -':
+        'consoleUserForm.usernameInvalid',
+      'Title is required': 'consoleUserForm.titleRequired',
+      'Location is required': 'consoleUserForm.locationRequired',
+      'Enter a valid price': 'consoleUserForm.priceRequired',
+      'Select an owner with the Property Owner role.': 'consoleUserForm.ownerRequired',
     };
-    const message = messages[detail] || detail;
-    const khmer: Record<string, string> = {
-      'Email or username already in use': 'អ៊ីមែល ឬឈ្មោះអ្នកប្រើនេះត្រូវបានប្រើរួចហើយ។',
-      'Password must be at least 6 characters.': 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ។',
-      'Username must be 3-30 characters using letters, numbers, ., _ or -': 'ឈ្មោះអ្នកប្រើត្រូវមាន ៣–៣០ តួអក្សរ ដោយប្រើអក្សរ លេខ . _ ឬ -។',
-      'Title is required': 'ត្រូវបញ្ចូលចំណងជើង។',
-      'Location is required': 'ត្រូវបញ្ចូលទីតាំង។',
-      'Enter a valid price': 'សូមបញ្ចូលតម្លៃត្រឹមត្រូវ។',
-    };
-    return this.language.current() === 'km' ? (khmer[message] ?? message) : message;
+    const key = detailKeys[detail];
+    if (key) return this.language.t(key);
+    return detail;
   }
 }

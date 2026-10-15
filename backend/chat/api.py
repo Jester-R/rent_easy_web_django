@@ -111,12 +111,13 @@ async def conversation_messages(request):
     pk = param_int(request, "pk")
     user = await login_required(request)
     conv = await _load_conversation(pk, user)
-    await conv.messages.filter(read_at__isnull=True).exclude(
-        sender_id=user.pk
-    ).aupdate(read_at=timezone.now())
+    await (
+        conv.messages.filter(read_at__isnull=True)
+        .exclude(sender_id=user.pk)
+        .aupdate(read_at=timezone.now())
+    )
     items = [
-        m
-        async for m in conv.messages.select_related("sender").order_by("created_at")
+        m async for m in conv.messages.select_related("sender").order_by("created_at")
     ]
     other = conv.other_party(user)
     return {
@@ -148,9 +149,11 @@ async def mark_read(request):
     pk = param_int(request, "pk")
     user = await login_required(request)
     conv = await _load_conversation(pk, user)
-    await conv.messages.filter(read_at__isnull=True).exclude(
-        sender_id=user.pk
-    ).aupdate(read_at=timezone.now())
+    await (
+        conv.messages.filter(read_at__isnull=True)
+        .exclude(sender_id=user.pk)
+        .aupdate(read_at=timezone.now())
+    )
     return {"ok": True, "unread": 0}
 
 

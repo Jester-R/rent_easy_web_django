@@ -54,31 +54,22 @@ export class LoginComponent {
           const detail = err.error?.detail || '';
           if (detail === 'approval_pending') {
             this.errorMessage.set(
-              this.language.t(
-                'Your account is awaiting approval by a system administrator.',
-                'គណនីរបស់អ្នកកំពុងរង់ចាំការអនុម័តពីអ្នកគ្រប់គ្រងប្រព័ន្ធ។'
-              )
+              this.language.t('login.yourAccountIsAwaitingApprovalByASystem')
             );
           } else if (detail === 'registration_rejected') {
             this.errorMessage.set(
-              this.language.t(
-                'Your account request was declined. Please contact support.',
-                'សំណើគណនីរបស់អ្នកត្រូវបានបដិសេធ។ សូមទាក់ទងផ្នែកជំនួយ។'
-              )
+              this.language.t('login.yourAccountRequestWasDeclinedPleaseContactSupport')
             );
           } else if (detail === 'not_authorized') {
             this.errorMessage.set(
-              this.language.t(
-                'This account is not authorized to sign in.',
-                'គណនីនេះមិនត្រូវបានអនុញ្ញាតឱ្យចូលប្រើប្រាស់ទេ។'
-              )
+              this.language.t('login.thisAccountIsNotAuthorizedToSignIn')
             );
           } else if (detail === 'invalid_credentials') {
-            this.errorMessage.set(this.language.t('Invalid username/email or password.', 'ឈ្មោះអ្នកប្រើ/អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ។'));
+            this.errorMessage.set(this.language.t('login.invalidUsernameEmailOrPassword'));
           } else if (detail === 'credentials_required') {
-            this.errorMessage.set(this.language.t('Please provide both identifier and password.', 'សូមបញ្ចូលឈ្មោះអ្នកប្រើ ឬអ៊ីមែល និងពាក្យសម្ងាត់។'));
+            this.errorMessage.set(this.language.t('login.pleaseProvideBothIdentifierAndPassword'));
           } else {
-            this.errorMessage.set(this.language.t('An error occurred during login. Please try again.', 'មានបញ្ហាក្នុងពេលចូលគណនី។ សូមព្យាយាមម្ដងទៀត។'));
+            this.errorMessage.set(this.language.t('login.anErrorOccurredDuringLoginPleaseTryAgain'));
           }
         },
       });

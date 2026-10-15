@@ -37,17 +37,17 @@ export class BrowsePropertiesComponent implements OnInit {
   sort = 'recommended';
 
   readonly locationOptions = computed<SelectOption[]>(() => [
-    { value: '__all__', label: this.language.t('All Locations', 'គ្រប់ទីតាំង') },
+    { value: '__all__', label: this.language.t('browse.allLocations') },
     ...this.locations().map((loc) => ({ value: loc, label: loc })),
   ]);
 
   readonly categoryOptions: SelectOption[] = [
-    { value: '__all__', label: this.language.t('All Categories', 'គ្រប់ប្រភេទ') },
+    { value: '__all__', label: this.language.t('browse.allCategories') },
     ...this.categories.map((cat) => ({ value: cat.value, label: cat.label })),
   ];
 
   readonly bedroomOptions: SelectOption[] = [
-    { value: '0', label: this.language.t('Any', 'ទាំងអស់') },
+    { value: '0', label: this.language.t('browse.any') },
     { value: '1', label: '1+' },
     { value: '2', label: '2+' },
     { value: '3', label: '3+' },
@@ -55,10 +55,10 @@ export class BrowsePropertiesComponent implements OnInit {
   ];
 
   readonly sortOptions: SelectOption[] = [
-    { value: 'recommended', label: this.language.t('Recommended', 'ណែនាំ') },
-    { value: 'price_low', label: this.language.t('Price: Low to High', 'តម្លៃ៖ ទាបទៅខ្ពស់') },
-    { value: 'price_high', label: this.language.t('Price: High to Low', 'តម្លៃ៖ ខ្ពស់ទៅទាប') },
-    { value: 'bedrooms', label: this.language.t('Most Bedrooms', 'បន្ទប់គេងច្រើនបំផុត') },
+    { value: 'recommended', label: this.language.t('browse.recommended') },
+    { value: 'price_low', label: this.language.t('browse.priceLowToHigh') },
+    { value: 'price_high', label: this.language.t('browse.priceHighToLow') },
+    { value: 'bedrooms', label: this.language.t('browse.mostBedrooms') },
   ];
 
   ngOnInit(): void {

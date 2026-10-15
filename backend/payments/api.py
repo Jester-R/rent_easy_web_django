@@ -128,9 +128,7 @@ async def owner_list(request):
     )
     return {
         "payments": [await serialize_payment(p) async for p in queryset],
-        "pending_refunds": [
-            await serialize_refund(r) async for r in pending_refunds
-        ],
+        "pending_refunds": [await serialize_refund(r) async for r in pending_refunds],
         "renter_count": renter_count,
         "totals": {
             "revenue": float(agg["revenue"] or 0),

@@ -38,7 +38,7 @@ export class RegisterComponent {
 
     const val = this.form.value;
     if (val.password !== val.password_confirm) {
-      this.errorMessage.set(this.language.t('Passwords do not match.', 'ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ។'));
+      this.errorMessage.set(this.language.t('register.passwordsDoNotMatch'));
       return;
     }
 
@@ -67,13 +67,13 @@ export class RegisterComponent {
           this.isLoading.set(false);
           const detail = err.error?.detail || '';
           if (detail === 'email_taken') {
-            this.errorMessage.set(this.language.t('This email address is already registered.', 'អាសយដ្ឋានអ៊ីមែលនេះបានចុះឈ្មោះរួចហើយ។'));
+            this.errorMessage.set(this.language.t('register.thisEmailAddressIsAlreadyRegistered'));
           } else if (detail === 'username_taken') {
-            this.errorMessage.set(this.language.t('This username is already taken.', 'ឈ្មោះអ្នកប្រើនេះត្រូវបានប្រើរួចហើយ។'));
+            this.errorMessage.set(this.language.t('register.thisUsernameIsAlreadyTaken'));
           } else if (detail === 'username_invalid') {
-            this.errorMessage.set(this.language.t('Username must be alphanumeric.', 'ឈ្មោះអ្នកប្រើត្រូវមានតែអក្សរ និងលេខ។'));
+            this.errorMessage.set(this.language.t('register.usernameMustBeAlphanumeric'));
           } else {
-            this.errorMessage.set(this.language.t('Registration failed. Please check your details.', 'ការចុះឈ្មោះបរាជ័យ។ សូមពិនិត្យព័ត៌មានរបស់អ្នក។'));
+            this.errorMessage.set(this.language.t('register.registrationFailedPleaseCheckYourDetails'));
           }
         },
       });

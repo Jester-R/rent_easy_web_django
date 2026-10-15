@@ -4,22 +4,35 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0003_user_approval_status'),
+        ("accounts", "0003_user_approval_status"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PlatformSettings',
+            name="PlatformSettings",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('auto_approve_owners', models.BooleanField(default=False, help_text='When enabled, new property owners are approved automatically.')),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "auto_approve_owners",
+                    models.BooleanField(
+                        default=False,
+                        help_text="When enabled, new property owners are approved automatically.",
+                    ),
+                ),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Platform settings',
-                'verbose_name_plural': 'Platform settings',
+                "verbose_name": "Platform settings",
+                "verbose_name_plural": "Platform settings",
             },
         ),
     ]

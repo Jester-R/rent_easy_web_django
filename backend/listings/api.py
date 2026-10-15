@@ -54,7 +54,11 @@ def _counts(queryset):
 
 
 async def _get_property(pk: int) -> Property:
-    prop = await Property.objects.select_related("owner").filter(pk=pk, is_active=True).afirst()
+    prop = (
+        await Property.objects.select_related("owner")
+        .filter(pk=pk, is_active=True)
+        .afirst()
+    )
     if prop is None:
         raise HTTPException(status_code=404, detail="property_not_found")
     return prop
@@ -198,8 +202,9 @@ async def renter_browse(request):
     if renter is not None:
         favorite_ids = {
             v
-            async for v in Favorite.objects.filter(user=renter, property_id__in=ids)
-            .values_list("property_id", flat=True)
+            async for v in Favorite.objects.filter(
+                user=renter, property_id__in=ids
+            ).values_list("property_id", flat=True)
         }
         active_ids = {
             v

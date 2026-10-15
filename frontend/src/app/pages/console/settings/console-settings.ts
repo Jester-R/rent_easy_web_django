@@ -27,7 +27,7 @@ export class ConsoleSettingsComponent implements OnInit {
       },
       error: () => {
         this.isLoading.set(false);
-        this.error.set(this.language.t('Failed to load settings.', 'មិនអាចផ្ទុកការកំណត់បានទេ។'));
+        this.error.set(this.language.t('consoleSettings.failedToLoadSettings'));
       },
     });
   }
@@ -45,7 +45,7 @@ export class ConsoleSettingsComponent implements OnInit {
       error: () => {
         this.autoApproveOwners.set(!next);
         this.isSaving.set(false);
-        this.error.set(this.language.t('Failed to save settings.', 'មិនអាចរក្សាទុកការកំណត់បានទេ។'));
+        this.error.set(this.language.t('consoleSettings.failedToSaveSettings'));
       },
     });
   }

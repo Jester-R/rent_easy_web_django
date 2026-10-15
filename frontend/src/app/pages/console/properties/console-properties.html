@@ -1,7 +1,7 @@
 <div class="space-y-4">
   <div>
-    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Properties', 'អចលនទ្រព្យ') }}</h1>
-    <p class="text-[12px] text-ink-3">{{ language.t('View platform listings and their owners', 'មើលការចុះផ្សាយ និងម្ចាស់អចលនទ្រព្យនៅលើវេទិកា') }}</p>
+    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleProperties.properties') }}</h1>
+    <p class="text-[12px] text-ink-3">{{ language.t('consoleProperties.viewPlatformListingsAndTheirOwners') }}</p>
   </div>
 
   @if (error()) {
@@ -10,37 +10,37 @@
 
   <section class="app-card p-4">
     <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); load()">
-      <input #q type="search" class="form-input" [placeholder]="language.t('Search by title, location or owner', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬម្ចាស់')" [value]="query()" (input)="query.set(q.value)" />
+      <input #q type="search" class="form-input" [placeholder]="language.t('consoleProperties.searchByTitleLocationOrOwner')" [value]="query()" (input)="query.set(q.value)" />
       <app-searchable-select
         [options]="ownerOptions()"
         [ngModel]="owner()"
         [ngModelOptions]="{ standalone: true }"
         (ngModelChange)="owner.set($event)"
-        [placeholder]="language.t('All owners', 'ម្ចាស់ទាំងអស់')"
-        [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+        [placeholder]="language.t('consoleProperties.allOwners')"
+        [searchPlaceholder]="language.t('consoleProperties.search')"
       />
-      <button type="submit" class="btn btn-primary">{{ language.t('Filter', 'តម្រង') }}</button>
+      <button type="submit" class="btn btn-primary">{{ language.t('consoleProperties.filter') }}</button>
     </form>
   </section>
 
-  <div class="text-[12px] text-ink-3">{{ properties().length }} / {{ total() }} {{ language.t('Properties', 'អចលនទ្រព្យ') }}</div>
+  <div class="text-[12px] text-ink-3">{{ properties().length }} / {{ total() }} {{ language.t('consoleProperties.properties') }}</div>
 
   @if (isLoading() && properties().length === 0) {
     <div class="app-card skeleton h-24" aria-hidden="true"></div>
   } @else if (!properties().length) {
-    <div class="app-card p-8 text-center text-ink-3">{{ language.t('No properties found.', 'រកមិនឃើញអចលនទ្រព្យទេ។') }}</div>
+    <div class="app-card p-8 text-center text-ink-3">{{ language.t('consoleProperties.noPropertiesFound') }}</div>
   } @else {
     <div class="table-wrap app-card overflow-hidden">
       <table class="data-table">
         <thead>
           <tr>
-            <th class="text-start">{{ language.t('Title', 'ចំណងជើង') }}</th>
-            <th class="text-start">{{ language.t('Property Owner', 'ម្ចាស់អចលនទ្រព្យ') }}</th>
-            <th class="text-end">{{ language.t('Rent', 'ថ្លៃជួល') }}</th>
-            <th class="text-end">{{ language.t('Bookings', 'ការកក់') }}</th>
-            <th class="text-end">{{ language.t('Favorites', 'ចំណូលចិត្ត') }}</th>
-            <th class="text-end">{{ language.t('Status', 'ស្ថានភាព') }}</th>
-            <th class="text-end">{{ language.t('Actions', 'សកម្មភាព') }}</th>
+            <th class="text-start">{{ language.t('consoleProperties.title') }}</th>
+            <th class="text-start">{{ language.t('consoleProperties.propertyOwner') }}</th>
+            <th class="text-end">{{ language.t('consoleProperties.rent') }}</th>
+            <th class="text-end">{{ language.t('consoleProperties.bookings') }}</th>
+            <th class="text-end">{{ language.t('consoleProperties.favorites') }}</th>
+            <th class="text-end">{{ language.t('consoleProperties.status') }}</th>
+            <th class="text-end">{{ language.t('consoleProperties.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -56,19 +56,19 @@
               <td class="text-end text-ink-2 tabular-nums">{{ item.favorite_count ?? 0 }}</td>
               <td class="text-end">
                 <span [class]="item.is_active ? 'pill pill-success' : 'pill pill-neutral'">
-                  {{ item.is_active ? language.t('Active', 'សកម្ម') : language.t('Removed', 'បានលាក់') }}
+                  {{ item.is_active ? language.t('consoleProperties.active') : language.t('consoleProperties.removed') }}
                 </span>
               </td>
               <td class="text-end">
                 @if (item.is_active) {
-                  <a [routerLink]="['/properties', item.id]" class="btn btn-ghost btn-icon" [title]="language.t('View', 'មើល')" [attr.aria-label]="language.t('View property', 'មើលអចលនទ្រព្យ')">
+                  <a [routerLink]="['/properties', item.id]" class="btn btn-ghost btn-icon" [title]="language.t('consoleProperties.view')" [attr.aria-label]="language.t('consoleProperties.viewProperty')">
                     <app-icon name="external" [size]="16" />
                   </a>
-                  <button type="button" class="btn btn-ghost btn-icon text-danger" [title]="language.t('Remove listing', 'លាក់ការចុះផ្សាយ')" [attr.aria-label]="language.t('Remove listing', 'លាក់ការចុះផ្សាយ')" (click)="remove(item)">
+                  <button type="button" class="btn btn-ghost btn-icon text-danger" [title]="language.t('consoleProperties.removeListing')" [attr.aria-label]="language.t('consoleProperties.removeListing')" (click)="remove(item)">
                     <app-icon name="trash" [size]="16" />
                   </button>
                 } @else {
-                  <span class="text-[11px] text-ink-3">{{ language.t('Retained', 'បានរក្សាទុក') }}</span>
+                  <span class="text-[11px] text-ink-3">{{ language.t('consoleProperties.retained') }}</span>
                 }
               </td>
             </tr>

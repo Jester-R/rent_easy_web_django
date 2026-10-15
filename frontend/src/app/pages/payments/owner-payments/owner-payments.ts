@@ -19,10 +19,7 @@ export class OwnerPaymentsComponent implements OnInit {
   actionMessage = signal<string | null>(null);
 
   statusLabel(status: string): string {
-    const khmer: Record<string, string> = {
-      Success: 'ជោគជ័យ', Pending: 'កំពុងរង់ចាំ', Failed: 'បរាជ័យ', Refunded: 'បានសងប្រាក់វិញ',
-    };
-    return this.language.current() === 'km' ? (khmer[status] ?? status) : status;
+    return this.language.valueLabel(status);
   }
 
   ngOnInit(): void {
@@ -41,15 +38,12 @@ export class OwnerPaymentsComponent implements OnInit {
   }
 
   processRefund(refundId: number): void {
-    if (!confirm(this.language.t('Are you sure you want to process this refund?', 'តើអ្នកប្រាកដថាចង់ដំណើរការការសងប្រាក់វិញនេះឬទេ?'))) return;
+    if (!confirm(this.language.t('ownerPayments.areYouSureYouWantToProcessThisRefund'))) return;
 
     this.actionMessage.set(null);
     this.paymentService.processRefund(refundId).subscribe({
       next: (res) => {
-        this.actionMessage.set(this.language.t(
-          `Refund #${res.refund.reference} has been processed.`,
-          `ការសងប្រាក់វិញ #${res.refund.reference} ត្រូវបានដំណើរការរួចរាល់។`,
-        ));
+        this.actionMessage.set(this.language.t('ownerPayments.refundProcessed', { reference: res.refund.reference }));
         this.loadPayments();
       },
     });

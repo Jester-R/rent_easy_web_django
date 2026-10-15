@@ -2,12 +2,12 @@
 
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Superadmin Dashboard', 'ផ្ទាំងគ្រប់គ្រងអ្នកគ្រប់គ្រងកំពូល') }}</h1>
-      <p class="text-[12px] text-ink-3">{{ language.t('Find Your Perfect Home, Easily.', 'ស្វែងរកផ្ទះដ៏ល្អឥតខ្ចោះរបស់អ្នកយ៉ាងងាយស្រួល។') }}</p>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleDashboard.superadminDashboard') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('consoleDashboard.findYourPerfectHomeEasily') }}</p>
     </div>
     <a routerLink="/console/users/new" class="btn btn-primary btn-sm">
       <app-icon name="user-plus" [size]="15" />
-      <span>{{ language.t('New user', 'អ្នកប្រើប្រាស់ថ្មី') }}</span>
+      <span>{{ language.t('consoleDashboard.newUser') }}</span>
     </a>
   </div>
 
@@ -23,33 +23,33 @@
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="users" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Users', 'អ្នកប្រើប្រាស់') }}</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.users') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ d.stats.users }}</span>
-          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Renters', 'អ្នកជួល') }}: {{ d.stats.renters }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('consoleDashboard.renters') }}: {{ d.stats.renters }}</span>
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="building" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Properties', 'អចលនទ្រព្យ') }}</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.properties') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ d.stats.properties }}</span>
-          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Saved to favorites', 'បានរក្សាទុកក្នុងចំណូលចិត្ត') }}: {{ d.stats.favorites }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('consoleDashboard.savedToFavorites') }}: {{ d.stats.favorites }}</span>
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="clipboard" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Bookings', 'ការកក់') }}</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.bookings') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ d.stats.bookings }}</span>
-          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Awaiting approval', 'រង់ចាំការអនុម័ត') }}: {{ d.status_counts['Pending'] ?? 0 }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('consoleDashboard.awaitingApproval') }}: {{ d.status_counts['Pending'] ?? 0 }}</span>
         </span>
       </div>
       <div class="stat-card">
         <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
         <span class="min-w-0">
-          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Revenue', 'ចំណូល') }}</span>
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.revenue') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ usd(d.stats.revenue) }}</span>
-          <span class="block truncate text-[11px] text-ink-3">{{ language.t('Refunded', 'បានសងប្រាក់វិញ') }}: {{ usd(d.stats.refunded) }}</span>
+          <span class="block truncate text-[11px] text-ink-3">{{ language.t('consoleDashboard.refunded') }}: {{ usd(d.stats.refunded) }}</span>
         </span>
       </div>
     </div>
@@ -58,7 +58,7 @@
       <section class="app-card p-5">
         <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
           <app-icon name="chart" [size]="17" />
-          <span>{{ language.t('Bookings', 'ការកក់') }}</span>
+          <span>{{ language.t('consoleDashboard.bookings') }}</span>
         </h2>
         <div class="space-y-3">
           @for (row of funnel; track row.label) {
@@ -76,7 +76,7 @@
 
         <div class="divider my-4"></div>
 
-        <h3 class="mb-3 text-[12px] font-extrabold uppercase tracking-wide text-ink-3">{{ language.t('Role', 'តួនាទី') }}</h3>
+        <h3 class="mb-3 text-[12px] font-extrabold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.role') }}</h3>
         <div class="flex flex-wrap gap-2">
           @for (row of d.role_breakdown; track row.role) {
             <span [class]="'pill ' + rolePill(row.role)">{{ label(roleLabel(row.role)) }} · {{ row.n }}</span>
@@ -88,9 +88,9 @@
         <div class="mb-4 flex items-center gap-2">
           <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <app-icon name="trending-up" [size]="17" />
-            <span>{{ language.t('Revenue', 'ចំណូល') }}</span>
+            <span>{{ language.t('consoleDashboard.revenue') }}</span>
           </h2>
-          <span class="ms-auto text-[12px] text-ink-3">{{ language.t('Average rent', 'ថ្លៃជួលជាមធ្យម') }}: {{ usd(d.stats.avg_rent) }}</span>
+          <span class="ms-auto text-[12px] text-ink-3">{{ language.t('consoleDashboard.averageRent') }}: {{ usd(d.stats.avg_rent) }}</span>
         </div>
 
         @if (d.monthly_rows.length) {
@@ -107,22 +107,22 @@
         } @else {
           <div class="empty-state">
             <span class="empty-state-icon"><app-icon name="chart" [size]="30" /></span>
-            <p class="text-[15px] font-bold text-ink">{{ language.t('No payments yet', 'មិនទាន់មានការទូទាត់ទេ') }}</p>
-            <p class="text-[12px] text-ink-3">{{ language.t('Successful payments only.', 'បង្ហាញតែការទូទាត់ដែលជោគជ័យប៉ុណ្ណោះ។') }}</p>
+            <p class="text-[15px] font-bold text-ink">{{ language.t('consoleDashboard.noPaymentsYet') }}</p>
+            <p class="text-[12px] text-ink-3">{{ language.t('consoleDashboard.successfulPaymentsOnly') }}</p>
           </div>
         }
 
         <div class="mt-4 grid grid-cols-3 gap-2 border-t border-hairline pt-4 text-center">
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Pending', 'កំពុងរង់ចាំ') }}</p>
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.pending') }}</p>
             <p class="mt-0.5 text-[17px] font-extrabold text-warning">{{ d.status_counts['Pending'] ?? 0 }}</p>
           </div>
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Approved', 'បានអនុម័ត') }}</p>
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.approved') }}</p>
             <p class="mt-0.5 text-[17px] font-extrabold text-primary">{{ d.status_counts['Approved'] ?? 0 }}</p>
           </div>
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('Refunds', 'ការសងប្រាក់វិញ') }}</p>
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.refunds') }}</p>
             <p class="mt-0.5 text-[17px] font-extrabold">{{ d.stats.refunds }}</p>
           </div>
         </div>
@@ -134,9 +134,9 @@
         <div class="mb-4 flex items-center gap-2">
           <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <app-icon name="clipboard" [size]="17" />
-            <span>{{ language.t('Recent Booking Activity', 'សកម្មភាពកក់ថ្មីៗ') }}</span>
+            <span>{{ language.t('consoleDashboard.recentBookingActivity') }}</span>
           </h2>
-          <a routerLink="/console/bookings" class="ms-auto btn btn-ghost btn-xs">{{ language.t('More', 'បន្ថែម') }} →</a>
+          <a routerLink="/console/bookings" class="ms-auto btn btn-ghost btn-xs">{{ language.t('consoleDashboard.more') }} →</a>
         </div>
         @if (d.recent_bookings.length) {
           <div class="space-y-2">
@@ -152,7 +152,7 @@
             }
           </div>
         } @else {
-          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No booking activity yet.', 'មិនទាន់មានសកម្មភាពកក់ទេ។') }}</p>
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('consoleDashboard.noBookingActivityYet') }}</p>
         }
       </section>
 
@@ -160,9 +160,9 @@
         <div class="mb-4 flex items-center gap-2">
           <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
             <app-icon name="user-plus" [size]="17" />
-            <span>{{ language.t('New Users', 'អ្នកប្រើប្រាស់ថ្មី') }}</span>
+            <span>{{ language.t('consoleDashboard.newUsers') }}</span>
           </h2>
-          <a routerLink="/console/users" class="ms-auto btn btn-ghost btn-xs">{{ language.t('More', 'បន្ថែម') }} →</a>
+          <a routerLink="/console/users" class="ms-auto btn btn-ghost btn-xs">{{ language.t('consoleDashboard.more') }} →</a>
         </div>
         @if (d.recent_users.length) {
           <div class="space-y-2">
@@ -183,14 +183,14 @@
             }
           </div>
         } @else {
-          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No new users yet.', 'មិនទាន់មានអ្នកប្រើប្រាស់ថ្មីទេ។') }}</p>
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('consoleDashboard.noNewUsersYet') }}</p>
         }
       </section>
 
       <section class="app-card p-5">
         <h2 class="mb-4 flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
           <app-icon name="document" [size]="17" />
-          <span>{{ language.t('Audit Log', 'កំណត់ហេតុសវនកម្ម') }}</span>
+          <span>{{ language.t('consoleDashboard.auditLog') }}</span>
         </h2>
         @if (d.audit_logs.length) {
           <div class="space-y-2">
@@ -207,7 +207,7 @@
             }
           </div>
         } @else {
-          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('No activity yet.', 'មិនទាន់មានសកម្មភាពទេ។') }}</p>
+          <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('consoleDashboard.noActivityYet') }}</p>
         }
       </section>
     </div>

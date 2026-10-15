@@ -14,9 +14,6 @@ import {
   usd,
 } from '../../shared/ui';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MONTHS_KM = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
-
 @Component({
   selector: 'app-console-dashboard',
   imports: [CommonModule, RouterLink, IconComponent],
@@ -59,17 +56,7 @@ export class ConsoleDashboardComponent implements OnInit {
   }
 
   label(value: string): string {
-    const khmer: Record<string, string> = {
-      Pending: 'កំពុងរង់ចាំ',
-      Approved: 'បានអនុម័ត',
-      Rejected: 'បានបដិសេធ',
-      Cancelled: 'បានលុបចោល',
-      Confirmed: 'បានបញ្ជាក់',
-      Renter: 'អ្នកជួល',
-      'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
-      'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
-    };
-    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+    return this.language.valueLabel(value);
   }
 
   maxTotal(d: ConsoleDashboardData): number {
@@ -81,7 +68,7 @@ export class ConsoleDashboardComponent implements OnInit {
     const parts = iso.split('-').map((p) => Number(p));
     if (parts.length < 2 || Number.isNaN(parts[1])) return '';
     const monthIndex = (parts[1] - 1) % 12;
-    const month = this.language.current() === 'km' ? MONTHS_KM[monthIndex] : MONTHS[monthIndex];
+    const month = this.language.monthName(monthIndex);
     return `${month || ''} ${String(parts[0]).slice(-2)}`;
   }
 

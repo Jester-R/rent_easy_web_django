@@ -51,25 +51,17 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
   );
 
   readonly roleOptions = computed<SelectOption[]>(() => [
-    { value: 'all', label: this.language.t('All', 'ទាំងអស់') },
+    { value: 'all', label: this.language.t('consoleUsers.all') },
     ...this.roles().map((o) => ({ value: o.value, label: this.label(o.label) })),
   ]);
 
   readonly approvalOptions = computed<SelectOption[]>(() => [
-    { value: 'all', label: this.language.t('All approvals', 'ការអនុម័តទាំងអស់') },
+    { value: 'all', label: this.language.t('consoleUsers.allApprovals') },
     ...this.approvals().map((o) => ({ value: o.value, label: this.label(o.label) })),
   ]);
 
   label(value: string): string {
-    const khmer: Record<string, string> = {
-      'Super Admin': 'អ្នកគ្រប់គ្រងកំពូល',
-      'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',
-      Renter: 'អ្នកជួល',
-      Pending: 'កំពុងរង់ចាំ',
-      Approved: 'បានអនុម័ត',
-      Rejected: 'បានបដិសេធ',
-    };
-    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+    return this.language.valueLabel(value);
   }
 
   ngOnInit(): void {
@@ -163,7 +155,7 @@ export class ConsoleUsersComponent implements OnInit, OnDestroy {
   }
 
   reject(item: ConsoleUserItem): void {
-    if (!confirm(this.language.t('Reject this owner request?', 'បដិសេធសំណើម្ចាស់នេះមែនទេ?'))) {
+    if (!confirm(this.language.t('consoleUsers.rejectThisOwnerRequest'))) {
       return;
     }
     this.console.rejectUser(item.id).subscribe({

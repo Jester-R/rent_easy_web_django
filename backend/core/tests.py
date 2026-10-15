@@ -61,7 +61,9 @@ class SeedSmokeTests(SeededTestCase):
 
 class ModelLinkTests(SeededTestCase):
     def test_booking_links(self):
-        booking = Booking.objects.filter(owner=self.owner).first() or Booking.objects.first()
+        booking = (
+            Booking.objects.filter(owner=self.owner).first() or Booking.objects.first()
+        )
         self.assertEqual(booking.get_absolute_url(), f"/rent/bookings/{booking.pk}/")
         booking._viewer = self.owner
         self.assertEqual(booking.get_absolute_url(), f"/owner/bookings/{booking.pk}/")

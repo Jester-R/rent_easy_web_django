@@ -7,7 +7,7 @@
       </span>
       <div>
         <p class="text-xl font-extrabold tracking-tight">RentEasy</p>
-        <p class="text-[13px] text-ink-3">{{ language.t('Easy Rent, Happy Living', 'ជួលងាយស្រួល រស់នៅសុខសាន្ត') }}</p>
+        <p class="text-[13px] text-ink-3">{{ language.t('register.easyRentHappyLiving') }}</p>
       </div>
     </div>
 
@@ -18,10 +18,10 @@
             <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m5 13 4 4L19 7"/></svg>
           </span>
           <div class="space-y-1">
-            <h1 class="text-[19px] font-extrabold tracking-tight">{{ language.t('Registration submitted', 'បានដាក់ពាក្យចុះឈ្មោះ') }}</h1>
-            <p class="text-[13px] text-ink-3">{{ language.t('Your property owner account is awaiting approval by a system administrator. You can log in once it has been approved.', 'គណនីម្ចាស់អចលនទ្រព្យរបស់អ្នកកំពុងរង់ចាំការអនុម័តពីអ្នកគ្រប់គ្រងប្រព័ន្ធ។ អ្នកអាចចូលគណនីបាន បន្ទាប់ពីវាត្រូវបានអនុម័ត។') }}</p>
+            <h1 class="text-[19px] font-extrabold tracking-tight">{{ language.t('register.registrationSubmitted') }}</h1>
+            <p class="text-[13px] text-ink-3">{{ language.t('register.yourPropertyOwnerAccountIsAwaitingApprovalByA') }}</p>
           </div>
-          <a routerLink="/login" class="btn btn-primary w-full">{{ language.t('Back to login', 'ត្រឡប់ទៅចូលគណនី') }}</a>
+          <a routerLink="/login" class="btn btn-primary w-full">{{ language.t('register.backToLogin') }}</a>
         </div>
       } @else {
       <div class="mb-5 flex items-center gap-3">
@@ -29,8 +29,8 @@
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14.5 12a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z"/><path d="M3 20.5a7.5 7.5 0 0 1 11.5-6.4"/><path d="M18.5 15.5v6M15.5 18.5h6"/></svg>
         </span>
         <div class="min-w-0">
-          <h1 class="truncate text-[19px] font-extrabold tracking-tight">{{ language.t('Create your account', 'បង្កើតគណនីរបស់អ្នក') }}</h1>
-          <p class="truncate text-[13px] text-ink-3">{{ language.t('Select how you want to use RentEasy', 'ជ្រើសរើសរបៀបដែលអ្នកចង់ប្រើ RentEasy') }}</p>
+          <h1 class="truncate text-[19px] font-extrabold tracking-tight">{{ language.t('register.createYourAccount') }}</h1>
+          <p class="truncate text-[13px] text-ink-3">{{ language.t('register.selectHowYouWantToUseRentEasy') }}</p>
         </div>
       </div>
 
@@ -41,15 +41,15 @@
         </div>
       }
 
-      <div class="mb-4 grid grid-cols-2 gap-2" role="radiogroup" [attr.aria-label]="language.t('Account type', 'ប្រភេទគណនី')">
+      <div class="mb-4 grid grid-cols-2 gap-2" role="radiogroup" [attr.aria-label]="language.t('register.accountType')">
         <button type="button" role="radio" [attr.aria-checked]="role() === 'renter'"
                 class="flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-start transition"
                 [class.border-primary]="role() === 'renter'"
                 [class.bg-primary-soft]="role() === 'renter'"
                 [class.border-hairline]="role() !== 'renter'"
                 (click)="selectRole('renter')">
-          <span class="text-[13px] font-extrabold">{{ language.t('Renter', 'អ្នកជួល') }}</span>
-          <span class="text-[11px] text-ink-3">{{ language.t('Browse and book rentals', 'រកមើល និងកក់អចលនទ្រព្យ') }}</span>
+          <span class="text-[13px] font-extrabold">{{ language.t('register.renter') }}</span>
+          <span class="text-[11px] text-ink-3">{{ language.t('register.browseAndBookRentals') }}</span>
         </button>
         <button type="button" role="radio" [attr.aria-checked]="role() === 'owner'"
                 class="flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-start transition"
@@ -57,49 +57,49 @@
                 [class.bg-primary-soft]="role() === 'owner'"
                 [class.border-hairline]="role() !== 'owner'"
                 (click)="selectRole('owner')">
-          <span class="block text-[13px] font-extrabold">{{ language.t('Property Owner', 'ម្ចាស់អចលនទ្រព្យ') }}</span>
-          <span class="mt-0.5 block text-[12px] text-ink-3">{{ language.t('List and rent out properties', 'ផ្សព្វផ្សាយ និងជួលអចលនទ្រព្យ') }}</span>
+          <span class="block text-[13px] font-extrabold">{{ language.t('register.propertyOwner') }}</span>
+          <span class="mt-0.5 block text-[12px] text-ink-3">{{ language.t('register.listAndRentOutProperties') }}</span>
         </button>
       </div>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
         <div>
-          <label class="form-label" for="id_full_name">{{ language.t('Full Name', 'ឈ្មោះពេញ') }}</label>
+          <label class="form-label" for="id_full_name">{{ language.t('register.fullName') }}</label>
           <input type="text" id="id_full_name" formControlName="full_name" class="form-input" autocomplete="name" required>
         </div>
 
         <div>
-          <label class="form-label" for="id_username">{{ language.t('Username', 'ឈ្មោះអ្នកប្រើ') }}</label>
+          <label class="form-label" for="id_username">{{ language.t('register.username') }}</label>
           <input type="text" id="id_username" formControlName="username" class="form-input" autocomplete="username" required>
-          <p class="form-hint">{{ language.t('At least 3 alphanumeric characters.', 'យ៉ាងតិច ៣ តួអក្សរ ឬលេខ។') }}</p>
+          <p class="form-hint">{{ language.t('register.atLeast3AlphanumericCharacters') }}</p>
         </div>
 
         <div>
-          <label class="form-label" for="id_email">{{ language.t('Email', 'អ៊ីមែល') }}</label>
+          <label class="form-label" for="id_email">{{ language.t('register.email') }}</label>
           <input type="email" id="id_email" formControlName="email" class="form-input" autocomplete="email" required>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">
           <div>
-            <label class="form-label" for="id_password">{{ language.t('Password', 'ពាក្យសម្ងាត់') }}</label>
+            <label class="form-label" for="id_password">{{ language.t('register.password') }}</label>
             <input type="password" id="id_password" formControlName="password" class="form-input" autocomplete="new-password" required>
           </div>
           <div>
-            <label class="form-label" for="id_password_confirm">{{ language.t('Confirm Password', 'បញ្ជាក់ពាក្យសម្ងាត់') }}</label>
+            <label class="form-label" for="id_password_confirm">{{ language.t('register.confirmPassword') }}</label>
             <input type="password" id="id_password_confirm" formControlName="password_confirm" class="form-input" autocomplete="new-password" required>
           </div>
         </div>
 
         <button type="submit" [disabled]="form.invalid || isLoading()" class="btn btn-primary w-full">
-          <span>{{ isLoading() ? language.t('Creating account...', 'កំពុងបង្កើតគណនី...') : language.t('Register', 'ចុះឈ្មោះ') }}</span>
+          <span>{{ isLoading() ? language.t('register.creatingAccount') : language.t('register.register') }}</span>
         </button>
       </form>
 
       <div class="divider my-5"></div>
 
       <p class="text-center text-[13px] text-ink-2">
-        {{ language.t('Already have an account?', 'មានគណនីរួចហើយមែនទេ?') }}
-        <a routerLink="/login" class="font-bold text-primary hover:underline">{{ language.t('Log in', 'ចូលគណនី') }}</a>
+        {{ language.t('register.alreadyHaveAnAccount') }}
+        <a routerLink="/login" class="font-bold text-primary hover:underline">{{ language.t('register.logIn') }}</a>
       </p>
       }
     </div>

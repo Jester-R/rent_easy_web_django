@@ -1,0 +1,27 @@
+import type { PageCatalog } from '../types';
+
+export const consoleProperties: PageCatalog = {
+  properties: ['Properties', 'អចលនទ្រព្យ'],
+  viewPlatformListingsAndTheirOwners: ['View platform listings and their owners', 'មើលការចុះផ្សាយ និងម្ចាស់អចលនទ្រព្យនៅលើវេទិកា'],
+  searchByTitleLocationOrOwner: ['Search by title, location or owner', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬម្ចាស់'],
+  allOwners: ['All owners', 'ម្ចាស់ទាំងអស់'],
+  search: ['Search...', 'ស្វែងរក...'],
+  filter: ['Filter', 'តម្រង'],
+  noPropertiesFound: ['No properties found.', 'រកមិនឃើញអចលនទ្រព្យទេ។'],
+  title: ['Title', 'ចំណងជើង'],
+  propertyOwner: ['Property Owner', 'ម្ចាស់អចលនទ្រព្យ'],
+  rent: ['Rent', 'ថ្លៃជួល'],
+  bookings: ['Bookings', 'ការកក់'],
+  favorites: ['Favorites', 'ចំណូលចិត្ត'],
+  status: ['Status', 'ស្ថានភាព'],
+  actions: ['Actions', 'សកម្មភាព'],
+  active: ['Active', 'សកម្ម'],
+  removed: ['Removed', 'បានលាក់'],
+  view: ['View', 'មើល'],
+  viewProperty: ['View property', 'មើលអចលនទ្រព្យ'],
+  removeListing: ['Remove listing', 'លាក់ការចុះផ្សាយ'],
+  retained: ['Retained', 'បានរក្សាទុក'],
+  removeFromBrowsing: ['Remove “{title}” from renter browsing? The record will be retained.', 'តើលាក់ “{title}” ពីអ្នកជួលមែនទេ? ទិន្នន័យនឹងនៅតែរក្សាទុក។'],
+  couldNotLoadProperties: ['Could not load properties.', 'មិនអាចផ្ទុកបញ្ជីអចលនទ្រព្យបានទេ។'],
+  couldNotRemoveThisListing: ['Could not remove this listing.', 'មិនអាចលាក់ការចុះផ្សាយនេះបានទេ។'],
+};

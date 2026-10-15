@@ -10,32 +10,32 @@
       <div>
         <span class="pill pill-approved mb-4">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5 10.1 12.8 4.5 10.9 10.1 9 12 3.5Z"/></svg>
-          {{ language.t('Web Platform', 'វេទិកាអនឡាញ') }}
+          {{ language.t('landing.webPlatform') }}
         </span>
         <h1 class="text-[34px] font-extrabold leading-[1.1] tracking-tight text-ink sm:text-[46px]">
-          {{ language.t('Rent verified homes in Cambodia.', 'ជួលផ្ទះដែលបានផ្ទៀងផ្ទាត់នៅកម្ពុជា។') }}
+          {{ language.t('landing.rentVerifiedHomesInCambodia') }}
         </h1>
         <p class="mt-4 max-w-xl text-[15px] leading-relaxed text-ink-2">
-          {{ language.t('A seamless property rental ecosystem connecting verified owners with quality tenants across Cambodia and beyond.', 'ប្រព័ន្ធជួលអចលនទ្រព្យដ៏ងាយស្រួល ដែលភ្ជាប់ម្ចាស់ផ្ទះដែលបានផ្ទៀងផ្ទាត់ជាមួយអ្នកជួលដែលមានគុណភាពនៅកម្ពុជា និងតំបន់ផ្សេងៗ។') }}
+          {{ language.t('landing.aSeamlessPropertyRentalEcosystemConnectingVerified') }}
         </p>
 
         <div class="mt-7 flex flex-wrap items-center gap-3">
           @if (!auth.isAuthenticated()) {
             <a routerLink="/register" class="btn btn-primary">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14.5 12a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z"/><path d="M3 20.5a7.5 7.5 0 0 1 11.5-6.4"/><path d="M18.5 15.5v6M15.5 18.5h6"/></svg>
-              <span>{{ language.t('Create Account', 'បង្កើតគណនី') }}</span>
+              <span>{{ language.t('landing.createAccount') }}</span>
             </a>
             <a routerLink="/login" class="btn btn-outline">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 8V5.5A1.5 1.5 0 0 1 10.5 4h8A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 9 18.5V16"/><path d="M14 12H3"/><path d="m6.5 8.5-3.5 3.5 3.5 3.5"/></svg>
-              <span>{{ language.t('Sign In', 'ចូលគណនី') }}</span>
+              <span>{{ language.t('landing.signIn') }}</span>
             </a>
           } @else {
             <a [routerLink]="auth.isOwner() ? '/owner' : '/rent'" class="btn btn-primary">
-              <span>{{ language.t('Go to Workspace', 'ទៅកាន់ផ្ទាំងការងារ') }} &rarr;</span>
+              <span>{{ language.t('landing.goToWorkspace') }} &rarr;</span>
             </a>
           }
           <a routerLink="/browse" class="btn btn-ghost">
-            <span>{{ language.t('Browse Listings', 'មើលអចលនទ្រព្យ') }}</span>
+            <span>{{ language.t('landing.browseListings') }}</span>
           </a>
         </div>
 
@@ -44,22 +44,22 @@
             <div class="app-card px-3.5 py-3">
               <svg class="w-4 h-4 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 21h18"/><path d="M5 21V5.5A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.5V21"/><path d="M15 10h3.5A1.5 1.5 0 0 1 20 11.5V21"/></svg>
               <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.properties }}</p>
-              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('Properties', 'អចលនទ្រព្យ') }}</p>
+              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('landing.properties') }}</p>
             </div>
             <div class="app-card px-3.5 py-3">
               <svg class="w-4 h-4 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9.5 12a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"/><path d="M2.5 20.5a7 7 0 0 1 14 0"/></svg>
               <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.owners }}</p>
-              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('Owners', 'ម្ចាស់ផ្ទះ') }}</p>
+              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('landing.owners') }}</p>
             </div>
             <div class="app-card px-3.5 py-3">
               <svg class="w-4 h-4 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6a1.5 1.5 0 0 0-1.5-1.5H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.2"/></svg>
               <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.bookings }}</p>
-              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('Bookings', 'ការកក់') }}</p>
+              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('landing.bookings') }}</p>
             </div>
             <div class="app-card px-3.5 py-3">
               <svg class="w-4 h-4 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.75"/></svg>
               <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.cities }}</p>
-              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('Districts', 'ខណ្ឌ') }}</p>
+              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('landing.districts') }}</p>
             </div>
           </div>
         }
@@ -80,8 +80,8 @@
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.6V21h13V9.6"/><path d="M9.75 21v-5.5h4.5V21"/></svg>
             </span>
             <span class="min-w-0">
-              <span class="block text-[13px] font-extrabold">{{ language.t('Easy Rent, Happy Living', 'ជួលងាយស្រួល រស់នៅសុខសាន្ត') }}</span>
-              <span class="block text-[11px] text-white/80">{{ landingData()?.stats?.properties || 0 }} {{ language.t('properties listed', 'អចលនទ្រព្យបានចុះបញ្ជី') }}</span>
+              <span class="block text-[13px] font-extrabold">{{ language.t('landing.easyRentHappyLiving') }}</span>
+              <span class="block text-[11px] text-white/80">{{ landingData()?.stats?.properties || 0 }} {{ language.t('landing.propertiesListed') }}</span>
             </span>
           </div>
 
@@ -110,8 +110,8 @@
 
   <section class="space-y-4 pb-12 sm:pb-10">
     <div class="flex items-center justify-between">
-      <h2 class="text-[19px] font-extrabold tracking-tight">{{ language.t('Featured Listings', 'អចលនទ្រព្យពិសេស') }}</h2>
-      <a routerLink="/browse" class="text-xs font-bold text-primary hover:underline">{{ language.t('View all', 'មើលទាំងអស់') }} &rarr;</a>
+      <h2 class="text-[19px] font-extrabold tracking-tight">{{ language.t('landing.featuredListings') }}</h2>
+      <a routerLink="/browse" class="text-xs font-bold text-primary hover:underline">{{ language.t('landing.viewAll') }} &rarr;</a>
     </div>
 
     <div class="home-featured-grid grid grid-cols-1 gap-4 pb-4 md:grid-cols-2 lg:grid-cols-3">
