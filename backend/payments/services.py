@@ -95,7 +95,11 @@ def has_active_booking(renter, property_obj) -> bool:
     return Booking.objects.filter(
         renter=renter,
         property=property_obj,
-        status__in=[BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CONFIRMED],
+        status__in=[
+            BookingStatus.PENDING,
+            BookingStatus.APPROVED,
+            BookingStatus.CONFIRMED,
+        ],
     ).exists()
 
 
@@ -113,9 +117,13 @@ def transition_booking(
         from listings.models import Property
 
         Property.objects.select_for_update().get(pk=booking.property_id)
-        if Booking.objects.filter(
-            property_id=booking.property_id, status=BookingStatus.CONFIRMED
-        ).exclude(pk=booking.pk).exists():
+        if (
+            Booking.objects.filter(
+                property_id=booking.property_id, status=BookingStatus.CONFIRMED
+            )
+            .exclude(pk=booking.pk)
+            .exists()
+        ):
             return False, "property_already_confirmed"
 
     previous = booking.status
@@ -139,7 +147,10 @@ def transition_booking(
             Notification.Kind.BOOKING_UPDATE,
             "notif_renter_confirmed",
             "notif_renter_confirmed_body",
-            params={"title": booking.property_title, "renter": booking.renter.display_name},
+            params={
+                "title": booking.property_title,
+                "renter": booking.renter.display_name,
+            },
             link=booking.get_absolute_url(),
         )
     elif new_status == BookingStatus.REJECTED:

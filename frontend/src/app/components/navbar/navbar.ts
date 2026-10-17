@@ -72,9 +72,21 @@ export class NavbarComponent implements OnDestroy {
   }
 
   markAllRead(): void {
-    this.notifService.readAll().subscribe(() => {
-      this.fetchNotificationsPreview();
+    this.notifService.readAll().subscribe({
+      next: () => this.fetchNotificationsPreview(),
     });
+  }
+
+  /** "Switch to <other language>" rendered in the target language. */
+  switchTitle(): string {
+    const other = this.language.other();
+    return this.language.tIn(other, other === 'km' ? 'navbar.switchToKhmer' : 'navbar.switchToEnglish');
+  }
+
+  /** Target language name shown on the toggle, rendered in the target language. */
+  switchName(): string {
+    const other = this.language.other();
+    return this.language.tIn(other, other === 'km' ? 'navbar.langKhmer' : 'navbar.langEnglish');
   }
 
   openNotification(notification: AppNotification): void {

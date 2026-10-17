@@ -42,11 +42,7 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   readonly usd = usd;
 
   statusText(value: string): string {
-    const khmer: Record<string, string> = {
-      Successful: 'ជោគជ័យ', Failed: 'បរាជ័យ', Pending: 'កំពុងរង់ចាំ',
-      'No Refund': 'មិនមានការសងប្រាក់ទេ', Processed: 'បានដំណើរការ',
-    };
-    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+    return this.language.valueLabel(value);
   }
 
   payments = signal<Payment[]>([]);

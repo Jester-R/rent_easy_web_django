@@ -32,7 +32,11 @@ class PropertyQuerySet(models.QuerySet):
         blocked = Booking.objects.filter(
             renter=user,
             property__isnull=False,
-            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.CONFIRMED],
+            status__in=[
+                BookingStatus.PENDING,
+                BookingStatus.APPROVED,
+                BookingStatus.CONFIRMED,
+            ],
         ).values_list("property_id", flat=True)
         return queryset.exclude(id__in=blocked)
 

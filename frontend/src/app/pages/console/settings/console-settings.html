@@ -1,7 +1,7 @@
 <div class="space-y-4">
   <div>
-    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Platform Settings', 'ការកំណត់វេទិកា') }}</h1>
-    <p class="text-[12px] text-ink-3">{{ language.t('Platform-wide switches controlled by system admins', 'ការកំណត់ទូទាំងវេទិកា គ្រប់គ្រងដោយអ្នកគ្រប់គ្រងប្រព័ន្ធ') }}</p>
+    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleSettings.platformSettings') }}</h1>
+    <p class="text-[12px] text-ink-3">{{ language.t('consoleSettings.platformWideSwitchesControlledBySystemAdmins') }}</p>
   </div>
 
   @if (error(); as message) {
@@ -22,10 +22,10 @@
         <div class="max-w-xl">
           <p class="flex items-center gap-2 text-[14px] font-bold text-ink">
             <app-icon name="shield" [size]="17" />
-            <span>{{ language.t('Auto-approve property owners', 'អនុម័តម្ចាស់អចលនទ្រព្យដោយស្វ័យប្រវត្តិ') }}</span>
+            <span>{{ language.t('consoleSettings.autoApprovePropertyOwners') }}</span>
           </p>
           <p class="mt-1 text-[12px] leading-relaxed text-ink-3">
-            {{ language.t('When enabled, new owner registrations are activated immediately. When disabled, an admin must approve each owner request before they can sign in.', 'នៅពេលបើក ការចុះឈ្មោះម្ចាស់ថ្មីត្រូវបានអនុម័តភ្លាមៗ។ នៅពេលបិទ អ្នកគ្រប់គ្រងត្រូវអនុម័តសំណើម្ចាស់នីមួយៗ មុនពេលពួកគេអាចចូលគណនីបាន។') }}
+            {{ language.t('consoleSettings.whenEnabledNewOwnerRegistrationsAreActivated') }}
           </p>
         </div>
         <button
@@ -49,9 +49,9 @@
       </div>
       <p class="mt-4 text-[12px] font-bold" [class.text-success]="autoApproveOwners()" [class.text-ink-3]="!autoApproveOwners()">
         @if (autoApproveOwners()) {
-          {{ language.t('Owner registrations are approved automatically.', 'ការចុះឈ្មោះម្ចាស់ត្រូវបានអនុម័តដោយស្វ័យប្រវត្តិ។') }}
+          {{ language.t('consoleSettings.ownerRegistrationsAreApprovedAutomatically') }}
         } @else {
-          {{ language.t('Owner registrations require admin approval.', 'ការចុះឈ្មោះម្ចាស់ត្រូវការការអនុម័តពីអ្នកគ្រប់គ្រង។') }}
+          {{ language.t('consoleSettings.ownerRegistrationsRequireAdminApproval') }}
         }
       </p>
     </section>

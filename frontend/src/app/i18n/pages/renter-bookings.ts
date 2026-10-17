@@ -1,0 +1,26 @@
+import type { PageCatalog } from '../types';
+
+export const renterBookings: PageCatalog = {
+  myRentalApplications: ['My Rental Applications', 'ពាក្យស្នើសុំជួលរបស់ខ្ញុំ'],
+  manageYourActiveAndCompletedLeaseProposals: ['Manage your active and completed lease proposals', 'គ្រប់គ្រងសំណើជួលដែលកំពុងដំណើរការ និងបានបញ្ចប់'],
+  browseMoreRentals: ['Browse More Rentals', 'មើលផ្ទះជួលបន្ថែម'],
+  noApplicationsInThisCategory: ['No applications in this category', 'មិនមានពាក្យស្នើសុំក្នុងប្រភេទនេះទេ'],
+  exploreAvailableListingsToStartRenting: ['Explore available listings to start renting.', 'ស្វែងរកអចលនទ្រព្យដែលមាន ដើម្បីចាប់ផ្តើមជួល។'],
+  paid: ['Paid', 'បានបង់ប្រាក់'],
+  moveIn: ['Move-in', 'ថ្ងៃចូលនៅ'],
+  flexible: ['Flexible', 'អាចបត់បែន'],
+  moveOut: ['Move-out', 'ថ្ងៃបញ្ចប់'],
+  lease: ['Lease', 'រយៈពេលជួល'],
+  months: ['months', 'ខែ'],
+  owner: ['Owner', 'ម្ចាស់ផ្ទះ'],
+  month: ['month', 'ខែ'],
+  payRent: ['Pay Rent', 'បង់ថ្លៃជួល'],
+  paymentDetails: ['Payment details', 'ព័ត៌មានលម្អិតការទូទាត់'],
+  cancel: ['Cancel', 'បោះបង់'],
+  completeRentPayment: ['Complete Rent Payment', 'បញ្ចប់ការបង់ថ្លៃជួល'],
+  totalDue: ['Total Due', 'សរុបត្រូវបង់'],
+  paymentMethod: ['Payment Method', 'វិធីបង់ប្រាក់'],
+  search: ['Search...', 'ស្វែងរក...'],
+  processingPayment: ['Processing Payment...', 'កំពុងដំណើរការការទូទាត់...'],
+  payNow: ['Pay Now', 'បង់ឥឡូវនេះ'],
+};

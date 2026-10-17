@@ -23,8 +23,7 @@ api = BoltAPI(
 async def feed(request):
     user = await login_required(request)
     items = [
-        await serialize_notification(item)
-        async for item in recent_for(user, limit=60)
+        await serialize_notification(item) async for item in recent_for(user, limit=60)
     ]
     await in_thread(mark_all_seen, user)
     return {"notifications": items, "unread": 0}
@@ -34,8 +33,7 @@ async def feed(request):
 async def preview(request):
     user = await login_required(request)
     items = [
-        await serialize_notification(item)
-        async for item in recent_for(user, limit=12)
+        await serialize_notification(item) async for item in recent_for(user, limit=12)
     ]
     return {"items": items, "unread": await in_thread(unread_count, user)}
 

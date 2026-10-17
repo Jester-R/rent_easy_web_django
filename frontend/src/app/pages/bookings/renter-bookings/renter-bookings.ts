@@ -27,11 +27,7 @@ export class RenterBookingsComponent implements OnInit {
   isLoading = signal(true);
 
   label(value: string): string {
-    const khmer: Record<string, string> = {
-      all: 'ទាំងអស់', Pending: 'កំពុងរង់ចាំ', Approved: 'បានអនុម័ត',
-      Confirmed: 'បានបញ្ជាក់', Rejected: 'បានបដិសេធ', Cancelled: 'បានលុបចោល',
-    };
-    return this.language.current() === 'km' ? (khmer[value] ?? value) : value;
+    return this.language.valueLabel(value);
   }
 
   // Pay modal state

@@ -125,13 +125,17 @@ async def dashboard(request):
         row["status"]: row["n"]
         async for row in Booking.objects.values("status").annotate(n=Count("id"))
     }
-    top_properties = Property.objects.select_related("owner").annotate(
-        revenue=Sum(
-            "payments__amount", filter=Q(payments__status=Payment.Status.SUCCESS)
-        ),
-        bookings_total=Count("bookings", distinct=True),
-        favorites_total=Count("favorites", distinct=True),
-    ).order_by("-revenue")[:6]
+    top_properties = (
+        Property.objects.select_related("owner")
+        .annotate(
+            revenue=Sum(
+                "payments__amount", filter=Q(payments__status=Payment.Status.SUCCESS)
+            ),
+            bookings_total=Count("bookings", distinct=True),
+            favorites_total=Count("favorites", distinct=True),
+        )
+        .order_by("-revenue")[:6]
+    )
 
     return {
         "stats": {
@@ -155,7 +159,9 @@ async def dashboard(request):
         "top_properties": [
             await serialize_property(
                 p,
-                revenue=float(p.revenue if getattr(p, "revenue", None) is not None else 0),
+                revenue=float(
+                    p.revenue if getattr(p, "revenue", None) is not None else 0
+                ),
                 booking_count=p.bookings_total,
                 favorite_count=p.favorites_total,
             )
@@ -169,8 +175,9 @@ async def dashboard(request):
         ],
         "recent_bookings": [
             await serialize_booking(b)
-            async for b in Booking.objects.select_related("property", "renter", "owner")
-            .order_by("-created_at")[:8]
+            async for b in Booking.objects.select_related(
+                "property", "renter", "owner"
+            ).order_by("-created_at")[:8]
         ],
         "recent_users": [
             await serialize_user(u)
@@ -205,7 +212,13 @@ async def settings_update(request):
             data, "auto_approve_owners", platform.auto_approve_owners
         )
     await platform.asave()
-    await audit(actor, AuditLog.Action.UPDATE, "settings", platform.pk, "updated platform settings")
+    await audit(
+        actor,
+        AuditLog.Action.UPDATE,
+        "settings",
+        platform.pk,
+        "updated platform settings",
+    )
     return {"settings": {"auto_approve_owners": platform.auto_approve_owners}}
 
 
@@ -239,7 +252,8 @@ async def users_list(request):
     )
     return {
         "users": [
-            await serialize_user(u) | {"property_count": u.property_count, "booking_count": u.booking_count}
+            await serialize_user(u)
+            | {"property_count": u.property_count, "booking_count": u.booking_count}
             async for u in queryset
         ],
         "query": query,
@@ -319,7 +333,11 @@ async def user_edit(request):
         username = body_str(data, "username")
         if not is_valid_username(username):
             raise HTTPException(status_code=422, detail="username_invalid")
-        if await User.objects.filter(username__iexact=username).exclude(pk=user.pk).aexists():
+        if (
+            await User.objects.filter(username__iexact=username)
+            .exclude(pk=user.pk)
+            .aexists()
+        ):
             raise HTTPException(status_code=409, detail="username_taken")
         user.username = username
     if "full_name" in data:
@@ -491,7 +509,9 @@ async def property_soft_delete(request):
     if prop.is_active:
         prop.is_active = False
         await prop.asave(update_fields=["is_active", "updated_at"])
-        await audit(actor, AuditLog.Action.DELETE, "property", pk, f"soft deleted {prop.title}")
+        await audit(
+            actor, AuditLog.Action.DELETE, "property", pk, f"soft deleted {prop.title}"
+        )
     return {"ok": True, "deleted": pk, "is_active": prop.is_active}
 
 
@@ -579,9 +599,9 @@ async def payments_list(request):
         "total": await Payment.objects.acount(),
         "revenue": float(
             (
-                await Payment.objects.filter(
-                    status=Payment.Status.SUCCESS
-                ).aaggregate(v=Sum("amount"))
+                await Payment.objects.filter(status=Payment.Status.SUCCESS).aaggregate(
+                    v=Sum("amount")
+                )
             )["v"]
             or 0
         ),

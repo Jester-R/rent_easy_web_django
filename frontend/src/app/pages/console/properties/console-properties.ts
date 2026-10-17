@@ -30,7 +30,7 @@ export class ConsolePropertiesComponent implements OnInit {
   error = signal<string | null>(null);
 
   readonly ownerOptions = computed<SelectOption[]>(() => [
-    { value: '', label: this.language.t('All owners', 'ម្ចាស់ទាំងអស់') },
+    { value: '', label: this.language.t('consoleProperties.allOwners') },
     ...this.owners().map((item) => ({ value: String(item.id), label: item.display_name })),
   ]);
 
@@ -49,21 +49,18 @@ export class ConsolePropertiesComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: () => {
-        this.error.set(this.language.t('Could not load properties.', 'មិនអាចផ្ទុកបញ្ជីអចលនទ្រព្យបានទេ។'));
+        this.error.set(this.language.t('consoleProperties.couldNotLoadProperties'));
         this.isLoading.set(false);
       },
     });
   }
 
   remove(item: ConsolePropertyItem): void {
-    if (!item.is_active || !confirm(this.language.t(
-      `Remove “${item.title}” from renter browsing? The record will be retained.`,
-      `តើលាក់ “${item.title}” ពីអ្នកជួលមែនទេ? ទិន្នន័យនឹងនៅតែរក្សាទុក។`
-    ))) return;
+    if (!item.is_active || !confirm(this.language.t('consoleProperties.removeFromBrowsing', { title: item.title }))) return;
 
     this.console.softDeleteProperty(item.id).subscribe({
       next: () => this.load(),
-      error: () => this.error.set(this.language.t('Could not remove this listing.', 'មិនអាចលាក់ការចុះផ្សាយនេះបានទេ។')),
+      error: () => this.error.set(this.language.t('consoleProperties.couldNotRemoveThisListing')),
     });
   }
 }

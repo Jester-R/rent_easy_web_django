@@ -30,7 +30,7 @@ export class OwnerPropertyFormComponent implements OnInit {
   readonly categories = PROPERTY_CATEGORIES;
 
   readonly categoryOptions: SelectOption[] = [
-    { value: '', label: this.language.t('Uncategorized', 'មិនបានចាត់ថ្នាក់') },
+    { value: '', label: this.language.t('ownerForm.uncategorized') },
     ...PROPERTY_CATEGORIES.map((cat) => ({ value: cat.value, label: cat.label })),
   ];
 

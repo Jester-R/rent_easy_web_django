@@ -1,7 +1,7 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('Bookings', 'ការកក់') }}</h1>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleBookings.bookings') }}</h1>
     </div>
   </div>
 
@@ -21,21 +21,21 @@
         <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
           <app-icon name="search" [size]="16" />
         </span>
-        <input #q type="search" class="form-input ps-11" [placeholder]="language.t('Search by reference, property or renter', 'ស្វែងរកតាមលេខយោង អចលនទ្រព្យ ឬអ្នកជួល')" [value]="query()" (input)="onSearch(q.value)" />
+        <input #q type="search" class="form-input ps-11" [placeholder]="language.t('consoleBookings.searchByReferencePropertyOrRenter')" [value]="query()" (input)="onSearch(q.value)" />
       </div>
       <app-searchable-select
         [options]="statusSelectOptions()"
         [ngModel]="status()"
         [ngModelOptions]="{ standalone: true }"
         (ngModelChange)="onStatusChange($event)"
-        [placeholder]="language.t('All statuses', 'ស្ថានភាពទាំងអស់')"
-        [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+        [placeholder]="language.t('consoleBookings.allStatuses')"
+        [searchPlaceholder]="language.t('consoleBookings.search')"
       />
       <div class="flex gap-2">
         <button type="submit" class="btn btn-primary flex-1">
-          <app-icon name="filter" [size]="15" /><span>{{ language.t('Filter', 'តម្រង') }}</span>
+          <app-icon name="filter" [size]="15" /><span>{{ language.t('consoleBookings.filter') }}</span>
         </button>
-        <button type="button" class="btn btn-ghost" (click)="refresh()" [title]="language.t('Refresh', 'ធ្វើបច្ចុប្បន្នភាព')" [attr.aria-label]="language.t('Refresh', 'ធ្វើបច្ចុប្បន្នភាព')">
+        <button type="button" class="btn btn-ghost" (click)="refresh()" [title]="language.t('consoleBookings.refresh')" [attr.aria-label]="language.t('consoleBookings.refresh')">
           <app-icon name="refresh" [size]="15" />
         </button>
       </div>
@@ -44,7 +44,7 @@
 
   <div class="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
     <span class="pill pill-neutral">
-      <app-icon name="clipboard" [size]="12" /> {{ bookings().length }} / {{ total() }} {{ language.t('Bookings', 'ការកក់') }}
+      <app-icon name="clipboard" [size]="12" /> {{ bookings().length }} / {{ total() }} {{ language.t('consoleBookings.bookings') }}
     </span>
     @if (query()) {
       <span class="pill pill-neutral">
@@ -64,12 +64,12 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th class="text-start">{{ language.t('Booking Ref', 'លេខយោងការកក់') }}</th>
-            <th class="text-start">{{ language.t('Property', 'អចលនទ្រព្យ') }}</th>
-            <th class="text-start">{{ language.t('Renter', 'អ្នកជួល') }}</th>
-            <th class="text-end">{{ language.t('Rent', 'ថ្លៃជួល') }}</th>
-            <th class="text-start">{{ language.t('Move-in', 'ថ្ងៃចូលនៅ') }}</th>
-            <th class="text-start">{{ language.t('Status', 'ស្ថានភាព') }}</th>
+            <th class="text-start">{{ language.t('consoleBookings.bookingRef') }}</th>
+            <th class="text-start">{{ language.t('consoleBookings.property') }}</th>
+            <th class="text-start">{{ language.t('consoleBookings.renter') }}</th>
+            <th class="text-end">{{ language.t('consoleBookings.rent') }}</th>
+            <th class="text-start">{{ language.t('consoleBookings.moveIn') }}</th>
+            <th class="text-start">{{ language.t('consoleBookings.status') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -81,7 +81,7 @@
               </td>
               <td class="whitespace-nowrap text-ink-2">
                 {{ b.renter.display_name }}
-                <span class="block text-[11px] text-ink-3">{{ language.t('Lease', 'រយៈពេលជួល') }}: {{ b.lease_months }} {{ language.t('months', 'ខែ') }}</span>
+                <span class="block text-[11px] text-ink-3">{{ language.t('consoleBookings.lease') }}: {{ b.lease_months }} {{ language.t('consoleBookings.months') }}</span>
               </td>
               <td class="whitespace-nowrap text-end font-bold text-primary">{{ usd(b.monthly_rent) }}</td>
               <td class="whitespace-nowrap text-ink-2">{{ shortDate(b.move_in_date) || '—' }}</td>
@@ -97,7 +97,7 @@
   } @else {
     <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
       <span class="empty-state-icon"><app-icon name="clipboard" [size]="30" /></span>
-      <p class="text-[15px] font-bold text-ink">{{ language.t('No bookings found', 'រកមិនឃើញការកក់ទេ') }}</p>
+      <p class="text-[15px] font-bold text-ink">{{ language.t('consoleBookings.noBookingsFound') }}</p>
     </div>
   }
 </div>

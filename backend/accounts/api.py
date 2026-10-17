@@ -241,7 +241,12 @@ async def role_select_view(request):
             summary="owner registration pending approval",
         )
         await session_pop(request, PENDING_ROLE_KEY, None)
-        return {"ok": True, "status": "pending_approval", "role": role, "redirect": "/login/"}
+        return {
+            "ok": True,
+            "status": "pending_approval",
+            "role": role,
+            "redirect": "/login/",
+        }
     await user.asave(update_fields=["role"])
     await AuditLog.objects.acreate(
         actor=user,
@@ -252,7 +257,13 @@ async def role_select_view(request):
     )
     await session_pop(request, PENDING_ROLE_KEY, None)
     await _flash(request, "registration_complete")
-    return {"ok": True, "status": "active", "role": role, "home_url": user.home_url, "redirect": "/login/"}
+    return {
+        "ok": True,
+        "status": "active",
+        "role": role,
+        "home_url": user.home_url,
+        "redirect": "/login/",
+    }
 
 
 @api.post("/auth/logout/")
@@ -291,16 +302,19 @@ async def profile_update(request):
     username = body_str(data, "username")
     email = normalize_identity(body_str(data, "email"))
 
-    if email and await User.objects.filter(email__iexact=email).exclude(
-        pk=user.pk
-    ).aexists():
+    if (
+        email
+        and await User.objects.filter(email__iexact=email).exclude(pk=user.pk).aexists()
+    ):
         raise HTTPException(status_code=409, detail="email_taken")
     if username:
         if not is_valid_username(username):
             raise HTTPException(status_code=422, detail="username_invalid")
-        if await User.objects.filter(username__iexact=username).exclude(
-            pk=user.pk
-        ).aexists():
+        if (
+            await User.objects.filter(username__iexact=username)
+            .exclude(pk=user.pk)
+            .aexists()
+        ):
             raise HTTPException(status_code=409, detail="username_taken")
 
     if "full_name" in data:
@@ -324,25 +338,11 @@ async def deny(request):
     )
 
 
-@api.post("/i18n/set/")
-async def set_language_view(request):
-    from core.i18n import SUPPORTED_LANGUAGE_CODES
-
-    data = json_body(request)
-    code = (body_str(data, "lang") or q(request, "lang")).strip()[:2]
-    if code not in SUPPORTED_LANGUAGE_CODES:
-        raise HTTPException(status_code=422, detail="unsupported_language")
-    await session_set(request, "renteasy_language", code)
-    return {"ok": True, "language": code}
-
-
 @api.post("/theme/set/")
 async def set_theme_view(request):
-    from core.middleware import THEMES
-
     data = json_body(request)
     theme = (body_str(data, "theme") or q(request, "theme")).strip().lower()
-    if theme not in THEMES:
+    if theme not in {"light", "dark"}:
         raise HTTPException(status_code=422, detail="unsupported_theme")
     await session_set(request, "renteasy_theme", theme)
     return {"ok": True, "theme": theme}
@@ -366,9 +366,11 @@ async def renter_dashboard(request):
         .select_related("property", "owner", "payment")
         .order_by("-created_at")
     )
-    payments = Payment.objects.select_related("property", "booking", "user").filter(
-        user=user
-    ).order_by("-created_at")
+    payments = (
+        Payment.objects.select_related("property", "booking", "user")
+        .filter(user=user)
+        .order_by("-created_at")
+    )
     favorites = Favorite.objects.filter(user=user).select_related("property")
 
     counts = {
@@ -376,22 +378,18 @@ async def renter_dashboard(request):
         async for row in bookings.values("status").annotate(n=Count("id"))
     }
     spend = (
-        await payments.filter(status=Payment.Status.SUCCESS).aaggregate(
-            v=Sum("amount")
-        )
+        await payments.filter(status=Payment.Status.SUCCESS).aaggregate(v=Sum("amount"))
     )["v"] or 0
     refunded = (await payments.aaggregate(v=Sum("refunded_amount")))["v"] or 0
 
     suggested = properties.for_renter(user)[:6]
-    favorite_ids = {
-        v async for v in favorites.values_list("property_id", flat=True)
-    }
+    favorite_ids = {v async for v in favorites.values_list("property_id", flat=True)}
 
     return {
         "stats": {
-            "available": await Property.objects.filter(
-                owner__role=Role.OWNER
-            ).for_renter(user).acount(),
+            "available": await Property.objects.filter(owner__role=Role.OWNER)
+            .for_renter(user)
+            .acount(),
             "bookings": await bookings.acount(),
             "active": counts.get(BookingStatus.PENDING, 0)
             + counts.get(BookingStatus.APPROVED, 0)
@@ -435,9 +433,11 @@ async def owner_dashboard(request):
         .select_related("property", "renter", "payment")
         .order_by("-created_at")
     )
-    payments = Payment.objects.select_related("property", "booking", "user").filter(
-        property__owner=user
-    ).order_by("-created_at")
+    payments = (
+        Payment.objects.select_related("property", "booking", "user")
+        .filter(property__owner=user)
+        .order_by("-created_at")
+    )
 
     counts = {
         row["status"]: row["n"]
@@ -445,9 +445,7 @@ async def owner_dashboard(request):
     }
     potential = (await properties.aaggregate(v=Sum("price_per_month")))["v"] or 0
     revenue = (
-        await payments.filter(status=Payment.Status.SUCCESS).aaggregate(
-            v=Sum("amount")
-        )
+        await payments.filter(status=Payment.Status.SUCCESS).aaggregate(v=Sum("amount"))
     )["v"] or 0
     favorites = await Favorite.objects.filter(property__owner=user).acount()
 

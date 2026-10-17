@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('bookings', '0003_booking_confirmed_status'),
+        ("bookings", "0003_booking_confirmed_status"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='booking',
-            name='end_date',
+            model_name="booking",
+            name="end_date",
             field=models.DateField(blank=True, null=True),
         ),
     ]

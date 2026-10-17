@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0002_user_avatar_url'),
+        ("accounts", "0002_user_avatar_url"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='approval_status',
-            field=models.CharField(choices=[('approved', 'Approved'), ('pending', 'Pending approval'), ('rejected', 'Rejected')], db_index=True, default='approved', max_length=16),
+            model_name="user",
+            name="approval_status",
+            field=models.CharField(
+                choices=[
+                    ("approved", "Approved"),
+                    ("pending", "Pending approval"),
+                    ("rejected", "Rejected"),
+                ],
+                db_index=True,
+                default="approved",
+                max_length=16,
+            ),
         ),
     ]

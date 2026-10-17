@@ -3,12 +3,12 @@
     <div class="flex items-center justify-between pb-6 border-b border-hairline mb-6">
       <div>
         <h1 class="text-2xl font-black text-ink">
-          {{ isEdit() ? language.t('Edit Listing', 'កែសម្រួលការចុះផ្សាយ') : language.t('Publish New Rental Listing', 'ចុះផ្សាយផ្ទះជួលថ្មី') }}
+          {{ isEdit() ? language.t('ownerForm.editListing') : language.t('ownerForm.publishNewRentalListing') }}
         </h1>
-        <p class="text-xs text-ink-3 mt-1">{{ language.t('Provide clear and accurate details for potential tenants', 'ផ្តល់ព័ត៌មានច្បាស់លាស់ និងត្រឹមត្រូវសម្រាប់អ្នកជួលដែលមានចំណាប់អារម្មណ៍') }}</p>
+        <p class="text-xs text-ink-3 mt-1">{{ language.t('ownerForm.provideClearAndAccurateDetailsForPotentialTenants') }}</p>
       </div>
       <a routerLink="/owner/properties" class="text-xs font-semibold text-ink-2 hover:text-primary transition-colors">
-        &larr; {{ language.t('Back to properties', 'ត្រឡប់ទៅអចលនទ្រព្យ') }}
+        &larr; {{ language.t('ownerForm.backToProperties') }}
       </a>
     </div>
 
@@ -20,28 +20,28 @@
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-6">
       <div>
-        <label class="form-label">{{ language.t('Property Title', 'ចំណងជើងអចលនទ្រព្យ') }}</label>
+        <label class="form-label">{{ language.t('ownerForm.propertyTitle') }}</label>
         <input
           type="text"
           formControlName="title"
-          [placeholder]="language.t('e.g. Modern 2-Bedroom Condo with Balcony', 'ឧ. ខុនដូទំនើបមាន ២ បន្ទប់គេង និងយ៉រ')"
+          [placeholder]="language.t('ownerForm.eGModern2BedroomCondoWithBalcony')"
           class="form-input"
         />
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="form-label">{{ language.t('Location / District', 'ទីតាំង / ខណ្ឌ') }}</label>
+          <label class="form-label">{{ language.t('ownerForm.locationDistrict') }}</label>
           <input
             type="text"
             formControlName="location"
-            [placeholder]="language.t('e.g. Phnom Penh - Toul Kork', 'ឧ. ភ្នំពេញ - ទួលគោក')"
+            [placeholder]="language.t('ownerForm.eGPhnomPenhToulKork')"
             class="form-input"
           />
         </div>
 
         <div>
-          <label class="form-label">{{ language.t('Monthly Rent ($ USD)', 'ថ្លៃជួលប្រចាំខែ ($ USD)') }}</label>
+          <label class="form-label">{{ language.t('ownerForm.monthlyRentUSD') }}</label>
           <input
             type="number"
             formControlName="price_per_month"
@@ -52,18 +52,18 @@
       </div>
 
       <div>
-        <label class="form-label">{{ language.t('Category', 'ប្រភេទ') }}</label>
+        <label class="form-label">{{ language.t('ownerForm.category') }}</label>
         <app-searchable-select
           [options]="categoryOptions"
           formControlName="category"
-          [placeholder]="language.t('Uncategorized', 'មិនបានចាត់ថ្នាក់')"
-          [searchPlaceholder]="language.t('Search...', 'ស្វែងរក...')"
+          [placeholder]="language.t('ownerForm.uncategorized')"
+          [searchPlaceholder]="language.t('ownerForm.search')"
         />
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="form-label">{{ language.t('Bedrooms', 'បន្ទប់គេង') }}</label>
+          <label class="form-label">{{ language.t('ownerForm.bedrooms') }}</label>
           <input
             type="number"
             formControlName="bedrooms"
@@ -73,7 +73,7 @@
         </div>
 
         <div>
-          <label class="form-label">{{ language.t('Bathrooms', 'បន្ទប់ទឹក') }}</label>
+          <label class="form-label">{{ language.t('ownerForm.bathrooms') }}</label>
           <input
             type="number"
             formControlName="bathrooms"
@@ -85,10 +85,10 @@
 
       <div class="space-y-3">
         <div class="flex items-center justify-between gap-3">
-          <label class="form-label mb-0">{{ language.t('Map Location', 'ទីតាំងលើផែនទី') }}</label>
+          <label class="form-label mb-0">{{ language.t('ownerForm.mapLocation') }}</label>
           @if (latitude() !== null) {
             <button type="button" (click)="clearCoordinates()" class="text-xs font-semibold text-ink-3 hover:text-danger transition-colors">
-              {{ language.t('Clear', 'សម្អាត') }}
+              {{ language.t('ownerForm.clear') }}
             </button>
           }
         </div>
@@ -96,11 +96,11 @@
           type="text"
           formControlName="coordinates"
           (input)="onCoordinatesInput()"
-          [placeholder]="language.t('Paste a Google Maps link or 11.5564, 104.9282', 'បិទភ្ជាប់តំណ Google Maps ឬ 11.5564, 104.9282')"
+          [placeholder]="language.t('ownerForm.pasteAGoogleMapsLinkOr1155641049282')"
           class="form-input"
         />
         @if (coordError()) {
-          <p class="text-xs text-danger">{{ language.t('Could not read coordinates from that value.', 'មិនអាចអានកូអរដោនេពីតម្លៃនោះបានទេ។') }}</p>
+          <p class="text-xs text-danger">{{ language.t('ownerForm.couldNotReadCoordinatesFromThatValue') }}</p>
         }
         <app-leaflet-map
           [latitude]="latitude()"
@@ -110,12 +110,12 @@
           (coordinatesChange)="onMapPick($event)"
         />
         <p class="text-xs text-ink-3">
-          {{ language.t('Click the map or drag the pin to set the exact location.', 'ចុចលើផែនទី ឬអូសម្គាល់ដើម្បីកំណត់ទីតាំងពិតប្រាកដ។') }}
+          {{ language.t('ownerForm.clickTheMapOrDragThePinToSetTheExactLocation') }}
         </p>
       </div>
 
       <div>
-        <label class="form-label">{{ language.t('Photo URLs (one per line)', 'តំណរូបថត (មួយក្នុងមួយបន្ទាត់)') }}</label>
+        <label class="form-label">{{ language.t('ownerForm.photoURLsOnePerLine') }}</label>
         <textarea
           formControlName="images_text"
           rows="3"
@@ -123,23 +123,23 @@
           class="form-input"
         ></textarea>
         <p class="text-xs text-ink-3 mt-1">
-          {{ language.t('Up to 12 image links. The first becomes the cover photo.', 'រហូតដល់ 12 តំណរូបភាព។ រូបទីមួយក្លាយជារូបគម្រប។') }}
+          {{ language.t('ownerForm.upTo12ImageLinksTheFirstBecomesTheCoverPhoto') }}
         </p>
       </div>
 
       <div>
-        <label class="form-label">{{ language.t('Full Description', 'ការពិពណ៌នាពេញលេញ') }}</label>
+        <label class="form-label">{{ language.t('ownerForm.fullDescription') }}</label>
         <textarea
           formControlName="description"
           rows="5"
-          [placeholder]="language.t('Describe property features, utilities, neighborhood, parking, internet, pet policy...', 'ពិពណ៌នាអំពីលក្ខណៈពិសេស សេវាកម្ម តំបន់ជុំវិញ ចំណត អ៊ីនធឺណិត និងគោលការណ៍សត្វចិញ្ចឹម...')"
+          [placeholder]="language.t('ownerForm.describePropertyFeaturesUtilitiesNeighborhood')"
           class="form-input"
         ></textarea>
       </div>
 
       <div class="flex items-center justify-end gap-3 pt-4 border-t border-hairline">
         <a routerLink="/owner/properties" class="btn btn-ghost">
-          {{ language.t('Cancel', 'បោះបង់') }}
+          {{ language.t('ownerForm.cancel') }}
         </a>
         <button
           type="submit"
@@ -147,9 +147,9 @@
           class="btn btn-primary"
         >
           @if (isLoading()) {
-            {{ language.t('Saving...', 'កំពុងរក្សាទុក...') }}
+            {{ language.t('ownerForm.saving') }}
           } @else {
-            {{ isEdit() ? language.t('Save Changes', 'រក្សាទុកការផ្លាស់ប្តូរ') : language.t('Publish Listing', 'ចុះផ្សាយអចលនទ្រព្យ') }}
+            {{ isEdit() ? language.t('ownerForm.saveChanges') : language.t('ownerForm.publishListing') }}
           }
         </button>
       </div>

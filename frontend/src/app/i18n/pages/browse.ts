@@ -1,0 +1,28 @@
+import type { PageCatalog } from '../types';
+
+export const browse: PageCatalog = {
+  searchByTitleLocationOrKeywords: ['Search by title, location or keywords...', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬពាក្យគន្លឹះ...'],
+  search: ['Search', 'ស្វែងរក'],
+  applyFilters: ['Apply Filters', 'អនុវត្តតម្រង'],
+  location: ['Location', 'ទីតាំង'],
+  allLocations: ['All Locations', 'គ្រប់ទីតាំង'],
+  search2: ['Search...', 'ស្វែងរក...'],
+  category: ['Category', 'ប្រភេទ'],
+  allCategories: ['All Categories', 'គ្រប់ប្រភេទ'],
+  minBedrooms: ['Min Bedrooms', 'ចំនួនបន្ទប់គេងអប្បបរមា'],
+  any: ['Any', 'ទាំងអស់'],
+  maxPrice: ['Max Price', 'តម្លៃអតិបរមា'],
+  eG1500: ['e.g. 1500', 'ឧ. 1500'],
+  sortBy: ['Sort By', 'តម្រៀបតាម'],
+  recommended: ['Recommended', 'ណែនាំ'],
+  reset: ['Reset', 'កំណត់ឡើងវិញ'],
+  listingsUnavailable: ['Listings unavailable', 'មិនអាចបង្ហាញអចលនទ្រព្យបានទេ'],
+  weCouldnTLoadPropertiesCheckYourConnectionAndTryAgain: ['We couldn’t load properties. Check your connection and try again.', 'មិនអាចផ្ទុកអចលនទ្រព្យបានទេ។ សូមពិនិត្យការតភ្ជាប់ ហើយព្យាយាមម្ដងទៀត។'],
+  tryAgain: ['Try again', 'ព្យាយាមម្ដងទៀត'],
+  noPropertiesFound: ['No properties found', 'រកមិនឃើញអចលនទ្រព្យទេ'],
+  tryClearingOrAdjustingYourSearchFilters: ['Try clearing or adjusting your search filters.', 'សូមលុប ឬកែតម្រូវតម្រងស្វែងរករបស់អ្នក។'],
+  clearFilters: ['Clear Filters', 'លុបតម្រង'],
+  priceLowToHigh: ['Price: Low to High', 'តម្លៃ៖ ទាបទៅខ្ពស់'],
+  priceHighToLow: ['Price: High to Low', 'តម្លៃ៖ ខ្ពស់ទៅទាប'],
+  mostBedrooms: ['Most Bedrooms', 'បន្ទប់គេងច្រើនបំផុត'],
+};

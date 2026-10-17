@@ -14,7 +14,7 @@ RentEasy Web is a browser based rental platform built with an Angular frontend a
 
 ## Stack
 
-- **Backend:** Python 3.14+, Django 6.1, Django Bolt, SQLite (WAL mode), and WhiteNoise.
+- **Backend:** Python 3.14+, Django 6.1, Django Bolt, and SQLite (WAL mode) — API only.
 - **Frontend:** Angular 22, TypeScript, Tailwind CSS 4, and RxJS.
 - **Development tools:** `uv` for Python dependencies, Bun for JavaScript dependencies, and `just` for project commands.
 - **Nix development shell:** provides Python, `uv`, Bun, `just`, and Ruff.

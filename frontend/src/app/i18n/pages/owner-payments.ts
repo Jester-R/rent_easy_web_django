@@ -1,0 +1,28 @@
+import type { PageCatalog } from '../types';
+
+export const ownerPayments: PageCatalog = {
+  revenueAndFinancials: ['Revenue & Financials', 'ចំណូល និងហិរញ្ញវត្ថុ'],
+  reviewRentPayoutsReceivedPaymentsAndPendingTenant: ['Review rent payouts, received payments, and pending tenant refunds', 'ពិនិត្យប្រាក់ជួលដែលបានទទួល ការទូទាត់ និងការសងប្រាក់ដែលកំពុងរង់ចាំ'],
+  netRevenueCollected: ['Net Revenue Collected', 'ចំណូលសុទ្ធដែលបានប្រមូល'],
+  successfulTransactions: ['successful transactions', 'ប្រតិបត្តិការជោគជ័យ'],
+  refundedAmount: ['Refunded Amount', 'ចំនួនទឹកប្រាក់ដែលបានសងវិញ'],
+  totalProcessedRefunds: ['Total processed refunds', 'ការសងប្រាក់វិញដែលបានដំណើរការសរុប'],
+  activePayingTenants: ['Active Paying Tenants', 'អ្នកជួលដែលកំពុងបង់ប្រាក់'],
+  uniqueTenantsPayingRent: ['Unique tenants paying rent', 'ចំនួនអ្នកជួលផ្សេងៗគ្នាដែលបានបង់ថ្លៃជួល'],
+  actionRequiredPendingRefunds: ['Action Required: Pending Refunds', 'ត្រូវការចាត់វិធានការ៖ ការសងប្រាក់ដែលកំពុងរង់ចាំ'],
+  youHaveRefundRequestsAwaitingYourAuthorization: ['You have refund requests awaiting your authorization.', 'អ្នកមានសំណើសងប្រាក់ដែលកំពុងរង់ចាំការអនុញ្ញាតរបស់អ្នក។'],
+  reason: ['Reason', 'មូលហេតុ'],
+  approveAndRefund: ['Approve & Refund', 'អនុម័ត និងសងប្រាក់វិញ'],
+  paymentTransactions: ['Payment Transactions', 'ប្រតិបត្តិការទូទាត់'],
+  completeRecordOfRentCollectedOnYourProperties: ['Complete record of rent collected on your properties', 'កំណត់ត្រាពេញលេញនៃប្រាក់ជួលដែលបានប្រមូលពីអចលនទ្រព្យរបស់អ្នក'],
+  noPaymentsRecordedYet: ['No payments recorded yet.', 'មិនទាន់មានការទូទាត់ត្រូវបានកត់ត្រាទេ។'],
+  ref: ['Ref', 'លេខយោង'],
+  property: ['Property', 'អចលនទ្រព្យ'],
+  tenant: ['Tenant', 'អ្នកជួល'],
+  method: ['Method', 'វិធីសាស្ត្រ'],
+  amount: ['Amount', 'ចំនួនទឹកប្រាក់'],
+  status: ['Status', 'ស្ថានភាព'],
+  date: ['Date', 'កាលបរិច្ឆេទ'],
+  areYouSureYouWantToProcessThisRefund: ['Are you sure you want to process this refund?', 'តើអ្នកប្រាកដថាចង់ដំណើរការការសងប្រាក់វិញនេះឬទេ?'],
+  refundProcessed: ['Refund #{reference} has been processed.', 'ការសងប្រាក់វិញ #{reference} ត្រូវបានដំណើរការរួចរាល់។'],
+};

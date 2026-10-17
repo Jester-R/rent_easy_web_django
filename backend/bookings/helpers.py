@@ -11,7 +11,12 @@ from django.db.models import Q
 from .models import Booking
 
 BOOKING_STATUS_FILTERS = (
-    "all", "Pending", "Approved", "Confirmed", "Rejected", "Cancelled"
+    "all",
+    "Pending",
+    "Approved",
+    "Confirmed",
+    "Rejected",
+    "Cancelled",
 )
 
 

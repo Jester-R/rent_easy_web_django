@@ -7,7 +7,7 @@
   } @else if (property(); as prop) {
     <!-- Breadcrumb -->
     <div class="flex items-center gap-2 text-xs text-ink-3 mb-4">
-      <a routerLink="/browse" class="hover:text-primary transition-colors">{{ language.t('Rentals', 'ផ្ទះជួល') }}</a>
+      <a routerLink="/browse" class="hover:text-primary transition-colors">{{ language.t('propertyDetail.rentals') }}</a>
       <span>/</span>
       <span class="text-ink font-medium truncate">{{ prop.title }}</span>
     </div>
@@ -84,37 +84,37 @@
             <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 border-b border-hairline pb-6">
               <div>
                 <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{{ prop.title }}</h1>
-                <p class="text-sm text-ink-3 mt-1">{{ language.t('Listed by', 'ចុះផ្សាយដោយ') }} <span class="font-semibold text-ink-2">{{ prop.owner.display_name }}</span></p>
+                <p class="text-sm text-ink-3 mt-1">{{ language.t('propertyDetail.listedBy') }} <span class="font-semibold text-ink-2">{{ prop.owner.display_name }}</span></p>
               </div>
               <div class="text-left sm:text-right">
                 <span class="text-3xl font-extrabold text-primary">{{ prop.price_display }}</span>
-                <span class="text-xs text-ink-3 block">{{ language.t('per month', 'ក្នុងមួយខែ') }}</span>
+                <span class="text-xs text-ink-3 block">{{ language.t('propertyDetail.perMonth') }}</span>
               </div>
             </div>
 
             <!-- Key Amenities / Specs -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-b border-hairline">
               <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
-                <span class="text-xs text-ink-3 block font-medium">{{ language.t('Bedrooms', 'បន្ទប់គេង') }}</span>
+                <span class="text-xs text-ink-3 block font-medium">{{ language.t('propertyDetail.bedrooms') }}</span>
                 <span class="text-lg font-bold text-ink">{{ prop.bedrooms }}</span>
               </div>
               <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
-                <span class="text-xs text-ink-3 block font-medium">{{ language.t('Bathrooms', 'បន្ទប់ទឹក') }}</span>
+                <span class="text-xs text-ink-3 block font-medium">{{ language.t('propertyDetail.bathrooms') }}</span>
                 <span class="text-lg font-bold text-ink">{{ prop.bathrooms }}</span>
               </div>
               <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
-                <span class="text-xs text-ink-3 block font-medium">{{ language.t('Total Bookings', 'ការកក់សរុប') }}</span>
+                <span class="text-xs text-ink-3 block font-medium">{{ language.t('propertyDetail.totalBookings') }}</span>
                 <span class="text-lg font-bold text-ink">{{ prop.booking_count }}</span>
               </div>
               <div class="bg-surface-2 p-4 rounded-2xl text-center border border-hairline">
-                <span class="text-xs text-ink-3 block font-medium">{{ language.t('Favorites', 'ចំណូលចិត្ត') }}</span>
+                <span class="text-xs text-ink-3 block font-medium">{{ language.t('propertyDetail.favorites') }}</span>
                 <span class="text-lg font-bold text-ink">{{ prop.favorite_count }}</span>
               </div>
             </div>
 
             <!-- Description -->
             <div class="pt-6">
-              <h2 class="text-base font-bold text-ink mb-3">{{ language.t('About this rental', 'អំពីផ្ទះជួលនេះ') }}</h2>
+              <h2 class="text-base font-bold text-ink mb-3">{{ language.t('propertyDetail.aboutThisRental') }}</h2>
               <p class="text-sm text-ink-2 leading-relaxed whitespace-pre-line">
                 {{ prop.description || 'No description provided by the owner.' }}
               </p>
@@ -123,10 +123,10 @@
             <!-- Location / Map -->
             <div class="pt-6 mt-6 border-t border-hairline">
               <div class="flex items-center justify-between gap-3 mb-3">
-                <h2 class="text-base font-bold text-ink">{{ language.t('Location', 'ទីតាំង') }}</h2>
+                <h2 class="text-base font-bold text-ink">{{ language.t('propertyDetail.location') }}</h2>
                 @if (prop.has_coordinates) {
                   <a [href]="mapsUrl(prop)" target="_blank" rel="noopener" class="text-xs font-semibold text-primary hover:underline">
-                    {{ language.t('Open in Google Maps', 'បើកក្នុង Google Maps') }}
+                    {{ language.t('propertyDetail.openInGoogleMaps') }}
                   </a>
                 }
               </div>
@@ -141,7 +141,7 @@
                 </p>
               } @else {
                 <div class="rounded-2xl border border-hairline bg-surface-2 p-6 text-center text-xs text-ink-3">
-                  {{ language.t('This owner has not pinned a map location yet.', 'ម្ចាស់ផ្ទះមិនទាន់បានកំណត់ទីតាំងលើផែនទីនៅឡើយទេ។') }}
+                  {{ language.t('propertyDetail.thisOwnerHasNotPinnedAMapLocationYet') }}
                 </div>
               }
             </div>
@@ -156,7 +156,7 @@
             <div class="app-card p-6 border-emerald-200 bg-emerald-50/40">
               <div class="flex items-center gap-3 text-emerald-800 font-bold mb-2">
                 <app-icon name="check-circle" [size]="20" />
-                <span>{{ language.t('Active Booking Exists', 'មានការកក់សកម្មរួចហើយ') }}</span>
+                <span>{{ language.t('propertyDetail.activeBookingExists') }}</span>
               </div>
               <p class="text-xs text-emerald-700 leading-relaxed mb-4">
                 You already have an active or pending lease request for this property.
@@ -170,13 +170,13 @@
                 [disabled]="isMessaging()"
                 class="btn btn-outline w-full text-xs mt-2"
               >
-                {{ language.t('Message landlord', 'ផ្ញើសារទៅម្ចាស់ផ្ទះ') }}
+                {{ language.t('propertyDetail.messageLandlord') }}
               </button>
             </div>
           } @else {
             <div class="app-card p-6">
-              <h3 class="text-base font-extrabold text-ink mb-1">{{ language.t('Request a Lease', 'ស្នើសុំជួល') }}</h3>
-              <p class="text-xs text-ink-3 mb-6">{{ language.t('Choose your intended move-in date and duration.', 'ជ្រើសរើសកាលបរិច្ឆេទ និងរយៈពេលដែលអ្នកចង់ចូលនៅ។') }}</p>
+              <h3 class="text-base font-extrabold text-ink mb-1">{{ language.t('propertyDetail.requestALease') }}</h3>
+              <p class="text-xs text-ink-3 mb-6">{{ language.t('propertyDetail.chooseYourIntendedMoveInDateAndDuration') }}</p>
 
               @if (bookingSuccess()) {
                 <div class="toast toast-success mb-4" role="alert">
@@ -192,7 +192,7 @@
 
               @if (messageError()) {
                 <div class="toast toast-error mb-4" role="alert">
-                  <span>{{ language.t('Could not open a chat. Please try again.', 'មិនអាចបើកការជជែកបានទេ។ សូមព្យាយាមម្តងទៀត។') }}</span>
+                  <span>{{ language.t('propertyDetail.couldNotOpenAChatPleaseTryAgain') }}</span>
                 </div>
               }
 
@@ -203,12 +203,12 @@
                 class="btn btn-outline w-full text-xs mb-4"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 11.5a8.4 8.5 0 0 1-9 8.5 9.4 8.5 0 0 1-4.2-1L3 20.5l1.3-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8M8 13h5"/></svg>
-                <span>{{ language.t('Message landlord', 'ផ្ញើសារទៅម្ចាស់ផ្ទះ') }}</span>
+                <span>{{ language.t('propertyDetail.messageLandlord') }}</span>
               </button>
 
               <form [formGroup]="bookingForm" (ngSubmit)="onRequestBooking()" class="space-y-4">
                 <div>
-                  <label class="form-label">{{ language.t('Target Move-in Date', 'កាលបរិច្ឆេទចូលនៅគោលដៅ') }}</label>
+                  <label class="form-label">{{ language.t('propertyDetail.targetMoveInDate') }}</label>
                   <input
                     type="date"
                     formControlName="move_in_date"
@@ -218,7 +218,7 @@
                 </div>
 
                 <div>
-                  <label class="form-label">{{ language.t('Lease Duration (Months)', 'រយៈពេលជួល (ខែ)') }}</label>
+                  <label class="form-label">{{ language.t('propertyDetail.leaseDurationMonths') }}</label>
                   <input
                     type="number"
                     formControlName="lease_months"
@@ -230,7 +230,7 @@
                 </div>
 
                 <div>
-                  <label class="form-label">{{ language.t('Move-out Date (auto)', 'កាលបរិច្ឆេទចេញ (ស្វ័យប្រវត្តិ)') }}</label>
+                  <label class="form-label">{{ language.t('propertyDetail.moveOutDateAuto') }}</label>
                   <input
                     type="date"
                     formControlName="end_date"
@@ -240,7 +240,7 @@
                 </div>
 
                 <div>
-                  <label class="form-label">{{ language.t('Message / Note to Landlord', 'សារ ឬកំណត់ចំណាំផ្ញើទៅម្ចាស់ផ្ទះ') }}</label>
+                  <label class="form-label">{{ language.t('propertyDetail.messageNoteToLandlord') }}</label>
                   <textarea
                     formControlName="note"
                     rows="3"
@@ -255,9 +255,9 @@
                   class="btn btn-primary w-full"
                 >
                   @if (isBookingSubmitting()) {
-                    <span>{{ language.t('Submitting Request...', 'កំពុងផ្ញើសំណើ...') }}</span>
+                    <span>{{ language.t('propertyDetail.submittingRequest') }}</span>
                   } @else {
-                    <span>{{ language.t('Submit Lease Request', 'ផ្ញើសំណើជួល') }}</span>
+                    <span>{{ language.t('propertyDetail.submitLeaseRequest') }}</span>
                   }
                 </button>
               </form>
@@ -265,16 +265,16 @@
           }
         } @else if (!auth.isAuthenticated()) {
           <div class="app-card p-6 text-center">
-            <h3 class="text-base font-bold text-ink">{{ language.t('Interested in this property?', 'ចាប់អារម្មណ៍លើអចលនទ្រព្យនេះមែនទេ?') }}</h3>
-            <p class="text-xs text-ink-3 mt-1 mb-4">{{ language.t('Log in as a renter to send booking requests and chat with the landlord.', 'ចូលគណនីជាអ្នកជួល ដើម្បីផ្ញើសំណើកក់ និងជជែកជាមួយម្ចាស់ផ្ទះ។') }}</p>
+            <h3 class="text-base font-bold text-ink">{{ language.t('propertyDetail.interestedInThisProperty') }}</h3>
+            <p class="text-xs text-ink-3 mt-1 mb-4">{{ language.t('propertyDetail.logInAsARenterToSendBookingRequestsAndChatWithThe') }}</p>
             <a routerLink="/login" class="btn btn-primary text-xs">
               Log in to Request
             </a>
           </div>
         } @else if (auth.isOwner()) {
           <div class="app-card p-6 text-center">
-            <h3 class="text-sm font-bold text-ink">{{ language.t('You are logged in as an Owner', 'អ្នកបានចូលគណនីជាម្ចាស់ផ្ទះ') }}</h3>
-            <p class="text-xs text-ink-3 mt-1">{{ language.t('Switch to a renter account to request bookings on other listings.', 'ប្តូរទៅគណនីអ្នកជួល ដើម្បីស្នើសុំកក់អចលនទ្រព្យផ្សេងៗ។') }}</p>
+            <h3 class="text-sm font-bold text-ink">{{ language.t('propertyDetail.youAreLoggedInAsAnOwner') }}</h3>
+            <p class="text-xs text-ink-3 mt-1">{{ language.t('propertyDetail.switchToARenterAccountToRequestBookingsOnOther') }}</p>
           </div>
         }
       </div>

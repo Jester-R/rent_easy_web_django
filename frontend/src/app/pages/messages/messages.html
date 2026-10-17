@@ -1,7 +1,7 @@
 <div class="max-w-3xl mx-auto">
   <div class="mb-4">
-    <h1 class="text-2xl font-black text-ink">{{ language.t('Messages', 'សារ') }}</h1>
-    <p class="text-xs text-ink-3 mt-1">{{ language.t('Chat with renters and owners about a property.', 'ជជែកជាមួយអ្នកជួល និងម្ចាស់ផ្ទះអំពីអចលនទ្រព្យ។') }}</p>
+    <h1 class="text-2xl font-black text-ink">{{ language.t('messages.messages') }}</h1>
+    <p class="text-xs text-ink-3 mt-1">{{ language.t('messages.chatWithRentersAndOwnersAboutAProperty') }}</p>
   </div>
 
   @if (isLoading()) {
@@ -12,14 +12,14 @@
     </div>
   } @else if (loadError()) {
     <div class="app-card p-12 text-center text-ink-3">
-      <p class="text-sm">{{ language.t('Could not load your conversations.', 'មិនអាចផ្ទុកការសន្ទនារបស់អ្នកបានទេ។') }}</p>
-      <button type="button" (click)="load()" class="btn btn-primary btn-sm mt-3">{{ language.t('Try again', 'ព្យាយាមម្តងទៀត') }}</button>
+      <p class="text-sm">{{ language.t('messages.couldNotLoadYourConversations') }}</p>
+      <button type="button" (click)="load()" class="btn btn-primary btn-sm mt-3">{{ language.t('messages.tryAgain') }}</button>
     </div>
   } @else if (conversations().length === 0) {
     <div class="app-card p-12 text-center text-ink-3">
-      <p class="text-sm font-semibold text-ink">{{ language.t('No conversations yet', 'មិនទាន់មានការសន្ទនាទេ') }}</p>
-      <p class="text-xs mt-1">{{ language.t('Open a property and message the owner to start chatting.', 'បើកអចលនទ្រព្យ ហើយផ្ញើសារទៅម្ចាស់ដើម្បីចាប់ផ្តើមជជែក។') }}</p>
-      <a routerLink="/browse" class="btn btn-primary btn-sm mt-4">{{ language.t('Browse listings', 'មើលអចលនទ្រព្យ') }}</a>
+      <p class="text-sm font-semibold text-ink">{{ language.t('messages.noConversationsYet') }}</p>
+      <p class="text-xs mt-1">{{ language.t('messages.openAPropertyAndMessageTheOwnerToStartChatting') }}</p>
+      <a routerLink="/browse" class="btn btn-primary btn-sm mt-4">{{ language.t('messages.browseListings') }}</a>
     </div>
   } @else {
     <div class="app-card divide-y divide-hairline overflow-hidden">

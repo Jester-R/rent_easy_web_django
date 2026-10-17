@@ -386,7 +386,11 @@ async def _adump(cls: type[Serializer], instance, extra: dict | None) -> dict | 
         return None
     plan = cls.loading_plan(instance.__class__)
     if _needs_plan_reload(instance, plan):
-        instance = (await cls.afrom_models(instance.__class__._default_manager.filter(pk=instance.pk)))[0]
+        instance = (
+            await cls.afrom_models(
+                instance.__class__._default_manager.filter(pk=instance.pk)
+            )
+        )[0]
     serializer = await cls.afrom_model(instance)
     data = serializer.dump()
     if extra:
