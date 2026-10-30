@@ -104,14 +104,44 @@ class Booking(models.Model):
     def is_paid(self) -> bool:
         return bool(self.payment_id)
 
+    @builtins.property
+    def payout_status(self) -> str:
+        payout = self._payout
+        return payout.status if payout is not None else ""
+
+    @builtins.property
+    def payout_available_at(self):
+        payout = self._payout
+        return payout.available_at if payout is not None else None
+
+    @builtins.property
+    def _payout(self):
+        if not self.payment_id:
+            return None
+        return getattr(self.payment, "payout", None)
+
     def can_transition_to(self, new_status: str) -> bool:
         return new_status in VALID_TRANSITIONS.get(self.status, ())
 
     def can_cancel(self) -> bool:
-        # Mirrors the Flutter rule: a renter may only cancel a pending request.
-        if self.status != BookingStatus.PENDING or self.payment_id:
+        if self.status == BookingStatus.PENDING and not self.payment_id:
+            return self.can_transition_to(BookingStatus.CANCELLED)
+        if self.status not in (
+            BookingStatus.PENDING,
+            BookingStatus.APPROVED,
+            BookingStatus.CONFIRMED,
+        ):
             return False
-        return self.can_transition_to(BookingStatus.CANCELLED)
+        if not self.payment_id:
+            return False
+        # Paid bookings may be cancelled only while the platform still holds
+        # the money. A missing payout row is treated as legacy and allowed.
+        payout = self._payout
+        if payout is None:
+            return True
+        return (
+            payout.status == "Scheduled" and payout.available_at > timezone.now()
+        ) and self.can_transition_to(BookingStatus.CANCELLED)
 
     def can_approve(self) -> bool:
         return self.can_transition_to(BookingStatus.APPROVED)

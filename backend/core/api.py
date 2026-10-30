@@ -21,6 +21,8 @@ api = BoltAPI(
 
 
 async def _landing_payload(request, limit: int = 6) -> dict:
+    from accounts.default_promotion import DEFAULT_HOME_PROMOTION
+    from accounts.models import PlatformSettings
     from bookings.models import Booking, BookingStatus
     from listings.models import Favorite, Property
     from payments.models import Payment
@@ -60,7 +62,12 @@ async def _landing_payload(request, limit: int = 6) -> dict:
             or 0
         ),
     }
+    stored_promotion = await PlatformSettings.objects.filter(pk=1).values_list(
+        "home_promotion", flat=True
+    ).afirst()
+    promotion = {**DEFAULT_HOME_PROMOTION, **(stored_promotion or {})}
     return {
+        "home_promotion": promotion,
         "stats": stats,
         "featured": [
             await serialize_property(p, is_favorite=p.pk in favorite_ids)

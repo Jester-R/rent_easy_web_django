@@ -53,22 +53,23 @@ class PropertyQuerySet(models.QuerySet):
 class Property(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     title = models.CharField(max_length=160)
+    title_km = models.CharField(max_length=160, blank=True, default="")
     location = models.CharField(max_length=160, db_index=True)
+    location_km = models.CharField(max_length=160, blank=True, default="")
     price_per_month = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
         db_index=True,
     )
-    category = models.CharField(
-        max_length=24, choices=PropertyCategory.choices, blank=True, db_index=True
-    )
+    category = models.CharField(max_length=24, blank=True, db_index=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     images = models.JSONField(default=list, blank=True)
     bedrooms = models.PositiveSmallIntegerField(default=1)
     bathrooms = models.PositiveSmallIntegerField(default=1)
     description = models.TextField(blank=True)
+    description_km = models.TextField(blank=True, default="")
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="properties"
     )

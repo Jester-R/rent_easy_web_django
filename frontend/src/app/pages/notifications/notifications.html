@@ -44,7 +44,7 @@
               [class.bg-surface-2]="n.read"
               [class.text-ink-3]="n.read"
             >
-              <app-icon name="bell" [size]="18" />
+              <app-icon [name]="notificationIcon(n.kind)" [size]="18" />
             </div>
 
             <div class="min-w-0 flex-1">
@@ -68,5 +68,6 @@
         </div>
       }
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 </div>

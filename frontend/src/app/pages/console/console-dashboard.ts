@@ -5,6 +5,8 @@ import { IconComponent } from '../../components/icon/icon';
 import { ConsoleService } from '../../services/console.service';
 import { ConsoleDashboardData } from '../../models';
 import { LanguageService } from '../../services/language.service';
+import { propertyTitle } from '../../shared/property-text';
+import type { Property } from '../../models';
 import {
   bookingPill,
   initials,
@@ -22,6 +24,10 @@ import {
 export class ConsoleDashboardComponent implements OnInit {
   private readonly consoleService = inject(ConsoleService);
   readonly language = inject(LanguageService);
+
+  title(property: Property | null | undefined): string {
+    return propertyTitle(property, this.language.current());
+  }
 
   readonly usd = usd;
   readonly prettyDate = prettyDate;

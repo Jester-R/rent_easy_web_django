@@ -4,11 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { PaymentService, RenterPaymentsResponse } from '../../../services/payment.service';
 import { Payment } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
+import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import { LanguageService } from '../../../services/language.service';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-renter-payments',
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, RouterLink, DataPaginationComponent],
   templateUrl: './renter-payments.html',
 })
 export class RenterPaymentsComponent implements OnInit {
@@ -16,6 +18,9 @@ export class RenterPaymentsComponent implements OnInit {
   private readonly paymentService = inject(PaymentService);
 
   payments = signal<Payment[]>([]);
+  total = signal(0);
+  page = signal(1);
+  readonly pageSize = 25;
   isLoading = signal(true);
   searchTerm = '';
   selectedStatus = 'all';
@@ -30,13 +35,27 @@ export class RenterPaymentsComponent implements OnInit {
       .getRenterPayments({
         q: this.searchTerm,
         status: this.selectedStatus,
+        page: this.page(),
+        page_size: this.pageSize,
       })
       .subscribe({
         next: (res: RenterPaymentsResponse) => {
           this.payments.set(res.payments);
+          this.total.set(res.total);
+          this.page.set(res.page);
           this.isLoading.set(false);
         },
         error: () => this.isLoading.set(false),
       });
+  }
+
+  changePage(page: number): void {
+    this.page.set(page);
+    this.loadPayments();
+  }
+
+  applyFilters(): void {
+    this.page.set(1);
+    this.loadPayments();
   }
 }

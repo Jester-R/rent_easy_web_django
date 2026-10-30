@@ -135,6 +135,59 @@ DEFAULT_SUPERADMIN = {
     "role": "superadmin",
 }
 
+# -- Rent payouts -------------------------------------------------------------
+# A successful rent payment is held by the platform for this many days. During
+# the hold either the renter or the owner may cancel (which refunds the renter);
+# afterwards the owner's payout becomes eligible for manual transfer.
+RENT_HOLD_DAYS = int(os.environ.get("RENT_HOLD_DAYS", "7") or "7")
+
+# -- ABA PayWay ---------------------------------------------------------------
+# Sandbox credentials are issued by https://sandbox.payway.com.kh/. When the
+# merchant id or API key is missing the payment service falls back to the
+# deterministic demo gateway, so local development keeps working.
+ABA_PAYWAY_MERCHANT_ID = os.environ.get("ABA_PAYWAY_MERCHANT_ID", "").strip()
+ABA_PAYWAY_API_KEY = os.environ.get("ABA_PAYWAY_API_KEY", "").strip()
+ABA_PAYWAY_BASE_URL = os.environ.get(
+    "ABA_PAYWAY_BASE_URL", "https://checkout-sandbox.payway.com.kh"
+).rstrip("/")
+_aba_enabled_env = os.environ.get("ABA_PAYWAY_ENABLED")
+ABA_PAYWAY_ENABLED = (
+    bool(ABA_PAYWAY_MERCHANT_ID and ABA_PAYWAY_API_KEY)
+    if _aba_enabled_env is None
+    else _aba_enabled_env.strip().lower() in {"1", "true", "yes", "on"}
+)
+# Empty means "let the hosted checkout page show every option enabled for the
+# merchant profile". Set to e.g. ``abapay_khqr`` to force KHQR.
+ABA_PAYWAY_PAYMENT_OPTION = os.environ.get("ABA_PAYWAY_PAYMENT_OPTION", "").strip()
+ABA_PAYWAY_CURRENCY = os.environ.get("ABA_PAYWAY_CURRENCY", "USD").strip().upper()
+ABA_PAYWAY_LIFETIME_MINUTES = int(
+    os.environ.get("ABA_PAYWAY_LIFETIME_MINUTES", "30") or "30"
+)
+ABA_PAYWAY_TIMEOUT_SECONDS = float(
+    os.environ.get("ABA_PAYWAY_TIMEOUT_SECONDS", "15") or "15"
+)
+
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:4200").rstrip(
+    "/"
+)
+BACKEND_PUBLIC_URL = os.environ.get(
+    "BACKEND_PUBLIC_URL", "http://127.0.0.1:8123"
+).rstrip("/")
+
+# PayWay must be able to POST to this URL from the public internet. In local
+# development point BACKEND_PUBLIC_URL at an ngrok/cloudflared tunnel; payment
+# status is also reconciled through /payments/aba/return/ and the refresh API.
+ABA_PAYWAY_CALLBACK_URL = os.environ.get(
+    "ABA_PAYWAY_CALLBACK_URL", f"{BACKEND_PUBLIC_URL}/payments/aba/callback/"
+)
+ABA_PAYWAY_RETURN_URL = os.environ.get(
+    "ABA_PAYWAY_RETURN_URL",
+    f"{BACKEND_PUBLIC_URL}/payments/aba/return/?payment={{payment_id}}",
+)
+ABA_PAYWAY_CANCEL_URL = os.environ.get(
+    "ABA_PAYWAY_CANCEL_URL", f"{FRONTEND_BASE_URL}/bookings"
+)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -33,3 +33,7 @@ staticfiles/
 .vscode/
 *.swp
 *.swo
+
+# Local configuration
+.env
+.env.local

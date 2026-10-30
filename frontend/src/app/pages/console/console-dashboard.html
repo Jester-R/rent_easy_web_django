@@ -50,6 +50,7 @@
           <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleDashboard.revenue') }}</span>
           <span class="block truncate text-[19px] font-extrabold leading-tight">{{ usd(d.stats.revenue) }}</span>
           <span class="block truncate text-[11px] text-ink-3">{{ language.t('consoleDashboard.refunded') }}: {{ usd(d.stats.refunded) }}</span>
+          <span class="block truncate text-[11px] text-amber-600">{{ language.t('consoleDashboard.payoutsReady') }}: {{ usd(d.stats.eligible_payout_amount || 0) }}</span>
         </span>
       </div>
     </div>
@@ -144,7 +145,7 @@
               <a routerLink="/console/bookings"
                  class="flex items-center gap-3 rounded-xl border border-hairline p-2.5 transition-colors hover:border-primary">
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-[12px] font-bold">{{ b.property?.title }}</span>
+                  <span class="block truncate text-[12px] font-bold">{{ title(b.property) }}</span>
                   <span class="block truncate text-[11px] text-ink-3">{{ b.renter.display_name }} · {{ b.reference }}</span>
                 </span>
                 <span [class]="'pill ' + bookingPill(b.status) + ' shrink-0'">{{ label(b.status) }}</span>

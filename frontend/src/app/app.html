@@ -127,7 +127,7 @@
     <!-- Main Content Column -->
     <div class="flex min-w-0 flex-1 flex-col">
       <app-navbar />
-      <main id="main" class="flex-1 p-4 sm:p-6 lg:p-8">
+      <main id="main" class="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         <router-outlet />
       </main>
       @if (!auth.isAuthenticated()) {

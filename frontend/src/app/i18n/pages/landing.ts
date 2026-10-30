@@ -14,6 +14,11 @@ export const landing: PageCatalog = {
   districts: ['Districts', 'ខណ្ឌ'],
   easyRentHappyLiving: ['Easy Rent, Happy Living', 'ជួលងាយស្រួល រស់នៅសុខសាន្ត'],
   propertiesListed: ['properties listed', 'អចលនទ្រព្យបានចុះបញ្ជី'],
+  homePromotionEyebrow: ['Make your next move', 'ចាប់ផ្តើមជំហានថ្មីរបស់អ្នក'],
+  homePromotionTitle: ['A better way to find your next home.', 'ស្វែងរកផ្ទះបន្ទាប់របស់អ្នកតាមរបៀបកាន់តែងាយស្រួល។'],
+  homePromotionBody: ['Explore rental homes across Cambodia and connect with property owners on RentEasy.', 'ស្វែងរកផ្ទះជួលនៅទូទាំងប្រទេសកម្ពុជា និងភ្ជាប់ទំនាក់ទំនងជាមួយម្ចាស់អចលនទ្រព្យតាម RentEasy។'],
+  exploreHomes: ['Explore homes', 'ស្វែងរកផ្ទះ'],
+  joinRentEasy: ['Join RentEasy', 'ចូលរួមជាមួយ RentEasy'],
   featuredListings: ['Featured Listings', 'អចលនទ្រព្យពិសេស'],
   viewAll: ['View all', 'មើលទាំងអស់'],
 };

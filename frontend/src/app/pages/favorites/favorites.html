@@ -32,5 +32,6 @@
         <app-property-card [property]="prop" (favoriteToggled)="onFavoriteToggled($event)" />
       }
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 </div>

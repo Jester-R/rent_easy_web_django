@@ -54,13 +54,18 @@ export function refundPill(status: string): string {
 }
 
 export function refundStatusLabel(status: string): string {
-  return status === 'None' ? 'No Refund' : status;
+  if (status === 'None') return 'No Refund';
+  if (status === 'Pending') return 'Refund Pending';
+  if (status === 'Processed') return 'Refunded';
+  return status;
 }
 
 export function refundReasonLabel(reason: string): string {
   switch (reason) {
     case 'cancelled_by_renter':
       return 'Cancelled by renter';
+    case 'cancelled_by_owner':
+      return 'Cancelled by owner';
     case 'rejected_by_owner':
       return 'Rejected by owner';
     default:
@@ -77,6 +82,32 @@ export function methodIcon(method: string): string {
 
 export function methodLabel(method: string): string {
   return method.replace(' (Mock)', '');
+}
+
+/** Icon name for the notification's event type. */
+export function notificationIcon(kind: string): string {
+  switch (kind) {
+    case 'booking_request':
+    case 'booking_update':
+    case 'booking_approved':
+      return 'clipboard';
+    case 'payment_received':
+      return 'dollar';
+    case 'refund_processed':
+    case 'refund_requested':
+    case 'refund_rejected':
+      return 'rotate-ccw';
+    case 'payout_paid':
+      return 'send';
+    case 'owner_approval_request':
+    case 'owner_approved':
+    case 'owner_rejected':
+      return 'user-check';
+    case 'announcement':
+      return 'info';
+    default:
+      return 'bell';
+  }
 }
 
 /** Format a number as `$1,234` (mirrors the Django `usd` filter). */
@@ -124,10 +155,39 @@ export function initials(name?: string | null): string {
 
 /** Canonical payment methods (shared by every payment modal). */
 export const PAYMENT_METHODS: readonly string[] = [
-  'ABA Pay (Mock)',
+  'ABA Pay',
   'Wing (Mock)',
   'Credit Card (Mock)',
 ];
+
+/**
+ * Submit a signed ABA PayWay hosted-checkout form.
+ *
+ * A real form navigation is required: PayWay returns the checkout HTML as the
+ * response body, so an XHR/fetch call would not display it.
+ */
+export function submitHostedCheckout(checkout: {
+  action_url: string;
+  fields: Record<string, string>;
+}): void {
+  if (typeof document === 'undefined') return;
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = checkout.action_url;
+  // PayWay documents multipart/form-data as the accepted purchase content type.
+  form.enctype = 'multipart/form-data';
+  form.target = '_self';
+  form.style.display = 'none';
+  for (const [name, value] of Object.entries(checkout.fields || {})) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
 
 export interface CategoryOption {
   value: string;
@@ -149,6 +209,34 @@ export const PROPERTY_CATEGORIES: readonly CategoryOption[] = [
 export function categoryLabel(value?: string | null): string {
   if (!value) return '';
   return PROPERTY_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+}
+
+/** Owner payout destinations (mirrors accounts.models.PayoutMethod). */
+export const PAYOUT_METHODS: readonly CategoryOption[] = [
+  { value: 'aba', label: 'ABA Bank' },
+  { value: 'wing', label: 'Wing Bank' },
+  { value: 'acleda', label: 'ACLEDA Bank' },
+  { value: 'other', label: 'Other' },
+];
+
+export function payoutMethodLabel(value?: string | null): string {
+  if (!value) return '';
+  return PAYOUT_METHODS.find((c) => c.value === value)?.label ?? value;
+}
+
+export function payoutPill(status: string): string {
+  switch (status) {
+    case 'Eligible':
+      return 'pill-approved';
+    case 'Scheduled':
+      return 'pill-pending';
+    case 'Paid':
+      return 'pill-approved';
+    case 'Cancelled':
+      return 'pill-cancelled';
+    default:
+      return 'pill-neutral';
+  }
 }
 
 export { notificationText } from '../i18n/notifications';

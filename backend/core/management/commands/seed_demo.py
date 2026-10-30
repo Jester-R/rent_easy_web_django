@@ -23,6 +23,7 @@ from listings.models import Favorite, Property, PropertyCategory
 from notifications.models import Notification
 from notifications.services import notify
 from payments.models import Payment, Refund
+from payments.services import backfill_missing_payouts, create_payout_for_payment
 
 SUPERADMIN = {
     "email": "admin@fake.com",
@@ -169,10 +170,30 @@ class Command(BaseCommand):
             for email, username, name in RENTERS
         ]
 
+        for index, owner in enumerate(owners):
+            if not owner.has_payout_details:
+                owner.payout_method = "aba"
+                owner.payout_account_name = owner.full_name
+                owner.payout_account_number = f"000{index + 1}23456{index + 1}"
+                owner.payout_bank_name = "ABA Bank"
+                owner.payout_phone = f"01234567{index + 1}"
+                owner.payout_updated_at = timezone.now()
+                owner.save(
+                    update_fields=[
+                        "payout_method",
+                        "payout_account_name",
+                        "payout_account_number",
+                        "payout_bank_name",
+                        "payout_phone",
+                        "payout_updated_at",
+                    ]
+                )
+
         properties = self._ensure_properties(owners, rng)
         self._ensure_favorites(renters, properties, rng)
         bookings = self._ensure_bookings(properties, renters, rng)
         self._ensure_payments(bookings, rng)
+        backfill_missing_payouts()
         self._ensure_conversations(properties, renters, rng)
 
         self.stdout.write(
@@ -384,9 +405,12 @@ class Command(BaseCommand):
                 else rng.choice(list(Payment.Method.values)),
                 status=Payment.Status.SUCCESS,
                 created_at=booking.approved_at or booking.created_at,
+                paid_at=booking.approved_at or booking.created_at,
             )
             booking.payment = payment
             booking.save(update_fields=["payment"])
+            if booking.status != BookingStatus.CANCELLED:
+                create_payout_for_payment(payment)
             created += 1
             if booking.status == BookingStatus.CANCELLED:
                 refund = Refund.objects.create(

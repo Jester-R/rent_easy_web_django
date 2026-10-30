@@ -1,6 +1,9 @@
 import type { PageCatalog } from '../types';
 
 export const app: PageCatalog = {
+  previous: ['Previous', 'មុន'],
+  next: ['Next', 'បន្ទាប់'],
+  paginationRange: ['Showing {start}–{end} of {total}', 'បង្ហាញ {start}–{end} ក្នុងចំណោម {total}'],
   rentalPlatform: ['Rental Platform', 'វេទិកាជួលអចលនទ្រព្យ'],
   renter: ['Renter', 'អ្នកជួល'],
   home: ['Home', 'ទំព័រដើម'],

@@ -40,6 +40,9 @@
         }
       }
     </div>
+    <div class="px-3">
+      <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
+    </div>
 
     <!-- Composer -->
     <div class="border-t border-hairline px-3 py-2.5">

@@ -55,5 +55,166 @@
         }
       </p>
     </section>
+
+    @if (homePromotion(); as promotion) {
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.homePagePromotion') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.editHomePagePromotion') }}</p>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.promotionEyebrow') }} ({{ language.t('consoleSettings.englishName') }})
+          <input class="form-input mt-1" [ngModel]="promotion.eyebrow_en" (ngModelChange)="updateHomePromotion('eyebrow_en', $event)" maxlength="100" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.promotionEyebrow') }} ({{ language.t('consoleSettings.khmerName') }})
+          <input class="form-input mt-1" [ngModel]="promotion.eyebrow_km" (ngModelChange)="updateHomePromotion('eyebrow_km', $event)" maxlength="100" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.promotionTitle') }} ({{ language.t('consoleSettings.englishName') }})
+          <input class="form-input mt-1" [ngModel]="promotion.title_en" (ngModelChange)="updateHomePromotion('title_en', $event)" maxlength="180" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.promotionTitle') }} ({{ language.t('consoleSettings.khmerName') }})
+          <input class="form-input mt-1" [ngModel]="promotion.title_km" (ngModelChange)="updateHomePromotion('title_km', $event)" maxlength="180" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.promotionDescription') }} ({{ language.t('consoleSettings.englishName') }})
+          <textarea class="form-input mt-1" rows="3" [ngModel]="promotion.body_en" (ngModelChange)="updateHomePromotion('body_en', $event)" maxlength="500"></textarea>
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.promotionDescription') }} ({{ language.t('consoleSettings.khmerName') }})
+          <textarea class="form-input mt-1" rows="3" [ngModel]="promotion.body_km" (ngModelChange)="updateHomePromotion('body_km', $event)" maxlength="500"></textarea>
+        </label>
+      </div>
+      <label class="block max-w-2xl text-[11px] text-ink-3">{{ language.t('consoleSettings.backgroundImageUrl') }}
+        <input type="text" class="form-input mt-1" [ngModel]="promotion.image_url.startsWith('data:') ? '' : promotion.image_url" (ngModelChange)="updateHomePromotion('image_url', $event)" placeholder="https://example.com/banner.jpg" maxlength="1000" />
+      </label>
+      <label class="block max-w-2xl text-[11px] text-ink-3">
+        {{ language.t('consoleSettings.uploadBackgroundImage') }}
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" (change)="onPromotionImageSelected($event)" class="form-input mt-1" />
+        <span class="mt-1 block text-[11px]">{{ language.t('consoleSettings.backgroundImageUploadHelp') }}</span>
+      </label>
+      @if (promotion.image_url) {
+        <div class="max-w-2xl overflow-hidden rounded-xl border border-hairline">
+          <img [src]="promotion.image_url" alt="Promotion background preview" class="h-40 w-full object-cover" />
+        </div>
+      }
+      <div class="flex justify-end">
+        <div class="flex gap-2">
+          @if (promotionSaved()) {
+            <span class="self-center text-xs font-semibold text-success" role="status">{{ language.t('consoleSettings.promotionSaved') }}</span>
+          }
+          @if (promotion.image_url) {
+            <button type="button" class="btn btn-outline btn-sm" (click)="updateHomePromotion('image_url', '')">{{ language.t('consoleSettings.removeBackgroundImage') }}</button>
+          }
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="saveHomePromotion()">{{ language.t('consoleSettings.savePromotion') }}</button>
+        </div>
+      </div>
+    </section>
+    }
+
+    <section class="app-card p-5 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.propertyCategories') }}</h2>
+          <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.manageCategoryNamesInEnglishAndKhmer') }} {{ language.t('consoleSettings.categoryEditAddDeleteHelp') }}</p>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" (click)="addCategory()">{{ language.t('consoleSettings.addCategory') }}</button>
+      </div>
+      @for (category of categories(); track $index) {
+        <div class="grid items-end gap-3 rounded-xl border border-hairline p-3 sm:grid-cols-[10rem_1fr_1fr_auto_auto]">
+          @if (isCategoryEditing($index)) {
+            <label class="text-[11px] text-ink-3">
+              {{ language.t('consoleSettings.categoryKey') }}
+              <input class="form-input mt-1" [ngModel]="category.value" (ngModelChange)="updateCategory($index, 'value', $event)" maxlength="24" />
+            </label>
+            <label class="text-[11px] text-ink-3">
+              {{ language.t('consoleSettings.englishName') }}
+              <input class="form-input mt-1" [ngModel]="category.label_en" (ngModelChange)="updateCategory($index, 'label_en', $event)" maxlength="80" />
+            </label>
+            <label class="text-[11px] text-ink-3">
+              {{ language.t('consoleSettings.khmerName') }}
+              <input class="form-input mt-1" [ngModel]="category.label_km" (ngModelChange)="updateCategory($index, 'label_km', $event)" maxlength="80" />
+            </label>
+          } @else {
+            <div><span class="block text-[10px] text-ink-3">{{ language.t('consoleSettings.categoryKey') }}</span><span class="font-mono text-xs">{{ category.value }}</span></div>
+            <div><span class="block text-[10px] text-ink-3">{{ language.t('consoleSettings.englishName') }}</span><span class="text-sm font-semibold">{{ category.label_en }}</span></div>
+            <div><span class="block text-[10px] text-ink-3">{{ language.t('consoleSettings.khmerName') }}</span><span class="text-sm font-semibold">{{ category.label_km }}</span></div>
+          }
+          @if (isCategoryEditing($index)) {
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="saveCategories()">{{ language.t('consoleSettings.saveCategories') }}</button>
+          } @else {
+            <button type="button" class="btn btn-outline btn-sm" (click)="toggleCategoryEditing($index)">{{ language.t('consoleSettings.editCategory') }}</button>
+          }
+          <button type="button" class="btn btn-ghost btn-sm text-danger" (click)="removeCategory(category.value)">{{ language.t('consoleSettings.remove') }}</button>
+        </div>
+      }
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        @if (categoriesSaved()) {
+          <span class="text-xs font-semibold text-success" role="status">{{ language.t('consoleSettings.categoriesSaved') }}</span>
+        }
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="saveCategories()">{{ language.t('consoleSettings.saveCategories') }}</button>
+      </div>
+    </section>
+
+    <section class="app-card p-5 space-y-4">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.notificationMessages') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.editMessagesInBothLanguages') }}</p>
+      </div>
+      @for (message of notificationMessages(); track message.key) {
+        <div class="space-y-3 rounded-xl border border-hairline p-3">
+          <h3 class="text-[12px] font-bold">{{ language.current() === 'km' ? message.label_km : message.label_en }}</h3>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
+              <input class="form-input mt-1" [(ngModel)]="message.title_en" maxlength="500" />
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleKhmer') }}
+              <input class="form-input mt-1" [(ngModel)]="message.title_km" maxlength="500" />
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyEnglish') }}
+              <textarea class="form-input mt-1" rows="2" [(ngModel)]="message.body_en" maxlength="500"></textarea>
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyKhmer') }}
+              <textarea class="form-input mt-1" rows="2" [(ngModel)]="message.body_km" maxlength="500"></textarea>
+            </label>
+          </div>
+        </div>
+      }
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="saveNotificationMessages()">{{ language.t('consoleSettings.saveNotificationMessages') }}</button>
+      </div>
+    </section>
+
+    <section class="app-card p-5 space-y-4">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.broadcastNotification') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.sendAnnouncementToOwnersOrRenters') }}</p>
+      </div>
+      @if (broadcastSentCount() !== null) {
+        <p class="toast toast-success" role="status">{{ language.t('consoleSettings.broadcastSentTo') }} {{ broadcastSentCount() }} {{ language.t('consoleSettings.users') }}</p>
+      }
+      <label class="block max-w-sm text-[11px] text-ink-3">
+        {{ language.t('consoleSettings.audience') }}
+        <select class="form-input mt-1" [(ngModel)]="broadcastTarget">
+          <option value="renters">{{ language.t('consoleSettings.renters') }}</option>
+          <option value="owners">{{ language.t('consoleSettings.owners') }}</option>
+          <option value="all">{{ language.t('consoleSettings.allUsers') }}</option>
+        </select>
+      </label>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
+          <input class="form-input mt-1" [(ngModel)]="broadcastTitleEn" maxlength="500" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleKhmer') }}
+          <input class="form-input mt-1" [(ngModel)]="broadcastTitleKm" maxlength="500" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyEnglish') }}
+          <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyEn" maxlength="500"></textarea>
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyKhmer') }}
+          <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyKm" maxlength="500"></textarea>
+        </label>
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="sendBroadcast()">{{ language.t('consoleSettings.sendBroadcast') }}</button>
+      </div>
+    </section>
   }
 </div>

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # RentEasy Web - one-shot development launcher (Angular + Django Bolt).
 #
 #   ./run.sh                # set up if needed, then run backend + frontend
@@ -13,6 +13,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
+
+# Load local credentials (ABA PayWay, URLs, ports) the same way `just` does.
+if [ -f "$ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$ROOT/.env"
+  printf "Loaded .env file\n"
+  set +a
+fi
 
 BACKEND_PORT="${BACKEND_PORT:-8123}"
 FRONTEND_PORT="${FRONTEND_PORT:-4200}"
@@ -110,7 +119,7 @@ wait_for_backend() {
 start_backend() {
   info "Starting Django Bolt on http://127.0.0.1:${BACKEND_PORT} (log: ${LOG_DIR}/backend.log)"
   ( cd backend && .venv/bin/python manage.py runbolt \
-      --host 127.0.0.1 --port "$BACKEND_PORT" --no-admin ) \
+      --host 127.0.0.1 --port "$BACKEND_PORT" --no-admin --dev ) \
       >"${LOG_DIR}/backend.log" 2>&1 &
   backend_pid=$!
 }

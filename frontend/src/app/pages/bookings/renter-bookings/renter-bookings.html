@@ -68,11 +68,11 @@
                 </div>
 
                 <a [routerLink]="['/properties', b.property.id]" class="text-base font-bold text-ink hover:text-primary transition-colors block mt-1">
-                  {{ b.property.title }}
+                  {{ title(b.property) }}
                 </a>
 
                 <div class="flex flex-wrap items-center gap-4 text-xs text-ink-3 mt-2">
-                  <span>📍 {{ b.property.location }}</span>
+                  <span>📍 {{ location(b.property) }}</span>
                   <span>📅 {{ language.t('renterBookings.moveIn') }}: {{ b.move_in_date || language.t('renterBookings.flexible') }}</span>
                   @if (b.end_date) {
                     <span>🏁 {{ language.t('renterBookings.moveOut') }}: {{ b.end_date }}</span>
@@ -90,7 +90,7 @@
               </div>
 
               <div class="flex items-center gap-2">
-                @if ((b.status === 'Approved' || b.status === 'Confirmed') && !b.is_paid) {
+                @if ((b.status === 'Pending' || b.status === 'Approved' || b.status === 'Confirmed') && !b.is_paid) {
                   <button
                     (click)="openPayModal(b)"
                     class="btn btn-primary btn-sm"
@@ -99,7 +99,7 @@
                   </button>
                 }
 
-                @if (b.status === 'Approved' && b.is_paid) {
+                @if (b.is_paid) {
                   <a [routerLink]="['/payments', b.payment_id]" class="btn btn-outline btn-sm">
                     {{ language.t('renterBookings.paymentDetails') }}
                   </a>
@@ -119,6 +119,7 @@
         </div>
       }
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 
   <!-- Payment Modal -->
@@ -128,7 +129,7 @@
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h3 id="rent-payment-title" class="text-xl font-extrabold text-ink">{{ language.t('renterBookings.completeRentPayment') }}</h3>
-            <p class="mt-1 break-words text-xs text-ink-3">{{ b.property.title }}</p>
+            <p class="mt-1 break-words text-xs text-ink-3">{{ title(b.property) }}</p>
           </div>
           <button type="button" (click)="closePayModal()" class="btn btn-ghost btn-icon shrink-0" aria-label="Close payment dialog">
             <app-icon name="x" [size]="18" />

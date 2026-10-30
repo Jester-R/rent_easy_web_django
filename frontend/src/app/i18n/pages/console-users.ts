@@ -29,4 +29,5 @@ export const consoleUsers: PageCatalog = {
   delete: ['Delete', 'លុប'],
   selected: ['selected', 'បានជ្រើសរើស'],
   rejectThisOwnerRequest: ['Reject this owner request?', 'បដិសេធសំណើម្ចាស់នេះមែនទេ?'],
+  payoutMissing: ['No payout info', 'គ្មានព័ត៌មានទទួលប្រាក់'],
 };

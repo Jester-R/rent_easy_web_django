@@ -118,6 +118,16 @@ async def superadmin_required(request: Any):
     return await _require_role(request, "is_superadmin_role")
 
 
+async def admin_required(request: Any):
+    """Allow platform admins, including Django staff admins, into admin actions."""
+    user = await login_required(request)
+    if not (
+        getattr(user, "is_superadmin_role", False) or getattr(user, "is_staff", False)
+    ):
+        raise HTTPException(status_code=403, detail="role_required:admin")
+    return user
+
+
 def json_body(request: Any) -> dict:
     """Decode the request body as a JSON object (``{}`` when empty)."""
     raw = getattr(request, "body", b"") or b""
@@ -156,6 +166,25 @@ def q(request: Any, key: str, default: str = "") -> str:
     return (query(request).get(key) or default).strip()
 
 
+def pagination(
+    request: Any,
+    default_size: int = 25,
+    max_size: int = 100,
+    page_key: str = "page",
+    size_key: str = "page_size",
+) -> tuple[int, int]:
+    """Return a safe one-based page and bounded page size from query params."""
+    try:
+        page = max(1, int(q(request, page_key, "1")))
+    except TypeError, ValueError:
+        page = 1
+    try:
+        page_size = int(q(request, size_key, str(default_size)))
+    except TypeError, ValueError:
+        page_size = default_size
+    return page, min(max(page_size, 1), max_size)
+
+
 def body_str(data: dict, key: str, default: str = "") -> str:
     value = data.get(key, default)
     return "" if value is None else str(value).strip()
@@ -191,6 +220,7 @@ def body_float(data: dict, key: str, default: float | None = None):
 
 
 __all__ = [
+    "admin_required",
     "body_bool",
     "body_float",
     "body_int",

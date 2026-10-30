@@ -20,8 +20,13 @@ export const VALUE_KM: Readonly<Record<string, string>> = {
   Successful: 'ជោគជ័យ',
   Failed: 'បរាជ័យ',
   Refunded: 'បានសងប្រាក់វិញ',
+  'Refund Pending': 'ការសងប្រាក់កំពុងរង់ចាំ',
   'No Refund': 'មិនមានការសងប្រាក់ទេ',
   Processed: 'បានដំណើរការ',
+  // Payout statuses
+  Scheduled: 'បានកំណត់ពេល',
+  Eligible: 'ត្រៀមផ្ទេរ',
+  Paid: 'បានផ្ទេរ',
   // Roles
   Renter: 'អ្នកជួល',
   'Property Owner': 'ម្ចាស់អចលនទ្រព្យ',

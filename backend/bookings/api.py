@@ -22,12 +22,14 @@ from core.bolt import (
     json_body,
     mark_full_request,
     owner_required,
+    pagination,
     param_int,
     q,
     renter_required,
 )
 from core.bolt_serializers import booking as serialize_booking
 from core.bolt_serializers import payment as serialize_payment
+from payments.gateways.aba import PayWayError
 from payments.models import Payment
 from payments.services import pay_booking, transition_booking
 
@@ -48,7 +50,9 @@ async def _status_counts(base_queryset) -> dict:
 
 async def _get_booking(pk: int) -> Booking:
     booking = await (
-        Booking.objects.select_related("property", "renter", "owner", "payment")
+        Booking.objects.select_related(
+            "property", "renter", "owner", "payment", "payment__payout"
+        )
         .filter(pk=pk)
         .afirst()
     )
@@ -81,10 +85,16 @@ async def renter_list(request):
     user = await renter_required(request)
     base = booking_renter_queryset(user)
     queryset = apply_status_filter(base, q(request, "status", "all"))
+    page, page_size = pagination(request)
+    total = await queryset.acount()
+    queryset = queryset[(page - 1) * page_size : page * page_size]
     return {
         "bookings": [await serialize_booking(b) async for b in queryset],
         "counts": await _status_counts(base),
         "status": q(request, "status", "all"),
+        "total": total,
+        "page": page,
+        "page_size": page_size,
     }
 
 
@@ -128,7 +138,11 @@ async def renter_pay(request):
     user = await renter_required(request)
     booking = await _renter_booking(pk, user)
 
-    if booking.status not in (BookingStatus.APPROVED, BookingStatus.CONFIRMED):
+    if booking.status not in (
+        BookingStatus.PENDING,
+        BookingStatus.APPROVED,
+        BookingStatus.CONFIRMED,
+    ):
         raise HTTPException(status_code=409, detail="invalid_transition")
     if booking.payment_id:
         return {
@@ -138,12 +152,24 @@ async def renter_pay(request):
 
     data = json_body(request)
     method = body_str(data, "method") or Payment.Method.ABA
-    payment = await in_thread(
-        pay_booking,
-        booking=booking,
-        method=method,
-        simulate=body_str(data, "simulate"),
-    )
+    try:
+        result = await in_thread(
+            pay_booking,
+            booking=booking,
+            method=method,
+            simulate=body_str(data, "simulate"),
+        )
+    except PayWayError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"aba_payway_error:{exc.code or 'unavailable'}"
+        ) from exc
+    payment = result.payment
+    if payment.is_pending:
+        return {
+            "payment": await serialize_payment(payment),
+            "checkout": result.checkout,
+            "already_paid": False,
+        }
     if not payment.is_successful:
         raise HTTPException(status_code=402, detail="payment_failed")
     return {"payment": await serialize_payment(payment), "already_paid": False}
@@ -159,10 +185,16 @@ async def owner_list(request):
     user = await owner_required(request)
     base = booking_owner_queryset(user)
     queryset = apply_status_filter(base, q(request, "status", "all"))
+    page, page_size = pagination(request)
+    total = await queryset.acount()
+    queryset = queryset[(page - 1) * page_size : page * page_size]
     return {
         "bookings": [await serialize_booking(b) async for b in queryset],
         "counts": await _status_counts(base),
         "status": q(request, "status", "all"),
+        "total": total,
+        "page": page,
+        "page_size": page_size,
     }
 
 
@@ -194,6 +226,20 @@ async def owner_reject(request):
     booking = await _owner_booking(pk, user)
     ok, code = await in_thread(
         transition_booking, booking, BookingStatus.REJECTED, actor=user
+    )
+    if not ok:
+        raise HTTPException(status_code=409, detail=code)
+    return {"ok": True, "booking": await serialize_booking(booking)}
+
+
+@api.post("/owner/bookings/{pk}/cancel/")
+async def owner_cancel(request):
+    """Owner cancellation inside the rent-hold window (queues a refund)."""
+    pk = param_int(request, "pk")
+    user = await owner_required(request)
+    booking = await _owner_booking(pk, user)
+    ok, code = await in_thread(
+        transition_booking, booking, BookingStatus.CANCELLED, actor=user
     )
     if not ok:
         raise HTTPException(status_code=409, detail=code)

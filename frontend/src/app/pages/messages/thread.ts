@@ -17,10 +17,11 @@ import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
 import { ChatMessage, ConversationSummary, UserBrief } from '../../models';
 import { prettyDate } from '../../shared/ui';
+import { DataPaginationComponent } from '../../components/data-pagination/data-pagination';
 
 @Component({
   selector: 'app-chat-thread',
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, DataPaginationComponent],
   templateUrl: './thread.html',
 })
 export class ChatThreadComponent implements OnInit, OnDestroy {
@@ -39,6 +40,9 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
   isLoading = signal(true);
   isSending = signal(false);
   sendError = signal(false);
+  page = signal(1);
+  total = signal(0);
+  readonly pageSize = 50;
   draft = '';
 
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -59,11 +63,12 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
-    this.chat.getMessages(this.conversationId).subscribe({
+    this.chat.getMessages(this.conversationId, this.page(), this.pageSize).subscribe({
       next: (res) => {
         this.messages.set(res.messages);
         this.conversation.set(res.conversation);
         this.otherParty.set(res.other_party);
+        this.total.set(res.total);
         this.isLoading.set(false);
         this.scrollToBottom();
       },
@@ -73,14 +78,17 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
 
   refresh(): void {
     if (this.isSending()) return;
-    this.chat.getMessages(this.conversationId).subscribe({
+    this.chat.getMessages(this.conversationId, this.page(), this.pageSize).subscribe({
       next: (res) => {
         this.messages.set(res.messages);
         this.otherParty.set(res.other_party);
+        this.total.set(res.total);
         this.scrollToBottom();
       },
     });
   }
+
+  changePage(page: number): void { this.page.set(page); this.load(); }
 
   isMine(message: ChatMessage): boolean {
     return message.sender_id === this.auth.currentUser()?.id;
@@ -93,10 +101,10 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
     this.sendError.set(false);
     this.chat.sendMessage(this.conversationId, body).subscribe({
       next: (res) => {
-        this.messages.update((list) => [...list, res.message]);
         this.draft = '';
         this.isSending.set(false);
-        this.scrollToBottom();
+        this.page.set(1);
+        this.load();
       },
       error: () => {
         this.isSending.set(false);

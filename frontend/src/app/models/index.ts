@@ -18,6 +18,14 @@ export interface User extends UserBrief {
   home_url: string;
   avatar_hue: number;
   avatar_url?: string;
+  payout_method?: string;
+  payout_account_name?: string;
+  payout_account_number?: string;
+  payout_bank_name?: string;
+  payout_phone?: string;
+  payout_note?: string;
+  payout_updated_at?: string | null;
+  has_payout_details?: boolean;
   date_joined?: string;
   last_login_at?: string | null;
 }
@@ -31,13 +39,16 @@ export interface Property {
   id: number;
   is_active: boolean;
   title: string;
+  title_km?: string;
   location: string;
+  location_km?: string;
   price_per_month: number;
   price_display: string;
   location_label: string;
   bedrooms: number;
   bathrooms: number;
   description: string;
+  description_km?: string;
   category?: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -73,6 +84,8 @@ export interface Booking {
   owner: UserBrief;
   owner_id: number;
   payment_id?: number | null;
+  payout_status?: string;
+  payout_available_at?: string | null;
   created_at: string;
   approved_at?: string | null;
   rejected_at?: string | null;
@@ -91,9 +104,13 @@ export interface Payment {
   refunded_display: string;
   method: string;
   status: 'Pending' | 'Success' | 'Failed' | 'Refunded' | string;
+  provider?: 'mock' | 'aba_payway' | string;
+  provider_ref?: string;
+  paid_at?: string | null;
   refund_status: 'None' | 'Pending' | 'Processed' | string;
   is_refunded: boolean;
   is_successful: boolean;
+  can_refund_locally?: boolean;
   property?: Property | null;
   property_id?: number | null;
   property_title: string;
@@ -104,6 +121,14 @@ export interface Payment {
   refunded_at?: string | null;
 }
 
+/** Signed form returned by the API for ABA PayWay hosted checkout. */
+export interface HostedCheckout {
+  provider: string;
+  action_url: string;
+  method: string;
+  fields: Record<string, string>;
+}
+
 export interface Refund {
   id: number;
   reference: string;
@@ -112,11 +137,53 @@ export interface Refund {
   reason: string;
   status: string;
   note: string;
+  request_note: string;
+  requested_by?: UserBrief | null;
   payment_id: number;
   booking_id: number;
   payment?: Payment;
   created_at: string;
   processed_at?: string | null;
+}
+
+export interface PayoutAccount {
+  method: string;
+  account_name: string;
+  account_number: string;
+  bank_name: string;
+  phone: string;
+  note: string;
+  ready: boolean;
+}
+
+export interface Payout {
+  id: number;
+  reference: string;
+  amount: number;
+  amount_display: string;
+  status: 'Scheduled' | 'Eligible' | 'Paid' | 'Cancelled' | string;
+  available_at: string;
+  paid_at?: string | null;
+  note: string;
+  owner: User;
+  owner_id: number;
+  payment_id: number;
+  payment_reference: string;
+  booking_id?: number | null;
+  property_title: string;
+  payout_method: string;
+  payout_account_name: string;
+  payout_account_number: string;
+  payout_bank_name: string;
+  payout_phone: string;
+  can_pay: boolean;
+  created_at: string;
+}
+
+export interface PayoutTotals {
+  scheduled: number;
+  eligible: number;
+  paid: number;
 }
 
 export interface ConversationSummary {
@@ -194,6 +261,7 @@ export interface OwnerDashboardData {
 }
 
 export interface LandingData {
+  home_promotion: HomePromotion;
   stats: {
     properties: number;
     owners: number;
@@ -205,6 +273,16 @@ export interface LandingData {
   featured: Property[];
   has_data: boolean;
   pending_bookings: number;
+}
+
+export interface HomePromotion {
+  eyebrow_en: string;
+  eyebrow_km: string;
+  title_en: string;
+  title_km: string;
+  body_en: string;
+  body_km: string;
+  image_url: string;
 }
 
 /* ----------------------------- Console (superadmin) ----------------------------- */
@@ -233,6 +311,8 @@ export interface ConsoleDashboardData {
     revenue: number;
     refunded: number;
     avg_rent: number;
+    eligible_payouts?: number;
+    eligible_payout_amount?: number;
   };
   status_counts: Record<string, number>;
   monthly_rows: { month: string | null; total: number; n: number }[];
@@ -263,10 +343,32 @@ export interface ConsoleUsersResponse {
   approvals: RoleOption[];
   pending_count: number;
   total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface ConsoleSettings {
   auto_approve_owners: boolean;
+  property_categories: PropertyCategorySetting[];
+  notification_messages: NotificationMessageSetting[];
+  home_promotion: HomePromotion;
+}
+
+export interface PropertyCategorySetting {
+  value: string;
+  label_en: string;
+  label_km: string;
+}
+
+export interface NotificationMessageSetting {
+  key: string;
+  body_key: string;
+  label_en: string;
+  label_km: string;
+  title_en: string;
+  title_km: string;
+  body_en: string;
+  body_km: string;
 }
 
 export type ConsolePropertyItem = Property & {
@@ -280,6 +382,8 @@ export interface ConsolePropertiesResponse {
   owner: string;
   owners: User[];
   total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface ConsoleBookingsResponse {
@@ -288,14 +392,28 @@ export interface ConsoleBookingsResponse {
   status: string;
   status_counts: Record<string, number>;
   total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface ConsolePaymentsResponse {
   payments: Payment[];
   refunds: Refund[];
+  refunds_total: number;
+  refund_page: number;
+  refund_page_size: number;
+  payouts: Payout[];
+  payout_status: string;
+  payout_counts: Record<string, number>;
+  payout_totals: PayoutTotals;
   query: string;
   status: string;
   status_counts: Record<string, number>;
   total: number;
+  page: number;
+  page_size: number;
+  payouts_total: number;
+  payout_page: number;
+  payout_page_size: number;
   revenue: number;
 }

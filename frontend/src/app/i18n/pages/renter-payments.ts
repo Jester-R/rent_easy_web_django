@@ -6,6 +6,7 @@ export const renterPayments: PageCatalog = {
   noPaymentReceiptsFound: ['No payment receipts found', 'រកមិនឃើញបង្កាន់ដៃទូទាត់ទេ'],
   completedLeasePaymentsWillAppearHere: ['Completed lease payments will appear here.', 'ការទូទាត់ថ្លៃជួលដែលបានបញ្ចប់នឹងបង្ហាញនៅទីនេះ។'],
   reference: ['Reference', 'លេខយោង'],
+  viewReceiptDetails: ['View receipt details for', 'មើលព័ត៌មានលម្អិតបង្កាន់ដៃសម្រាប់'],
   property: ['Property', 'អចលនទ្រព្យ'],
   method: ['Method', 'វិធីសាស្ត្រ'],
   amount: ['Amount', 'ចំនួនទឹកប្រាក់'],

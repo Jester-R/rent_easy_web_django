@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Property, LandingData } from '../models';
+import { Property, LandingData, PropertyCategorySetting } from '../models';
 
 export interface PropertyBrowseResponse {
   properties: Property[];
@@ -11,8 +11,11 @@ export interface PropertyBrowseResponse {
     price_floor: number;
     price_ceiling: number;
     all_locations_token: string;
-    categories: { value: string; label: string }[];
+    categories: PropertyCategorySetting[];
     all_categories_token: string;
+    total: number;
+    page: number;
+    page_size: number;
   };
   filters: {
     q: string;
@@ -37,6 +40,14 @@ export class PropertyService {
     });
   }
 
+  getCategories(): Observable<{ categories: PropertyCategorySetting[] }> {
+    const params = new HttpParams().set('_refresh', String(Date.now()));
+    return this.http.get<{ categories: PropertyCategorySetting[] }>(
+      `${this.baseUrl}/property-categories/`,
+      { withCredentials: true, params },
+    );
+  }
+
   browse(filters?: {
     q?: string;
     location?: string;
@@ -44,6 +55,8 @@ export class PropertyService {
     min_bedrooms?: number;
     max_price?: number;
     sort?: string;
+    page?: number;
+    page_size?: number;
   }): Observable<PropertyBrowseResponse> {
     let params = new HttpParams();
     if (filters?.q) params = params.set('q', filters.q);
@@ -56,6 +69,8 @@ export class PropertyService {
     if (filters?.max_price)
       params = params.set('max_price', filters.max_price.toString());
     if (filters?.sort) params = params.set('sort', filters.sort);
+    if (filters?.page) params = params.set('page', String(filters.page));
+    if (filters?.page_size) params = params.set('page_size', String(filters.page_size));
 
     return this.http.get<PropertyBrowseResponse>(`${this.baseUrl}/rent/properties/`, {
       params,
@@ -82,10 +97,12 @@ export class PropertyService {
     }>(`${this.baseUrl}/property/${id}/`, { withCredentials: true });
   }
 
-  getFavorites(): Observable<{ favorites: Property[]; count: number }> {
-    return this.http.get<{ favorites: Property[]; count: number }>(
+  getFavorites(page = 1, pageSize = 25): Observable<{ favorites: Property[]; count: number; total: number; page: number; page_size: number }> {
+    const params = new HttpParams().set('page', String(page)).set('page_size', String(pageSize));
+    return this.http.get<{ favorites: Property[]; count: number; total: number; page: number; page_size: number }>(
       `${this.baseUrl}/rent/favorites/`,
-      { withCredentials: true }
+      { params,
+        withCredentials: true }
     );
   }
 
@@ -108,10 +125,12 @@ export class PropertyService {
     );
   }
 
-  getOwnerProperties(): Observable<{ properties: Property[] }> {
-    return this.http.get<{ properties: Property[] }>(
+  getOwnerProperties(page = 1, pageSize = 25): Observable<{ properties: Property[]; total: number; page: number; page_size: number }> {
+    const params = new HttpParams().set('page', String(page)).set('page_size', String(pageSize));
+    return this.http.get<{ properties: Property[]; total: number; page: number; page_size: number }>(
       `${this.baseUrl}/owner/properties/`,
-      { withCredentials: true }
+      { params,
+        withCredentials: true }
     );
   }
 
@@ -131,8 +150,8 @@ export class PropertyService {
     );
   }
 
-  deleteProperty(id: number): Observable<{ ok: boolean; deleted: number }> {
-    return this.http.post<{ ok: boolean; deleted: number }>(
+  deleteProperty(id: number): Observable<{ ok: boolean; deleted: number; refunds_requested: number }> {
+    return this.http.post<{ ok: boolean; deleted: number; refunds_requested: number }>(
       `${this.baseUrl}/owner/properties/${id}/delete/`,
       {},
       { withCredentials: true }

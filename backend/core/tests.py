@@ -14,6 +14,7 @@ from django.test import TestCase
 
 from accounts.models import Role, User
 from bookings.models import Booking, BookingStatus
+from core.bolt_serializers import BookingSerializer, _needs_plan_reload
 from listings.models import Property
 from notifications.models import Notification
 from payments.models import Payment, Refund
@@ -94,6 +95,26 @@ class ModelLinkTests(SeededTestCase):
                 refund.payment.get_absolute_url(),
                 f"/rent/payments/{refund.payment_id}/",
             )
+
+
+class BookingSerializerPlanTests(SeededTestCase):
+    def test_plan_loads_payment_and_payout_for_async_serialization(self):
+        booking = (
+            Booking.objects.select_related("property", "renter", "owner")
+            .filter(payment__isnull=False)
+            .first()
+        )
+        self.assertIsNotNone(booking)
+        plan = BookingSerializer.loading_plan(Booking)
+        self.assertIn("payment", plan.select_related)
+        self.assertIn("payment__payout", plan.select_related)
+        self.assertTrue(_needs_plan_reload(booking, plan))
+
+        reloaded = BookingSerializer._prepare_queryset(
+            Booking.objects.filter(pk=booking.pk)
+        ).get()
+        self.assertIn("payment", reloaded._state.fields_cache)
+        self.assertFalse(_needs_plan_reload(reloaded, plan))
 
 
 class PropertyQuerySmokeTests(SeededTestCase):

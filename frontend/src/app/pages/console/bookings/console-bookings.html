@@ -60,7 +60,7 @@
       }
     </div>
   } @else if (bookings().length) {
-    <div class="table-wrap app-card overflow-hidden">
+    <div class="table-wrap table-scroll app-card" role="region" tabindex="0" [attr.aria-label]="language.t('consoleBookings.bookings')">
       <table class="data-table">
         <thead>
           <tr>
@@ -77,7 +77,7 @@
             <tr>
               <td class="whitespace-nowrap font-mono text-[12px] font-bold">{{ b.reference }}</td>
               <td class="min-w-[11rem]">
-                <span class="block truncate font-bold">{{ b.property?.title }}</span>
+                <span class="block truncate font-bold">{{ title(b.property) }}</span>
               </td>
               <td class="whitespace-nowrap text-ink-2">
                 {{ b.renter.display_name }}
@@ -93,6 +93,7 @@
         </tbody>
       </table>
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
 
   } @else {
     <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">

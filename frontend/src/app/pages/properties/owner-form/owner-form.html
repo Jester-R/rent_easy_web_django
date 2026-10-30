@@ -19,51 +19,68 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-6">
-      <div>
-        <label class="form-label">{{ language.t('ownerForm.propertyTitle') }}</label>
-        <input
-          type="text"
-          formControlName="title"
-          [placeholder]="language.t('ownerForm.eGModern2BedroomCondoWithBalcony')"
-          class="form-input"
-        />
-      </div>
-
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="form-label">{{ language.t('ownerForm.locationDistrict') }}</label>
+          <label class="form-label">{{ language.t('ownerForm.propertyTitle') }} ({{ language.t('ownerForm.english') }})</label>
           <input
             type="text"
-            formControlName="location"
-            [placeholder]="language.t('ownerForm.eGPhnomPenhToulKork')"
+            formControlName="title"
+            [placeholder]="language.tIn('en', 'ownerForm.eGModern2BedroomCondoWithBalcony')"
             class="form-input"
           />
         </div>
-
         <div>
-          <label class="form-label">{{ language.t('ownerForm.monthlyRentUSD') }}</label>
+          <label class="form-label">{{ language.t('ownerForm.propertyTitle') }} ({{ language.t('ownerForm.khmer') }})</label>
           <input
-            type="number"
-            formControlName="price_per_month"
-            min="1"
+            type="text"
+            formControlName="title_km"
+            [placeholder]="language.tIn('km', 'ownerForm.eGModern2BedroomCondoWithBalcony')"
             class="form-input"
           />
         </div>
       </div>
 
       <div>
-        <label class="form-label">{{ language.t('ownerForm.category') }}</label>
+        <label class="form-label">{{ bilingualLabel('ownerForm.locationDistrict') }}</label>
         <app-searchable-select
-          [options]="categoryOptions"
-          formControlName="category"
-          [placeholder]="language.t('ownerForm.uncategorized')"
+          [options]="locationOptions()"
+          formControlName="location"
+          [placeholder]="language.t('ownerForm.selectLocation')"
           [searchPlaceholder]="language.t('ownerForm.search')"
         />
       </div>
 
+      <div>
+        <label class="form-label">{{ bilingualLabel('ownerForm.monthlyRentUSD') }}</label>
+        <input
+          type="number"
+          formControlName="price_per_month"
+          min="1"
+          class="form-input"
+        />
+      </div>
+
+      <div>
+        <label class="form-label">{{ bilingualLabel('ownerForm.category') }}</label>
+        <app-searchable-select
+          [options]="categoryOptions()"
+          formControlName="category"
+          [placeholder]="language.t('ownerForm.selectCategory')"
+          [showPlaceholderOnEmpty]="true"
+          [searchPlaceholder]="language.t('ownerForm.search')"
+          (opened)="loadCategorySettings()"
+        />
+        @if (categoryLoadError()) {
+          <p class="mt-1 text-xs text-danger" role="alert">
+            {{ language.t('ownerForm.categoryLoadFailed') }}
+            <button type="button" class="font-bold underline" (click)="loadCategorySettings()">{{ language.t('ownerForm.tryAgain') }}</button>
+          </p>
+        }
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="form-label">{{ language.t('ownerForm.bedrooms') }}</label>
+          <label class="form-label">{{ bilingualLabel('ownerForm.bedrooms') }}</label>
           <input
             type="number"
             formControlName="bedrooms"
@@ -73,7 +90,7 @@
         </div>
 
         <div>
-          <label class="form-label">{{ language.t('ownerForm.bathrooms') }}</label>
+          <label class="form-label">{{ bilingualLabel('ownerForm.bathrooms') }}</label>
           <input
             type="number"
             formControlName="bathrooms"
@@ -85,7 +102,7 @@
 
       <div class="space-y-3">
         <div class="flex items-center justify-between gap-3">
-          <label class="form-label mb-0">{{ language.t('ownerForm.mapLocation') }}</label>
+          <label class="form-label mb-0">{{ bilingualLabel('ownerForm.mapLocation') }}</label>
           @if (latitude() !== null) {
             <button type="button" (click)="clearCoordinates()" class="text-xs font-semibold text-ink-3 hover:text-danger transition-colors">
               {{ language.t('ownerForm.clear') }}
@@ -115,26 +132,46 @@
       </div>
 
       <div>
-        <label class="form-label">{{ language.t('ownerForm.photoURLsOnePerLine') }}</label>
-        <textarea
-          formControlName="images_text"
-          rows="3"
-          placeholder="https://..."
-          class="form-input"
-        ></textarea>
-        <p class="text-xs text-ink-3 mt-1">
-          {{ language.t('ownerForm.upTo12ImageLinksTheFirstBecomesTheCoverPhoto') }}
-        </p>
+        <label class="form-label">{{ bilingualLabel('ownerForm.propertyPhotos') }}</label>
+        <input type="file" accept="image/*" multiple (change)="onImagesSelected($event)" class="form-input" />
+        <p class="text-xs text-ink-3 mt-1">{{ language.t('ownerForm.selectUpTo12PhotosMax2MbEachFirstIsCover') }}</p>
+        @if (existingImages().length || selectedImages().length) {
+          <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            @for (photo of existingImages(); track photo; let i = $index) {
+              <div class="relative aspect-video overflow-hidden rounded-lg border border-hairline">
+                <img [src]="photo" alt="Property photo" class="h-full w-full object-cover" />
+                <button type="button" (click)="removeExistingImage(i)" class="absolute right-1 top-1 rounded bg-white px-2 py-1 text-xs">Remove</button>
+              </div>
+            }
+            @for (photo of selectedImages(); track $index; let i = $index) {
+              <div class="relative aspect-video overflow-hidden rounded-lg border border-hairline">
+                <img [src]="photo" alt="Selected property photo" class="h-full w-full object-cover" />
+                <button type="button" (click)="removeSelectedImage(i)" class="absolute right-1 top-1 rounded bg-white px-2 py-1 text-xs">Remove</button>
+              </div>
+            }
+          </div>
+        }
       </div>
 
-      <div>
-        <label class="form-label">{{ language.t('ownerForm.fullDescription') }}</label>
-        <textarea
-          formControlName="description"
-          rows="5"
-          [placeholder]="language.t('ownerForm.describePropertyFeaturesUtilitiesNeighborhood')"
-          class="form-input"
-        ></textarea>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">{{ language.t('ownerForm.fullDescription') }} ({{ language.t('ownerForm.english') }})</label>
+          <textarea
+            formControlName="description"
+            rows="5"
+            [placeholder]="language.tIn('en', 'ownerForm.describePropertyFeaturesUtilitiesNeighborhood')"
+            class="form-input"
+          ></textarea>
+        </div>
+        <div>
+          <label class="form-label">{{ language.t('ownerForm.fullDescription') }} ({{ language.t('ownerForm.khmer') }})</label>
+          <textarea
+            formControlName="description_km"
+            rows="5"
+            [placeholder]="language.tIn('km', 'ownerForm.describePropertyFeaturesUtilitiesNeighborhood')"
+            class="form-input"
+          ></textarea>
+        </div>
       </div>
 
       <div class="flex items-center justify-end gap-3 pt-4 border-t border-hairline">

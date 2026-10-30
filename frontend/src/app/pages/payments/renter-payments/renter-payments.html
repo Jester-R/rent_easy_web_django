@@ -10,11 +10,11 @@
       <input
         type="text"
         [(ngModel)]="searchTerm"
-        (keyup.enter)="loadPayments()"
+        (keyup.enter)="applyFilters()"
         placeholder="Filter by ref, property..."
         class="form-input text-xs max-w-xs"
       />
-      <button (click)="loadPayments()" class="btn btn-primary btn-sm">
+      <button (click)="applyFilters()" class="btn btn-primary btn-sm">
         Filter
       </button>
     </div>
@@ -35,7 +35,7 @@
       <p class="text-xs text-ink-3 mt-1">{{ language.t('renterPayments.completedLeasePaymentsWillAppearHere') }}</p>
     </div>
   } @else {
-    <div class="table-wrap">
+    <div class="table-wrap table-scroll" role="region" tabindex="0" [attr.aria-label]="language.t('renterPayments.paymentReceipts')">
       <table class="data-table">
         <thead>
           <tr>
@@ -50,7 +50,11 @@
         <tbody>
           @for (p of payments(); track p.id) {
             <tr>
-              <td class="font-mono font-medium text-ink">{{ p.reference }}</td>
+              <td class="font-mono font-medium">
+                <a [routerLink]="['/payments', p.id]" class="text-primary hover:underline" [attr.aria-label]="language.t('renterPayments.viewReceiptDetails') + ' ' + p.reference">
+                  {{ p.reference }}
+                </a>
+              </td>
               <td class="font-medium text-ink">{{ p.property_title }}</td>
               <td class="text-ink-2">{{ p.method }}</td>
               <td class="font-extrabold text-primary text-sm">{{ p.amount_display }}</td>
@@ -71,5 +75,6 @@
         </tbody>
       </table>
     </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
   }
 </div>

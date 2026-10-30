@@ -12,6 +12,7 @@ export const consoleDashboard: PageCatalog = {
   awaitingApproval: ['Awaiting approval', 'រង់ចាំការអនុម័ត'],
   revenue: ['Revenue', 'ចំណូល'],
   refunded: ['Refunded', 'បានសងប្រាក់វិញ'],
+  payoutsReady: ['Payouts ready', 'ការផ្ទេរត្រៀមរួច'],
   role: ['Role', 'តួនាទី'],
   averageRent: ['Average rent', 'ថ្លៃជួលជាមធ្យម'],
   noPaymentsYet: ['No payments yet', 'មិនទាន់មានការទូទាត់ទេ'],
