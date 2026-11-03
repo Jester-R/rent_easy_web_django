@@ -10,6 +10,26 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _load_dotenv(env_path: Path) -> None:
+    if not env_path.is_file():
+        return
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip("'\"")
+                os.environ[k] = v
+    except OSError:
+        pass
+
+
+_load_dotenv(BASE_DIR / ".env")
+_load_dotenv(BASE_DIR.parent / ".env")
+
 SECRET_KEY = "django-insecure-renteasy-web-dev-key-change-me-in-production"
 
 DEBUG = True
@@ -187,6 +207,42 @@ ABA_PAYWAY_RETURN_URL = os.environ.get(
 ABA_PAYWAY_CANCEL_URL = os.environ.get(
     "ABA_PAYWAY_CANCEL_URL", f"{FRONTEND_BASE_URL}/bookings"
 )
+
+# -- Google OAuth2 ------------------------------------------------------------
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+GOOGLE_OAUTH_REDIRECT_URI = os.environ.get(
+    "GOOGLE_OAUTH_REDIRECT_URI",
+    f"{FRONTEND_BASE_URL}/api/auth/google/callback/",
+).strip()
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+
+# -- AI (Groq) ----------------------------------------------------------------
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+
+# -- Email / OTP settings -----------------------------------------------------
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587") or "587")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "").strip()
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "RentEasy <noreply@renteasy.com>"
+)
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = os.environ.get(
+        "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+    )
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+
 
 LOGGING = {
     "version": 1,

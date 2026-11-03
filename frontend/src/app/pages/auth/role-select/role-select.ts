@@ -25,13 +25,30 @@ export class RoleSelectComponent {
     this.errorMessage.set(null);
 
     this.auth.selectRole(this.selectedRole()).subscribe({
-      next: () => {
+      next: (res) => {
         this.isLoading.set(false);
-        this.router.navigate(['/login']);
+        if (res.status === 'pending_approval' || res.redirect?.includes('pending=1')) {
+          this.router.navigate(['/register'], { queryParams: { pending: '1' } });
+          return;
+        }
+        const rawDest = res.redirect || res.home_url || '';
+        const dest = rawDest.length > 1 && rawDest.endsWith('/') ? rawDest.replace(/\/+$/, '') : rawDest;
+        if (dest && dest.startsWith('/') && !dest.startsWith('/login')) {
+          this.router.navigateByUrl(dest);
+        } else if (this.selectedRole() === 'owner') {
+          this.router.navigate(['/owner']);
+        } else {
+          this.router.navigate(['/rent']);
+        }
       },
-      error: () => {
+      error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set('Failed to set role. Please try logging in.');
+        const detail = err.error?.detail;
+        if (detail === 'no_pending_registration') {
+          this.errorMessage.set('No pending registration found. Please sign in again with Google.');
+        } else {
+          this.errorMessage.set('Failed to set role. Please try again.');
+        }
       },
     });
   }

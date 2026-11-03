@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { LanguageService } from '../../../services/language.service';
 
@@ -10,11 +10,12 @@ import { LanguageService } from '../../../services/language.service';
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
@@ -23,6 +24,39 @@ export class LoginComponent {
     identifier: ['', [Validators.required]],
     password: ['', [Validators.required]],
   });
+
+  ngOnInit(): void {
+    const error = this.route.snapshot.queryParamMap.get('error');
+    if (error) {
+      if (error === 'oauth_cancelled') {
+        this.errorMessage.set(this.language.t('login.oauthCancelled'));
+      } else if (error === 'oauth_not_configured') {
+        this.errorMessage.set(this.language.t('login.oauthNotConfigured'));
+      } else if (error === 'oauth_missing_parameters') {
+        this.errorMessage.set(this.language.t('login.oauthMissingParameters'));
+      } else if (error === 'oauth_invalid_state') {
+        this.errorMessage.set(this.language.t('login.oauthInvalidState'));
+      } else if (error === 'approval_pending') {
+        this.errorMessage.set(
+          this.language.t('login.yourAccountIsAwaitingApprovalByASystem')
+        );
+      } else if (error === 'registration_rejected') {
+        this.errorMessage.set(
+          this.language.t('login.yourAccountRequestWasDeclinedPleaseContactSupport')
+        );
+      } else if (error === 'not_authorized') {
+        this.errorMessage.set(
+          this.language.t('login.thisAccountIsNotAuthorizedToSignIn')
+        );
+      } else {
+        this.errorMessage.set(this.language.t('login.oauthFailed'));
+      }
+    }
+  }
+
+  loginWithGoogle(): void {
+    this.auth.loginWithGoogle();
+  }
 
   onSubmit(): void {
     if (this.form.invalid) return;
@@ -64,6 +98,17 @@ export class LoginComponent {
             this.errorMessage.set(
               this.language.t('login.thisAccountIsNotAuthorizedToSignIn')
             );
+          } else if (detail.startsWith('registration_unverified:')) {
+            const email = detail.slice('registration_unverified:'.length);
+            this.errorMessage.set(this.language.t('login.emailNotVerified'));
+            this.router.navigate(['/register'], {
+              queryParams: { email, verify: '1' },
+            });
+          } else if (detail === 'email_not_verified') {
+            this.errorMessage.set(this.language.t('login.emailNotVerified'));
+            this.router.navigate(['/register'], {
+              queryParams: { verify: '1' },
+            });
           } else if (detail === 'invalid_credentials') {
             this.errorMessage.set(this.language.t('login.invalidUsernameEmailOrPassword'));
           } else if (detail === 'credentials_required') {

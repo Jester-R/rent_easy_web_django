@@ -6,7 +6,8 @@ import { AuthService } from '../services/auth.service';
 
 /** The authenticated user's landing page, falling back to the home page. */
 function homeFor(auth: AuthService): string {
-  return auth.currentUser()?.home_url || '/';
+  const url = auth.currentUser()?.home_url || '/';
+  return url.length > 1 && url.endsWith('/') ? url.replace(/\/+$/, '') : url;
 }
 
 /**

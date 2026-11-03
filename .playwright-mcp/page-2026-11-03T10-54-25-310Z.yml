@@ -1,0 +1,50 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "RentEasy" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e12]
+          - generic [ref=e16]: RentEasy
+        - generic [ref=e17]:
+          - button "ប្តូរទៅភាសាខ្មែរ" [ref=e18] [cursor=pointer]:
+            - generic [ref=e19]: ខ្មែរ
+          - button "Switch to dark mode" [ref=e20] [cursor=pointer]:
+            - img [ref=e21]
+          - link "Add Property" [ref=e23] [cursor=pointer]:
+            - /url: /owner/properties/new
+            - img [ref=e24]
+            - generic [ref=e26]: Add Property
+          - link "Messages" [ref=e27] [cursor=pointer]:
+            - /url: /messages
+            - img [ref=e28]
+          - button "Notifications" [ref=e32] [cursor=pointer]:
+            - img [ref=e33]
+            - generic [ref=e35]: "2"
+          - button "De Demo Owner" [ref=e37]:
+            - generic [ref=e38]: De
+            - generic [ref=e39]: Demo Owner
+            - img [ref=e40]
+    - main [ref=e42]
+  - navigation "Main navigation" [ref=e50]:
+    - generic [ref=e51]:
+      - link "Home" [ref=e52] [cursor=pointer]:
+        - /url: /owner
+        - img [ref=e56]
+        - generic [ref=e60]: Home
+      - link "Properties" [ref=e61] [cursor=pointer]:
+        - /url: /owner/properties
+        - img [ref=e65]
+        - generic [ref=e69]: Properties
+      - link "Bookings" [ref=e70] [cursor=pointer]:
+        - /url: /owner/bookings
+        - generic [ref=e71]: ▤
+        - generic [ref=e72]: Bookings
+      - link "Revenue" [ref=e73] [cursor=pointer]:
+        - /url: /owner/payments
+        - generic [ref=e74]: ＄
+        - generic [ref=e75]: Revenue
+      - link "Profile" [ref=e76] [cursor=pointer]:
+        - /url: /profile
+        - generic [ref=e77]: ♙
+        - generic [ref=e78]: Profile

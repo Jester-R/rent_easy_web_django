@@ -9,6 +9,13 @@
         <p class="mt-1 text-[13px] text-ink-3">Choose whether you are looking to rent or lease properties</p>
       </div>
 
+      @if (errorMessage()) {
+        <div class="toast toast-error mb-4" role="alert">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M10.7 3.9 2.6 17.5A1.5 1.5 0 0 0 3.9 19.8h16.2a1.5 1.5 0 0 0 1.3-2.3L13.3 3.9a1.5 1.5 0 0 0-2.6 0Z"/><path d="M12 9v4.2M12 16.4h.01"/></svg>
+          <span class="flex-1">{{ errorMessage() }}</span>
+        </div>
+      }
+
       <div class="grid gap-3 sm:grid-cols-2">
         <label
           (click)="selectRole('renter')"

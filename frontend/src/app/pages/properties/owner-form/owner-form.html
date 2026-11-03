@@ -153,6 +153,31 @@
         }
       </div>
 
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-2/60 px-4 py-3">
+        <div class="min-w-0">
+          <p class="text-[13px] font-bold text-ink">{{ language.t('ownerForm.generateWithAi') }}</p>
+          <p class="text-[12px] text-ink-3">{{ language.t('ownerForm.aiDescriptionHint') }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="generateWithAi()"
+          [disabled]="isGeneratingDescription()"
+          class="btn btn-primary shrink-0"
+        >
+          @if (isGeneratingDescription()) {
+            <span class="inline-flex items-center gap-2">
+              <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.56"/></svg>
+              {{ language.t('ownerForm.generatingWithAi') }}
+            </span>
+          } @else {
+            <span class="inline-flex items-center gap-2">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="m19 15 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15Z"/></svg>
+              {{ language.t('ownerForm.generateWithAi') }}
+            </span>
+          }
+        </button>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="form-label">{{ language.t('ownerForm.fullDescription') }} ({{ language.t('ownerForm.english') }})</label>

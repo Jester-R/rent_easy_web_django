@@ -134,6 +134,23 @@ export class PropertyService {
     );
   }
 
+  generateDescription(data: {
+    title?: string;
+    title_km?: string;
+    location?: string;
+    category?: string;
+    price_per_month?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    notes?: string;
+  }): Observable<{ description: string; description_km: string; model?: string }> {
+    return this.http.post<{ description: string; description_km: string; model?: string }>(
+      `${this.baseUrl}/ai/property-description/`,
+      data,
+      { withCredentials: true }
+    );
+  }
+
   createProperty(data: Partial<Property>): Observable<{ property: Property }> {
     return this.http.post<{ property: Property }>(
       `${this.baseUrl}/owner/properties/new/`,

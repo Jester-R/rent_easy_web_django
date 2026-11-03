@@ -7,13 +7,20 @@ that the API serializers rely on.
 
 from __future__ import annotations
 
+import json as json_module
 from io import StringIO
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase
 
 from accounts.models import Role, User
 from bookings.models import Booking, BookingStatus
+from core.ai import (
+    _parse_json_object,
+    build_property_description_prompt,
+    generate_property_description,
+)
 from core.bolt_serializers import BookingSerializer, _needs_plan_reload
 from listings.models import Property
 from notifications.models import Notification
@@ -123,3 +130,87 @@ class PropertyQuerySmokeTests(SeededTestCase):
         q = queryset.query
         self.assertIsNotNone(q)
         self.assertFalse(queryset._result_cache)
+
+
+class _FakeGroqResponse:
+    def __init__(self, payload):
+        self.status_code = 200
+        self._payload = payload
+        self.text = ""
+
+    def json(self):
+        return self._payload
+
+
+class _FakeGroqClient:
+    response_payload = {}
+    last_request = None
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def post(self, url, json=None, headers=None):
+        type(self).last_request = json
+        content = json_module.dumps(type(self).response_payload)
+        return _FakeGroqResponse(
+            {"choices": [{"message": {"content": content}}]}
+        )
+
+
+class AIDescriptionTests(TestCase):
+    def test_prompt_contains_provided_facts_and_json_instruction(self):
+        messages = build_property_description_prompt(
+            {
+                "title": "Sunny Studio",
+                "location": "Phnom Penh - BKK1",
+                "price_per_month": 300,
+                "notes": "Balcony and parking",
+            }
+        )
+        system = messages[0]["content"]
+        user = messages[1]["content"]
+        self.assertIn("JSON", system)
+        self.assertIn("never invent", system.lower())
+        self.assertIn("Sunny Studio", user)
+        self.assertIn("Phnom Penh - BKK1", user)
+        self.assertIn("Balcony and parking", user)
+
+    def test_parse_json_object_accepts_fenced_json(self):
+        data = _parse_json_object(
+            '```json\n{"description": "English", "description_km": "ខ្មែរ"}\n```'
+        )
+        self.assertEqual(data["description"], "English")
+        self.assertEqual(data["description_km"], "ខ្មែរ")
+
+    def test_parse_json_object_rejects_invalid_content(self):
+        with self.assertRaises(ValueError):
+            _parse_json_object("no json here")
+
+    @patch.dict(
+        "os.environ",
+        {"GROQ_API_KEY": "test-key", "GROQ_MODEL": "test-model"},
+        clear=False,
+    )
+    @patch("core.ai.httpx.AsyncClient", _FakeGroqClient)
+    async def test_generate_property_description_returns_both_languages(self):
+        _FakeGroqClient.response_payload = {
+            "description": "A bright studio in BKK1.",
+            "description_km": "ស្ទូឌីយោភ្លឺនៅ BKK1។",
+        }
+        result = await generate_property_description(
+            {"title": "Sunny Studio", "location": "Phnom Penh - BKK1"}
+        )
+
+        self.assertEqual(result["description"], "A bright studio in BKK1.")
+        self.assertEqual(result["description_km"], "ស្ទូឌីយោភ្លឺនៅ BKK1។")
+        self.assertEqual(result["model"], "test-model")
+        self.assertEqual(_FakeGroqClient.last_request["model"], "test-model")
+        self.assertEqual(
+            _FakeGroqClient.last_request["response_format"], {"type": "json_object"}
+        )

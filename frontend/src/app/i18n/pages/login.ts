@@ -17,4 +17,13 @@ export const login: PageCatalog = {
   invalidUsernameEmailOrPassword: ['Invalid username/email or password.', 'ឈ្មោះអ្នកប្រើ/អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ។'],
   pleaseProvideBothIdentifierAndPassword: ['Please provide both identifier and password.', 'សូមបញ្ចូលឈ្មោះអ្នកប្រើ ឬអ៊ីមែល និងពាក្យសម្ងាត់។'],
   anErrorOccurredDuringLoginPleaseTryAgain: ['An error occurred during login. Please try again.', 'មានបញ្ហាក្នុងពេលចូលគណនី។ សូមព្យាយាមម្ដងទៀត។'],
+  emailNotVerified: ['Your email is not verified yet. Please enter the 6-digit code we emailed you to finish creating your account.', 'អ៊ីមែលរបស់អ្នកមិនទាន់បានផ្ទៀងផ្ទាត់ទេ។ សូមបញ្ចូលលេខកូដ ៦ ខ្ទង់ដែលយើងបានផ្ញើទៅអ៊ីមែលរបស់អ្នក ដើម្បីបញ្ចប់ការបង្កើតគណនី។'],
+  continueWithGoogle: ['Continue with Google', 'បន្តជាមួយ Google'],
+  signInWithGoogle: ['Sign in with Google', 'ចូលគណនីជាមួយ Google'],
+  or: ['or', 'ឬ'],
+  oauthCancelled: ['Google sign-in was cancelled.', 'ការចូលគណនីតាម Google ត្រូវបានបោះបង់។'],
+  oauthNotConfigured: ['Google sign-in is not configured yet. Set GOOGLE_OAUTH_CLIENT_ID in your .env.', 'មិនទាន់បានកំណត់រចនាសម្ព័ន្ធ Google OAuth នៅឡើយទេ។ សូមកំណត់ GOOGLE_OAUTH_CLIENT_ID ក្នុង .env។'],
+  oauthFailed: ['Google authentication failed. Please try again.', 'ការផ្ទៀងផ្ទាត់តាម Google បានបរាជ័យ។ សូមព្យាយាមម្ដងទៀត។'],
+  oauthMissingParameters: ['Missing authorization parameters from Google.', 'បាត់ប៉ារ៉ាម៉ែត្រផ្ទៀងផ្ទាត់ពី Google។'],
+  oauthInvalidState: ['OAuth session expired or invalid. Please try again.', 'វគ្គ OAuth បានផុតកំណត់ ឬមិនត្រឹមត្រូវ។ សូមព្យាយាមម្ដងទៀត។'],
 };

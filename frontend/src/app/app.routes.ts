@@ -5,6 +5,7 @@ import { PropertyDetailComponent } from './pages/properties/detail/detail';
 import { LoginComponent } from './pages/auth/login/login';
 import { RegisterComponent } from './pages/auth/register/register';
 import { RoleSelectComponent } from './pages/auth/role-select/role-select';
+import { GoogleCallbackComponent } from './pages/auth/google-callback/google-callback';
 import { ProfileComponent } from './pages/profile/profile';
 import { SettingsComponent } from './pages/settings/settings';
 import { MessagesComponent } from './pages/messages/messages';
@@ -45,6 +46,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
   { path: 'register', component: RegisterComponent, canActivate: [guestGuard] },
   { path: 'role-select', component: RoleSelectComponent, canActivate: [guestGuard] },
+  { path: 'auth/google/callback', component: GoogleCallbackComponent },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
   { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
   { path: 'messages', component: MessagesComponent, canActivate: [authGuard] },

@@ -5,12 +5,13 @@ import { Observable, tap, catchError, of } from 'rxjs';
 import { User, RenterDashboardData, OwnerDashboardData } from '../models';
 
 export interface RegisterResult {
-  status: 'active' | 'pending_approval';
-  role: 'renter' | 'owner';
+  status: 'active' | 'pending_approval' | 'otp_required';
+  role?: 'renter' | 'owner';
   user?: User;
+  email?: string;
   home_url?: string;
   message?: string;
-  redirect: string;
+  redirect?: string;
 }
 
 @Injectable({
@@ -94,15 +95,61 @@ export class AuthService {
       );
   }
 
-  selectRole(role: 'renter' | 'owner'): Observable<{ ok: boolean; role: string; home_url: string; redirect: string }> {
+  verifyRegisterOtp(
+    email: string,
+    code: string
+  ): Observable<RegisterResult> {
     return this.http
-      .post<{ ok: boolean; role: string; home_url: string; redirect: string }>(
+      .post<RegisterResult>(
+        `${this.baseUrl}/auth/register/verify-otp/`,
+        { email, code },
+        { withCredentials: true }
+      )
+      .pipe(
+        tap((res) => {
+          if (res.status === 'active' && res.user) {
+            this.currentUser.set(res.user);
+          }
+        })
+      );
+  }
+
+  resendRegisterOtp(
+    email: string
+  ): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>(
+      `${this.baseUrl}/auth/register/resend-otp/`,
+      { email },
+      { withCredentials: true }
+    );
+  }
+
+  selectRole(role: 'renter' | 'owner'): Observable<{
+    ok: boolean;
+    status: 'active' | 'pending_approval';
+    role: string;
+    user?: User;
+    home_url: string;
+    redirect: string;
+  }> {
+    return this.http
+      .post<{
+        ok: boolean;
+        status: 'active' | 'pending_approval';
+        role: string;
+        user?: User;
+        home_url: string;
+        redirect: string;
+      }>(
         `${this.baseUrl}/auth/role/`,
         { role },
         { withCredentials: true }
       )
       .pipe(
-        tap(() => {
+        tap((res) => {
+          if (res.status === 'active' && res.user) {
+            this.currentUser.set(res.user);
+          }
           this.checkAuth().subscribe();
         })
       );
@@ -118,6 +165,73 @@ export class AuthService {
       .pipe(
         tap(() => {
           this.currentUser.set(null);
+        })
+      );
+  }
+
+  getGoogleOAuthConfig(): Observable<{ enabled: boolean; client_id: string }> {
+    return this.http.get<{ enabled: boolean; client_id: string }>(
+      `${this.baseUrl}/auth/google/config/`,
+      { withCredentials: true }
+    );
+  }
+
+  getGoogleAuthUrl(
+    role: string = '',
+    nextUrl: string = ''
+  ): Observable<{ enabled: boolean; url: string }> {
+    const params: string[] = [];
+    if (role) params.push(`role=${encodeURIComponent(role)}`);
+    if (nextUrl) params.push(`next=${encodeURIComponent(nextUrl)}`);
+    const query = params.length ? `?${params.join('&')}` : '';
+    return this.http.get<{ enabled: boolean; url: string }>(
+      `${this.baseUrl}/auth/google/url/${query}`,
+      { withCredentials: true }
+    );
+  }
+
+  loginWithGoogle(
+    role: string = '',
+    nextUrl: string = ''
+  ): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const params = new URLSearchParams();
+    if (role) params.set('role', role);
+    if (nextUrl) params.set('next', nextUrl);
+    const qs = params.toString();
+    window.location.href = `${this.baseUrl}/auth/google/login/${qs ? '?' + qs : ''}`;
+  }
+
+  handleGoogleCallback(
+    code: string,
+    state?: string,
+    redirectUri?: string
+  ): Observable<{
+    ok: boolean;
+    status: 'active' | 'pending_approval' | 'select_role';
+    role?: string;
+    user?: User;
+    home_url?: string;
+    redirect: string;
+  }> {
+    return this.http
+      .post<{
+        ok: boolean;
+        status: 'active' | 'pending_approval' | 'select_role';
+        role?: string;
+        user?: User;
+        home_url?: string;
+        redirect: string;
+      }>(
+        `${this.baseUrl}/auth/google/callback/`,
+        { code, state, redirect_uri: redirectUri },
+        { withCredentials: true }
+      )
+      .pipe(
+        tap((res) => {
+          if (res.status === 'active' && res.user) {
+            this.currentUser.set(res.user);
+          }
         })
       );
   }

@@ -82,6 +82,7 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   isEdit = signal(false);
   isLoading = signal(false);
+  isGeneratingDescription = signal(false);
   errorMessage = signal<string | null>(null);
   selectedImages = signal<string[]>([]);
   existingImages = signal<string[]>([]);
@@ -285,6 +286,55 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   removeExistingImage(index: number): void {
     this.existingImages.update((images) => images.filter((_, i) => i !== index));
+  }
+
+  generateWithAi(): void {
+    if (this.isGeneratingDescription()) return;
+    const val = this.form.value;
+    if (!val.title?.trim() && !val.title_km?.trim()) {
+      this.errorMessage.set(this.language.t('ownerForm.aiNeedsTitle'));
+      return;
+    }
+
+    const notes = [val.description, val.description_km]
+      .map((text) => (text || '').trim())
+      .filter(Boolean)
+      .join('\n\n');
+
+    this.isGeneratingDescription.set(true);
+    this.errorMessage.set(null);
+
+    this.propertyService
+      .generateDescription({
+        title: val.title || '',
+        title_km: val.title_km || '',
+        location: val.location || '',
+        category: val.category || '',
+        price_per_month: Number(val.price_per_month) || undefined,
+        bedrooms: Number(val.bedrooms) || 0,
+        bathrooms: Number(val.bathrooms) || 0,
+        notes,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isGeneratingDescription.set(false);
+          this.form.patchValue({
+            description: res.description || '',
+            description_km: res.description_km || '',
+          });
+        },
+        error: (err) => {
+          this.isGeneratingDescription.set(false);
+          const detail = err?.error?.detail;
+          if (detail === 'ai_not_configured') {
+            this.errorMessage.set(this.language.t('ownerForm.aiNotConfigured'));
+          } else if (detail === 'title_required') {
+            this.errorMessage.set(this.language.t('ownerForm.aiNeedsTitle'));
+          } else {
+            this.errorMessage.set(this.language.t('ownerForm.aiGenerationFailed'));
+          }
+        },
+      });
   }
 
   onSubmit(): void {

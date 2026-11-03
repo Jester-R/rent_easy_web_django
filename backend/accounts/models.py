@@ -90,6 +90,7 @@ class UserManager(BaseUserManager):
         username = username.strip()
         role = role if role in ROLE_VALUES else Role.RENTER
         extra.setdefault("approval_status", ApprovalStatus.APPROVED)
+        extra.setdefault("is_email_verified", True)
         user = self.model(
             email=email,
             username=username,
@@ -126,6 +127,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=30, unique=True, validators=[USERNAME_VALIDATOR]
     )
     full_name = models.CharField(max_length=120, blank=True)
+    google_id = models.CharField(
+        max_length=255, blank=True, null=True, unique=True, db_index=True
+    )
     # Supports either an external avatar URL or a small uploaded image data URL.
     avatar_url = models.TextField(blank=True)
     role = models.CharField(
@@ -137,6 +141,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=ApprovalStatus.APPROVED,
         db_index=True,
     )
+    is_email_verified = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -202,10 +207,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def home_url(self) -> str:
         if self.is_superadmin_role:
-            return "/console/"
+            return "/console"
         if self.is_owner:
-            return "/owner/"
-        return "/rent/"
+            return "/owner"
+        return "/rent"
 
     @property
     def avatar_hue(self) -> int:
@@ -258,6 +263,38 @@ class AuditLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.action}:{self.entity}:{self.entity_id}"
+
+
+class EmailVerification(models.Model):
+    class Purpose(models.TextChoices):
+        REGISTER = "register", "Register"
+        LOGIN = "login", "Login"
+        PASSWORD_RESET = "password_reset", "Password reset"
+
+    email = models.EmailField(db_index=True)
+    code = models.CharField(max_length=6)
+    purpose = models.CharField(
+        max_length=32, choices=Purpose.choices, default=Purpose.REGISTER
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["email", "code", "purpose"]),
+            models.Index(fields=["expires_at", "is_verified"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"OTP({self.email}, {self.purpose}, code={self.code})"
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
 
 
 def normalize_identity(value: str) -> str:

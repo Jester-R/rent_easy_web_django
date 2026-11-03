@@ -8,14 +8,31 @@ thread via :func:`core.bolt.in_thread`.
 
 from __future__ import annotations
 
+import logging
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Count, Q, Sum
+from django.utils import timezone
 from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
+from django_bolt.responses import Redirect
 
+from accounts.email_verification import (
+    RESEND_COOLDOWN_SECONDS,
+    create_and_send_verification_otp,
+    validate_real_email,
+)
+from accounts.google_oauth import (
+    exchange_code_for_user_info,
+    get_authorization_url,
+    get_or_create_google_user,
+    is_google_oauth_configured,
+    verify_oauth_state,
+)
 from accounts.models import (
     ApprovalStatus,
     AuditLog,
+    EmailVerification,
     PlatformSettings,
     Role,
     User,
@@ -45,6 +62,8 @@ from core.bolt_serializers import property as serialize_property
 from core.bolt_serializers import user as serialize_user
 from listings.models import Favorite, Property
 from payments.models import Payment
+
+logger = logging.getLogger(__name__)
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -131,9 +150,29 @@ async def login_view(request):
         block = await in_thread(_approval_block_detail, identifier, password)
         if block:
             raise HTTPException(status_code=403, detail=block)
+
+        # Check if user registered but hasn't completed email OTP verification yet
+        pending_reg = (
+            await EmailVerification.objects.filter(
+                Q(email__iexact=identifier)
+                | Q(payload__username__iexact=identifier),
+                purpose=EmailVerification.Purpose.REGISTER,
+                is_verified=False,
+            )
+            .order_by("-created_at")
+            .afirst()
+        )
+        if pending_reg:
+            raise HTTPException(
+                status_code=403,
+                detail=f"registration_unverified:{pending_reg.email}",
+            )
+
         raise HTTPException(status_code=401, detail="invalid_credentials")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="not_authorized")
+    if not getattr(user, "is_email_verified", True):
+        raise HTTPException(status_code=403, detail="email_not_verified")
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
@@ -173,6 +212,84 @@ async def register_view(request):
     if await User.objects.filter(username__iexact=username).aexists():
         raise HTTPException(status_code=409, detail="username_taken")
 
+    # Real email & disposable/fake domain verification
+    is_real, err_detail = await validate_real_email(email)
+    if not is_real:
+        raise HTTPException(
+            status_code=422, detail=err_detail or "invalid_email_format"
+        )
+
+    # Create and send 6-digit OTP verification email
+    payload = {
+        "full_name": full_name,
+        "username": username,
+        "email": email,
+        "password": password,
+        "role": role,
+    }
+    await create_and_send_verification_otp(
+        email=email,
+        payload=payload,
+        purpose=EmailVerification.Purpose.REGISTER,
+    )
+
+    return {
+        "status": "otp_required",
+        "email": email,
+        "role": role,
+        "message": "otp_sent",
+    }
+
+
+@api.post("/auth/register/verify-otp/")
+async def register_verify_otp_view(request):
+    data = json_body(request)
+    email = normalize_identity(body_str(data, "email"))
+    code = body_str(data, "code").strip()
+
+    if not email or not code:
+        raise HTTPException(status_code=422, detail="otp_credentials_required")
+
+    record = (
+        await EmailVerification.objects.filter(
+            email__iexact=email,
+            purpose=EmailVerification.Purpose.REGISTER,
+            is_verified=False,
+        )
+        .order_by("-created_at")
+        .afirst()
+    )
+
+    if record is None or record.is_expired:
+        raise HTTPException(status_code=400, detail="otp_expired_or_invalid")
+
+    if record.attempts >= 5:
+        raise HTTPException(status_code=429, detail="too_many_attempts")
+
+    if record.code != code:
+        record.attempts += 1
+        await record.asave(update_fields=["attempts"])
+        remaining = max(0, 5 - record.attempts)
+        raise HTTPException(
+            status_code=400,
+            detail=f"invalid_otp_code:{remaining}",
+        )
+
+    # Valid OTP confirmation
+    record.is_verified = True
+    await record.asave(update_fields=["is_verified"])
+
+    payload = record.payload or {}
+    full_name = payload.get("full_name", "")
+    username = payload.get("username", "")
+    password = payload.get("password", "")
+    role = payload.get("role", Role.RENTER)
+
+    if await User.objects.filter(email__iexact=email).aexists():
+        raise HTTPException(status_code=409, detail="email_taken")
+    if await User.objects.filter(username__iexact=username).aexists():
+        raise HTTPException(status_code=409, detail="username_taken")
+
     settings_obj, _ = await PlatformSettings.objects.aget_or_create(pk=1)
 
     if role == Role.OWNER and not settings_obj.auto_approve_owners:
@@ -185,6 +302,7 @@ async def register_view(request):
             role=Role.OWNER,
             is_active=False,
             approval_status=ApprovalStatus.PENDING,
+            is_email_verified=True,
         )
         await in_thread(_notify_admins_of_owner_request, user)
         return {
@@ -201,6 +319,7 @@ async def register_view(request):
         password=password,
         full_name=full_name,
         role=role,
+        is_email_verified=True,
     )
     await in_thread(login, request, user)
     return {
@@ -209,6 +328,40 @@ async def register_view(request):
         "home_url": user.home_url,
         "redirect": user.home_url,
     }
+
+
+@api.post("/auth/register/resend-otp/")
+async def register_resend_otp_view(request):
+    data = json_body(request)
+    email = normalize_identity(body_str(data, "email"))
+    if not email:
+        raise HTTPException(status_code=422, detail="email_required")
+
+    record = (
+        await EmailVerification.objects.filter(
+            email__iexact=email,
+            purpose=EmailVerification.Purpose.REGISTER,
+        )
+        .order_by("-created_at")
+        .afirst()
+    )
+
+    if record is None:
+        raise HTTPException(status_code=404, detail="no_pending_registration")
+
+    time_since_last = (timezone.now() - record.created_at).total_seconds()
+    if time_since_last < RESEND_COOLDOWN_SECONDS:
+        remaining = int(RESEND_COOLDOWN_SECONDS - time_since_last)
+        raise HTTPException(status_code=429, detail=f"resend_cooldown:{remaining}")
+
+    await create_and_send_verification_otp(
+        email=email,
+        payload=record.payload,
+        purpose=EmailVerification.Purpose.REGISTER,
+    )
+
+    return {"ok": True, "message": "otp_resent"}
+
 
 
 @api.post("/auth/role/")
@@ -246,9 +399,13 @@ async def role_select_view(request):
             "ok": True,
             "status": "pending_approval",
             "role": role,
-            "redirect": "/login/",
+            "redirect": "/register?pending=1",
         }
-    await user.asave(update_fields=["role"])
+    user.is_active = True
+    user.approval_status = ApprovalStatus.APPROVED
+    await user.asave(update_fields=["role", "is_active", "approval_status"])
+    await in_thread(login, request, user)
+    await in_thread(user.touch_login)
     await AuditLog.objects.acreate(
         actor=user,
         action=AuditLog.Action.UPDATE,
@@ -261,9 +418,10 @@ async def role_select_view(request):
     return {
         "ok": True,
         "status": "active",
+        "user": await serialize_user(user),
         "role": role,
         "home_url": user.home_url,
-        "redirect": "/login/",
+        "redirect": user.home_url,
     }
 
 
@@ -281,6 +439,194 @@ async def logout_view(request):
     )
     await in_thread(logout, request)
     return {"ok": True, "redirect": "/login/"}
+
+
+# ---------------------------------------------------------------------------
+# Google OAuth 2.0
+# ---------------------------------------------------------------------------
+
+
+@api.get("/auth/google/config/")
+async def google_oauth_config_view(request):
+    configured = is_google_oauth_configured()
+    return {
+        "enabled": configured,
+        "client_id": (
+            getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "") if configured else ""
+        ),
+    }
+
+
+@api.get("/auth/google/url/")
+async def google_oauth_url_view(request):
+    if not is_google_oauth_configured():
+        return {"enabled": False, "url": ""}
+    role = q(request, "role", "")
+    next_url = q(request, "next", "")
+    redirect_uri = q(request, "redirect_uri", "")
+    try:
+        url = get_authorization_url(
+            role=role, next_url=next_url, redirect_uri=redirect_uri
+        )
+        return {"enabled": True, "url": url}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@api.get("/auth/google/login/")
+async def google_oauth_login_view(request):
+    frontend_base = getattr(
+        settings, "FRONTEND_BASE_URL", "http://localhost:4200"
+    ).rstrip("/")
+    if not is_google_oauth_configured():
+        return Redirect(
+            f"{frontend_base}/login?error=oauth_not_configured", status_code=303
+        )
+
+    role = q(request, "role", "")
+    next_url = q(request, "next", "")
+    redirect_uri = q(request, "redirect_uri", "")
+    try:
+        url = get_authorization_url(
+            role=role, next_url=next_url, redirect_uri=redirect_uri
+        )
+        return Redirect(url, status_code=303)
+    except Exception as exc:
+        logger.error("Failed to generate Google auth URL: %s", exc)
+        return Redirect(f"{frontend_base}/login?error=oauth_failed", status_code=303)
+
+
+@api.get("/auth/google/callback/")
+async def google_oauth_callback_get(request):
+    frontend_base = getattr(
+        settings, "FRONTEND_BASE_URL", "http://localhost:4200"
+    ).rstrip("/")
+
+    error = q(request, "error", "")
+    if error:
+        return Redirect(
+            f"{frontend_base}/login?error=oauth_cancelled", status_code=303
+        )
+
+    code = q(request, "code", "")
+    state = q(request, "state", "")
+    if not code or not state:
+        return Redirect(
+            f"{frontend_base}/login?error=oauth_missing_parameters", status_code=303
+        )
+
+    state_data = verify_oauth_state(state)
+    if not state_data:
+        return Redirect(
+            f"{frontend_base}/login?error=oauth_invalid_state", status_code=303
+        )
+
+    role = state_data.get("role") or ""
+    next_url = state_data.get("next") or ""
+    redirect_uri = state_data.get("redirect_uri") or ""
+
+    try:
+        user_info = await exchange_code_for_user_info(code, redirect_uri=redirect_uri)
+    except Exception as exc:
+        logger.error("Failed exchanging Google auth code: %s", exc)
+        return Redirect(
+            f"{frontend_base}/login?error=oauth_exchange_failed", status_code=303
+        )
+
+    try:
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=role
+        )
+    except Exception as exc:
+        logger.error("Failed getting/creating Google user: %s", exc)
+        return Redirect(
+            f"{frontend_base}/login?error=oauth_account_failed", status_code=303
+        )
+
+    if block:
+        if block == "select_role":
+            await session_set(request, PENDING_ROLE_KEY, user.pk)
+            return Redirect(f"{frontend_base}/role-select", status_code=303)
+        if block == "approval_pending":
+            return Redirect(
+                f"{frontend_base}/register?pending=1", status_code=303
+            )
+        return Redirect(f"{frontend_base}/login?error={block}", status_code=303)
+
+    await in_thread(login, request, user)
+    await in_thread(user.touch_login)
+
+    destination = (
+        next_url if (next_url and next_url.startswith("/")) else user.home_url
+    )
+    return Redirect(f"{frontend_base}{destination}", status_code=303)
+
+
+@api.post("/auth/google/callback/")
+async def google_oauth_callback_post(request):
+    data = json_body(request)
+    code = body_str(data, "code")
+    state = body_str(data, "state")
+    redirect_uri = body_str(data, "redirect_uri")
+
+    if not code:
+        raise HTTPException(status_code=422, detail="code_required")
+
+    role = ""
+    next_url = ""
+    if state:
+        state_data = verify_oauth_state(state)
+        if not state_data:
+            raise HTTPException(status_code=400, detail="invalid_oauth_state")
+        role = state_data.get("role") or ""
+        next_url = state_data.get("next") or ""
+        if not redirect_uri:
+            redirect_uri = state_data.get("redirect_uri") or ""
+
+    try:
+        user_info = await exchange_code_for_user_info(code, redirect_uri=redirect_uri)
+    except Exception as exc:
+        logger.error("Failed exchanging Google auth code: %s", exc)
+        raise HTTPException(status_code=400, detail="token_exchange_failed")
+
+    try:
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=role
+        )
+    except Exception as exc:
+        logger.error("Failed creating/linking Google user: %s", exc)
+        raise HTTPException(status_code=400, detail="account_creation_failed")
+
+    if block:
+        if block == "select_role":
+            await session_set(request, PENDING_ROLE_KEY, user.pk)
+            return {
+                "ok": True,
+                "status": "select_role",
+                "redirect": "/role-select",
+            }
+        if block == "approval_pending":
+            return {
+                "status": "pending_approval",
+                "role": user.role,
+                "message": "approval_pending",
+                "redirect": "/register?pending=1",
+            }
+        raise HTTPException(status_code=403, detail=block)
+
+    await in_thread(login, request, user)
+    await in_thread(user.touch_login)
+
+    destination = (
+        next_url if (next_url and next_url.startswith("/")) else user.home_url
+    )
+    return {
+        "ok": True,
+        "status": "active",
+        "user": await serialize_user(user),
+        "home_url": user.home_url,
+        "redirect": destination,
+    }
 
 
 # ---------------------------------------------------------------------------

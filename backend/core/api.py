@@ -4,12 +4,19 @@ from __future__ import annotations
 
 from django.db.models import Avg, Sum
 from django_bolt import BoltAPI
+from django_bolt.exceptions import HTTPException
 from django_bolt.responses import Redirect
 
+from core.ai import AIConfigError, generate_property_description
 from core.bolt import (
+    body_float,
+    body_int,
+    body_str,
     get_user,
+    json_body,
     login_required,
     mark_full_request,
+    owner_required,
     session_set,
 )
 from core.bolt_serializers import property as serialize_property
@@ -117,6 +124,33 @@ async def dismiss_tour(request):
     await login_required(request)
     await session_set(request, "renteasy_seen_tour", True)
     return {"ok": True, "seen_tour": True}
+
+
+@api.post("/ai/property-description/")
+async def ai_property_description(request):
+    await owner_required(request)
+    data = json_body(request)
+
+    details = {
+        "title": body_str(data, "title"),
+        "title_km": body_str(data, "title_km"),
+        "location": body_str(data, "location"),
+        "category": body_str(data, "category"),
+        "price_per_month": body_float(data, "price_per_month"),
+        "bedrooms": body_int(data, "bedrooms", 0),
+        "bathrooms": body_int(data, "bathrooms", 0),
+        "notes": body_str(data, "notes"),
+    }
+
+    if not details["title"] and not details["title_km"]:
+        raise HTTPException(status_code=422, detail="title_required")
+
+    try:
+        return await generate_property_description(details)
+    except AIConfigError as exc:
+        raise HTTPException(status_code=503, detail="ai_not_configured") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="ai_generation_failed") from exc
 
 
 mark_full_request(api)
