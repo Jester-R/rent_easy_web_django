@@ -48,6 +48,12 @@
           [placeholder]="language.t('ownerForm.selectLocation')"
           [searchPlaceholder]="language.t('ownerForm.search')"
         />
+        @if (districtLoadError()) {
+          <p class="mt-1 text-xs text-ink-3" role="status">
+            {{ language.t('ownerForm.districtLoadFailed') }}
+            <button type="button" class="font-bold underline" (click)="loadDistricts()">{{ language.t('ownerForm.tryAgain') }}</button>
+          </p>
+        }
       </div>
 
       <div>
@@ -118,6 +124,9 @@
         />
         @if (coordError()) {
           <p class="text-xs text-danger">{{ language.t('ownerForm.couldNotReadCoordinatesFromThatValue') }}</p>
+        }
+        @if (isResolvingCoordinates()) {
+          <p class="text-xs text-ink-3" role="status">{{ language.t('ownerForm.resolvingGoogleMapsLink') }}</p>
         }
         <app-leaflet-map
           [latitude]="latitude()"
@@ -218,3 +227,59 @@
     </form>
   </div>
 </div>
+
+<button
+  type="button"
+  (click)="aiPanelOpen.set(!aiPanelOpen())"
+  [attr.aria-label]="language.t('ownerForm.openAiAssistant')"
+  [attr.aria-expanded]="aiPanelOpen()"
+  class="ai-launcher fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-pop transition hover:scale-105 hover:bg-primary-dark sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
+>
+  <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="m19 15 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15Z"/>
+  </svg>
+</button>
+
+@if (aiPanelOpen()) {
+  <section class="ai-panel fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-pop" role="dialog" aria-modal="false" [attr.aria-label]="language.t('ownerForm.aiPanelTitle')">
+    <header class="flex items-center justify-between border-b border-hairline bg-surface-2 px-5 py-4">
+      <div>
+        <h2 class="font-bold text-ink">{{ language.t('ownerForm.aiPanelTitle') }}</h2>
+        <p class="mt-1 text-xs text-ink-3">{{ language.t('ownerForm.aiPanelHint') }}</p>
+      </div>
+      <button type="button" (click)="aiPanelOpen.set(false)" class="rounded-lg p-2 text-ink-3 hover:bg-surface" [attr.aria-label]="language.t('ownerForm.closeAiAssistant')">✕</button>
+    </header>
+    <div class="flex-1 space-y-4 overflow-y-auto bg-canvas p-5">
+      <div class="max-w-[90%] rounded-2xl rounded-tl-sm border border-hairline bg-surface p-4 text-sm leading-relaxed text-ink shadow-sm">
+        {{ language.t('ownerForm.aiChatGreeting') }}
+      </div>
+      @if (aiDraftApplied()) {
+        <div class="ml-auto max-w-[90%] rounded-2xl rounded-tr-sm bg-primary-soft p-4 text-sm text-ink">
+          {{ language.t('ownerForm.aiDraftApplied') }}
+        </div>
+      }
+      @if (errorMessage()) {
+        <p class="pill-rejected rounded-xl p-3 text-sm" role="alert">{{ errorMessage() }}</p>
+      }
+    </div>
+    <div class="border-t border-hairline bg-surface p-4">
+      <label class="form-label" for="ai-property-prompt">{{ language.t('ownerForm.aiPromptLabel') }}</label>
+      <textarea
+        id="ai-property-prompt"
+        [value]="aiPrompt"
+        (input)="aiPrompt = $any($event.target).value"
+        rows="4"
+        [placeholder]="language.t('ownerForm.aiPromptPlaceholder')"
+        class="form-input resize-none"
+      ></textarea>
+      <p class="mt-2 text-xs text-ink-3">{{ language.t('ownerForm.aiDescriptionHint') }}</p>
+      <button type="button" (click)="generateWithAi()" [disabled]="isGeneratingDescription()" class="btn btn-primary mt-3 w-full">
+        @if (isGeneratingDescription()) {
+          {{ language.t('ownerForm.generatingWithAi') }}
+        } @else {
+          {{ language.t('ownerForm.generateWithAi') }}
+        }
+      </button>
+    </div>
+  </section>
+}

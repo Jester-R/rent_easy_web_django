@@ -71,6 +71,10 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   isLoading = signal(true);
   error = signal<string | null>(null);
   isSaving = signal(false);
+  commissionRates = signal<Record<string, number>>({});
+  commissionSaving = signal(false);
+  commissionError = signal<string | null>(null);
+  commissionSaved = signal(false);
 
   private timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -97,6 +101,33 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
+    this.console.getSettings().subscribe({
+      next: (res) => this.commissionRates.set(res.settings.commission_rates || {}),
+      error: () => this.commissionError.set(this.language.t('consoleSettings.failedToLoadSettings')),
+    });
+  }
+
+  updateCommissionRate(value: string): void {
+    const rate = Number(value);
+    this.commissionRates.update((rates) => ({ ...rates, 'ABA Pay': Number.isFinite(rate) ? rate : 0 }));
+    this.commissionSaved.set(false);
+  }
+
+  saveCommissionRate(): void {
+    this.commissionSaving.set(true);
+    this.commissionError.set(null);
+    this.commissionSaved.set(false);
+    this.console.updateSettings({ commission_rates: this.commissionRates() }).subscribe({
+      next: (res) => {
+        this.commissionRates.set(res.settings.commission_rates || {});
+        this.commissionSaving.set(false);
+        this.commissionSaved.set(true);
+      },
+      error: (err) => {
+        this.commissionSaving.set(false);
+        this.commissionError.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
+      },
+    });
   }
 
   ngOnDestroy(): void {
@@ -213,13 +244,13 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
       return;
     }
     const note = window.prompt(
-      `Send ${payout.amount_display} to:\n${account}\n\nEnter the transfer reference / note (optional):`,
+      `Send ${payout.amount_display} to the owner after the ${payout.commission_rate}% ${this.methodLabel(payout.payment_method)} commission.\nGross payment: ${this.usd(payout.gross_amount)}\nCommission: ${this.usd(payout.commission_amount)}\n\n${account}\n\nEnter the transfer reference / note (optional):`,
       'Manual bank transfer'
     );
     if (note === null) return;
     if (
       !confirm(
-        `Mark this payout as paid?\n\n${payout.reference} — ${payout.amount_display}\n${account}\n\nThis does not move money; only record it after the transfer is complete.`
+        `Mark this payout as paid?\n\n${payout.reference} — ${payout.amount_display}\nGross payment: ${this.usd(payout.gross_amount)}\nCommission: ${this.usd(payout.commission_amount)}\nPayment method: ${this.methodLabel(payout.payment_method)}\n${account}\n\nThis does not move money; only record it after the transfer is complete.`
       )
     )
       return;

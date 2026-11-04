@@ -392,7 +392,7 @@ async def booking_request(request):
         renter=user,
         move_in_date=body_str(data, "move_in_date") or None,
         end_date=body_str(data, "end_date") or None,
-        lease_months=body_int(data, "lease_months", 12) or 12,
+        lease_months=body_int(data, "lease_months", 1) or 1,
         note=body_str(data, "note"),
     )
     if booking is None:

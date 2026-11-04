@@ -63,7 +63,7 @@ export class PropertyDetailComponent implements OnInit {
   bookingForm = this.fb.group({
     move_in_date: ['', [Validators.required]],
     end_date: [''],
-    lease_months: [12, [Validators.required, Validators.min(1)]],
+    lease_months: [1, [Validators.required, Validators.min(1)]],
     note: [''],
   });
 
@@ -145,11 +145,15 @@ export class PropertyDetailComponent implements OnInit {
     const { move_in_date, lease_months } = this.bookingForm.value;
     const months = Number(lease_months) || 0;
     if (!move_in_date || months <= 0) return;
-    const start = new Date(move_in_date);
-    if (isNaN(start.getTime())) return;
-    start.setMonth(start.getMonth() + months);
+    const [year, month, day] = move_in_date.split('-').map(Number);
+    if (!year || !month || !day) return;
+    const targetMonth = month - 1 + months;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = targetMonth % 12;
+    const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+    const moveOutDay = Math.min(day, lastDay);
     const pad = (n: number) => String(n).padStart(2, '0');
-    const iso = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+    const iso = `${targetYear}-${pad(normalizedMonth + 1)}-${pad(moveOutDay)}`;
     if (this.bookingForm.get('end_date')?.value !== iso) {
       this.bookingForm.patchValue({ end_date: iso });
     }
@@ -169,7 +173,7 @@ export class PropertyDetailComponent implements OnInit {
       .requestBooking(prop.id, {
         move_in_date: val.move_in_date || undefined,
         end_date: val.end_date || undefined,
-        lease_months: val.lease_months || 12,
+        lease_months: val.lease_months || 1,
         note: val.note || undefined,
       })
       .subscribe({

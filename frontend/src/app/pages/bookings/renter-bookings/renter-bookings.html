@@ -153,6 +153,17 @@
           </div>
         }
 
+        @if (payQr(); as qr) {
+          <div class="rounded-xl border border-hairline bg-white p-4 text-center">
+            <p class="text-sm font-bold text-ink">Scan with ABA Mobile or another KHQR app</p>
+            <img class="mx-auto mt-3 h-56 w-56 max-w-full object-contain" [src]="qr.image" alt="ABA PayWay payment QR code" />
+            <p class="mt-2 text-lg font-extrabold text-primary-dark">{{ qr.amount }} {{ qr.currency }}</p>
+            @if (qr.deeplink) {
+              <a class="btn btn-outline mt-3 w-full" [href]="qr.deeplink">Open ABA Mobile</a>
+            }
+            <p class="mt-2 text-xs text-ink-3">The payment status will update after ABA confirms the transfer.</p>
+          </div>
+        } @else {
         <div class="space-y-4">
           <div>
             <label class="form-label">{{ language.t('renterBookings.paymentMethod') }}</label>
@@ -163,6 +174,21 @@
               [placeholder]="language.t('renterBookings.paymentMethod')"
               [searchPlaceholder]="language.t('renterBookings.search')"
             />
+            @if (selectedPaymentInfo(); as paymentInfo) {
+              @if (paymentInfo.account_name || paymentInfo.account_number || paymentInfo.instructions_en || paymentInfo.instructions_km) {
+                <div class="mt-3 rounded-xl border border-hairline bg-surface-2 p-3 text-sm">
+                  @if (paymentInfo.account_name) {
+                    <p><span class="font-semibold">{{ language.t('consoleSettings.accountName') }}:</span> {{ paymentInfo.account_name }}</p>
+                  }
+                  @if (paymentInfo.account_number) {
+                    <p><span class="font-semibold">{{ language.t('consoleSettings.accountNumber') }}:</span> {{ paymentInfo.account_number }}</p>
+                  }
+                  @if (language.current() === 'km' ? paymentInfo.instructions_km : paymentInfo.instructions_en) {
+                    <p class="mt-1 text-xs text-ink-2">{{ language.current() === 'km' ? paymentInfo.instructions_km : paymentInfo.instructions_en }}</p>
+                  }
+                </div>
+              }
+            }
           </div>
 
           <button
@@ -178,6 +204,7 @@
             }
           </button>
         </div>
+        }
       </div>
     </div>
   }

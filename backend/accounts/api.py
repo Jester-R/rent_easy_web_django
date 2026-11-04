@@ -9,6 +9,8 @@ thread via :func:`core.bolt.in_thread`.
 from __future__ import annotations
 
 import logging
+import secrets
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Count, Q, Sum
@@ -680,10 +682,80 @@ async def profile_update(request):
         ):
             raise HTTPException(status_code=422, detail="invalid_avatar_image")
         user.avatar_url = avatar_url
+    payment_fields = ("payment_account_name", "payment_account_number", "payment_phone")
+    if any(field in data for field in payment_fields):
+        if user.role != Role.RENTER:
+            raise HTTPException(status_code=403, detail="renter_required")
+        user.payment_account_name = body_str(data, "payment_account_name").strip()[:120]
+        user.payment_account_number = body_str(data, "payment_account_number").strip()[:64]
+        user.payment_phone = body_str(data, "payment_phone").strip()[:32]
     apply_payout_fields(user, data)
     await user.asave()
     await _flash(request, "account_updated")
     return {"user": await serialize_user(user)}
+
+
+@api.post("/auth/telegram/link/")
+async def telegram_link_create(request):
+    user = await require_login(request)
+    bot_username = getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
+    if not bot_username:
+        raise HTTPException(status_code=503, detail="telegram_bot_not_configured")
+    user.telegram_link_token = secrets.token_urlsafe(24)
+    user.telegram_link_expires_at = timezone.now() + timedelta(minutes=10)
+    await user.asave(update_fields=["telegram_link_token", "telegram_link_expires_at"])
+    return {"url": f"https://t.me/{bot_username}?start={user.telegram_link_token}"}
+
+
+@api.post("/auth/telegram/unlink/")
+async def telegram_unlink(request):
+    user = await require_login(request)
+    user.telegram_chat_id = ""
+    user.telegram_link_token = ""
+    user.telegram_link_expires_at = None
+    await user.asave(update_fields=["telegram_chat_id", "telegram_link_token", "telegram_link_expires_at"])
+    return {"user": await serialize_user(user)}
+
+
+@api.post("/telegram/webhook/")
+async def telegram_webhook(request):
+    expected_secret = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "")
+    supplied_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not expected_secret or not secrets.compare_digest(supplied_secret, expected_secret):
+        raise HTTPException(status_code=403, detail="invalid_webhook_secret")
+
+    update = json_body(request)
+    message = update.get("message") or {}
+    chat = message.get("chat") or {}
+    chat_id = str(chat.get("id") or "")
+    text = str(message.get("text") or "")
+    parts = text.split(maxsplit=1)
+    if chat.get("type") != "private" or not chat_id or not parts or parts[0] != "/start" or len(parts) != 2:
+        return {"ok": True}
+
+    token = parts[1].strip()
+    user = await User.objects.filter(
+        telegram_link_token=token,
+        telegram_link_expires_at__gt=timezone.now(),
+    ).afirst()
+    if user is None:
+        from notifications.telegram import send_telegram_message
+        await in_thread(send_telegram_message, chat_id, "This account link is invalid or expired. Please create a new link from your RentEasy profile.")
+        return {"ok": True}
+
+    linked_elsewhere = await User.objects.filter(telegram_chat_id=chat_id).exclude(pk=user.pk).aexists()
+    if linked_elsewhere:
+        from notifications.telegram import send_telegram_message
+        await in_thread(send_telegram_message, chat_id, "This Telegram account is already linked to another RentEasy account. Unlink it there first.")
+        return {"ok": True}
+
+    user.telegram_chat_id = chat_id
+    user.telegram_link_token = ""
+    user.telegram_link_expires_at = None
+    await user.asave(update_fields=["telegram_chat_id", "telegram_link_token", "telegram_link_expires_at"])
+    from notifications.telegram import send_telegram_message
+    await in_thread(send_telegram_message, chat_id, "Your RentEasy account is connected. Booking and payment updates will be sent here.")
+    return {"ok": True}
 
 
 @api.get("/auth/denied/")

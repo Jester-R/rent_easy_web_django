@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import Role, User
+from accounts.models import PlatformSettings, Role, User
 from bookings.models import Booking, BookingStatus
 from notifications.models import Notification
 from notifications.services import notify
@@ -51,10 +50,6 @@ def hold_days() -> int:
     return max(0, int(getattr(settings, "RENT_HOLD_DAYS", 7) or 0))
 
 
-#: Mirrors ``PaymentService.runMockPayment`` — 90% success, 10% failure.
-MOCK_SUCCESS_RATE = 0.90
-MOCK_LATENCY_MS = 1200
-
 #: Accept the Flutter wire values (``aba``/``wing``/``card``) as well as the
 #: canonical labels already stored in the database.
 _METHOD_ALIASES: dict[str, str] = {
@@ -73,32 +68,22 @@ def normalize_method(value: str | None, default: str = Payment.Method.ABA) -> st
     """Map a client-supplied payment method onto a canonical ``Method`` value."""
     if not value:
         return default
-    return _METHOD_ALIASES.get(str(value).strip().lower(), default)
+    normalized = _METHOD_ALIASES.get(str(value).strip().lower())
+    if normalized is None:
+        raise aba_gateway.PayWayError("unsupported_method", "Only ABA PayWay is available")
+    return normalized
 
 
 @dataclass
 class PaymentResult:
     """Outcome of starting a booking payment.
 
-    ``checkout`` is set when the renter must be redirected to a hosted gateway
-    page; ``payment.status`` is then ``Pending`` until the callback or a
-    reconciliation call confirms it.
+    ``qr`` contains the PayWay generated image when payment is pending.
     """
 
     payment: Payment
     checkout: dict | None = None
-
-
-class MockGateway:
-    """Simulated payment gateway (deterministic-friendly 90% success rate)."""
-
-    @staticmethod
-    def authorize(amount: Decimal) -> bool:
-        return random.random() < MOCK_SUCCESS_RATE
-
-    @staticmethod
-    def latency_seconds() -> float:
-        return MOCK_LATENCY_MS / 1000.0
+    qr: dict | None = None
 
 
 @transaction.atomic
@@ -108,7 +93,7 @@ def create_booking(
     renter,
     move_in_date=None,
     end_date=None,
-    lease_months: int = 12,
+    lease_months: int = 1,
     note: str = "",
 ):
     """Create a pending booking request, guarding the active-booking rule."""
@@ -280,53 +265,35 @@ def transition_booking(
 
 @transaction.atomic
 def pay_booking(*, booking: Booking, method: str, simulate: str = "") -> PaymentResult:
-    """Start a booking payment.
-
-    Real ABA PayWay is used whenever credentials are configured. Simulated
-    outcomes only apply to the demo methods (and to ``ABA Pay`` when the
-    gateway is disabled), so a client cannot fake a real payment.
-    """
+    """Start a booking payment through the configured ABA PayWay gateway."""
     canonical = normalize_method(method)
-    force = (simulate or "").strip().lower()
-
-    # Never let a client "simulate" success for a configured real gateway: that
-    # would mark the booking paid without a PayWay transaction. Disable the
-    # gateway (ABA_PAYWAY_ENABLED=false) to use the demo flow instead.
-    if canonical == Payment.Method.ABA and aba_gateway.is_configured():
-        return _start_aba_payment(booking)
-
-    if force == "success":
-        success = True
-    elif force == "failed":
-        success = False
-    else:
-        success = MockGateway.authorize(booking.monthly_rent)
-
-    payment = Payment.objects.create(
-        property=booking.property,
-        user=booking.renter,
-        booking=booking,
-        amount=booking.monthly_rent,
-        method=(
-            Payment.Method.ABA_MOCK if canonical == Payment.Method.ABA else canonical
-        ),
-        status=Payment.Status.SUCCESS if success else Payment.Status.FAILED,
-        provider=Payment.Provider.MOCK,
-        paid_at=timezone.now() if success else None,
-    )
-    if success:
-        _attach_successful_payment(booking, payment)
-    return PaymentResult(payment)
+    if canonical != Payment.Method.ABA:
+        raise aba_gateway.PayWayError("unsupported_method", "Only ABA PayWay is available")
+    if not aba_gateway.is_configured():
+        raise aba_gateway.PayWayError("not_configured", "ABA PayWay is not configured")
+    return _start_aba_payment(booking)
 
 
 @transaction.atomic
 def _start_aba_payment(booking: Booking) -> PaymentResult:
-    """Create a pending payment and the signed PayWay checkout form."""
+    """Create a pending payment and request its PayWay QR image."""
+    rent = Decimal(booking.monthly_rent).quantize(Decimal("0.01"))
+    platform_settings = PlatformSettings.objects.filter(pk=1).first()
+    rates = (platform_settings.commission_rates if platform_settings else {}) or {}
+    try:
+        commission_rate = Decimal(str(rates.get(Payment.Method.ABA, 0)))
+    except (AttributeError, TypeError, ValueError):
+        commission_rate = Decimal("0")
+    commission_rate = min(Decimal("100"), max(Decimal("0"), commission_rate))
+    fee = (rent * commission_rate / Decimal("100")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    total = rent + fee
     payment = Payment.objects.create(
         property=booking.property,
         user=booking.renter,
         booking=booking,
-        amount=booking.monthly_rent,
+        amount=total,
         method=Payment.Method.ABA,
         status=Payment.Status.PENDING,
         provider=Payment.Provider.ABA_PAYWAY,
@@ -337,24 +304,20 @@ def _start_aba_payment(booking: Booking) -> PaymentResult:
     payment.save(update_fields=["provider_ref"])
 
     renter = booking.renter
-    firstname, lastname = _payway_name_parts(renter.display_name)
-    items = [
-        {
-            "name": booking.property_title,
-            "quantity": 1,
-            "price": float(payment.amount),
-        }
-    ]
+    firstname, lastname = _payway_name_parts(
+        renter.payment_account_name or renter.display_name
+    )
+    items = [{"name": booking.property_title, "quantity": 1, "price": float(total)}]
     return_params = json.dumps({"payment_id": payment.pk}, separators=(",", ":"))
 
     try:
-        checkout = aba_gateway.create_purchase_form(
+        qr = aba_gateway.create_qr_payment(
             tran_id=payment.provider_ref,
             amount=payment.amount,
             firstname=firstname,
             lastname=lastname,
             email=renter.email,
-            phone="",
+            phone=renter.payment_phone,
             items=items,
             return_params=return_params,
         )
@@ -368,12 +331,12 @@ def _start_aba_payment(booking: Booking) -> PaymentResult:
         raise
 
     payment.gateway_payload = {
-        "request": {
-            key: value for key, value in checkout["fields"].items() if key != "hash"
-        },
+        "request": {"amount": aba_gateway.amount_to_string(payment.amount),
+                    "merchant_id": aba_gateway.merchant_id(), "tran_id": payment.provider_ref},
+        "commission": {"base_amount": str(rent), "rate": str(commission_rate), "amount": str(fee)},
     }
     payment.save(update_fields=["gateway_payload"])
-    return PaymentResult(payment, checkout=checkout)
+    return PaymentResult(payment, qr=qr)
 
 
 def _payway_name_parts(display_name: str) -> tuple[str, str]:
@@ -389,7 +352,10 @@ def _attach_successful_payment(booking: Booking, payment: Payment) -> None:
     """Link a successful payment to its booking and alert the owner."""
     booking.payment = payment
     booking.save(update_fields=["payment"])
-    create_payout_for_payment(payment)
+    payout = create_payout_for_payment(payment)
+    if payout is None:
+        return
+    money = lambda amount: f"${Decimal(amount):,.2f}"
     notify(
         booking.owner,
         Notification.Kind.PAYMENT_RECEIVED,
@@ -398,19 +364,28 @@ def _attach_successful_payment(booking: Booking, payment: Payment) -> None:
         params={
             "renter": booking.renter.display_name,
             "amount": payment.amount_display,
+            "commission": money(payout.commission_amount),
+            "commission_rate": f"{payout.commission_rate:g}%",
+            "payout_amount": money(payout.amount),
+            "method": payment.method,
             "title": booking.property_title,
+        },
+        message_overrides={
+            "body_en": "{renter} paid {amount} for {title} using {method}. Platform commission: {commission_rate} ({commission}). Your payout after the 7-day hold: {payout_amount}.",
+            "body_km": "{renter} បានបង់ {amount} សម្រាប់ {title} តាមរយៈ {method}។ កម្រៃជើងសារវេទិកា៖ {commission_rate} ({commission})។ ប្រាក់ដែលអ្នកនឹងទទួលបានបន្ទាប់ពីរយៈពេលរង់ចាំ ៧ ថ្ងៃ៖ {payout_amount}។",
         },
         link=payment.get_absolute_url(),
     )
 
 
 def _payout_snapshot(owner) -> dict[str, str]:
+    account = owner.get_payout_account()
     return {
         "payout_method": owner.payout_method or "",
-        "payout_account_name": owner.payout_account_name or "",
-        "payout_account_number": owner.payout_account_number or "",
-        "payout_bank_name": owner.payout_bank_name or "",
-        "payout_phone": owner.payout_phone or "",
+        "payout_account_name": account["account_name"],
+        "payout_account_number": account["account_number"],
+        "payout_bank_name": account["bank_name"],
+        "payout_phone": account["phone"],
     }
 
 
@@ -429,11 +404,39 @@ def create_payout_for_payment(payment: Payment) -> Payout | None:
 
     paid_at = payment.paid_at or payment.created_at or timezone.now()
     available_at = paid_at + timedelta(days=hold_days())
+    platform_settings = PlatformSettings.objects.filter(pk=1).first()
+    commission_rates = (platform_settings.commission_rates if platform_settings else {}) or {}
+    try:
+        commission_rate = Decimal(str(commission_rates.get(payment.method, 0)))
+    except (AttributeError, TypeError, ValueError):
+        commission_rate = Decimal("0")
+    commission_rate = min(Decimal("100"), max(Decimal("0"), commission_rate))
+    paid_at_for_rate = payment.paid_at or payment.created_at or timezone.now()
+    if (
+        platform_settings
+        and platform_settings.commission_rates_updated_at
+        and paid_at_for_rate < platform_settings.commission_rates_updated_at
+    ):
+        commission_rate = Decimal("0")
+    commission_snapshot = (payment.gateway_payload or {}).get("commission") or {}
+    if payment.provider == Payment.Provider.ABA_PAYWAY and commission_snapshot:
+        commission_rate = Decimal(str(commission_snapshot.get("rate", commission_rate)))
+        commission_amount = Decimal(str(commission_snapshot.get("amount", "0"))).quantize(Decimal("0.01"))
+        gross_amount = Decimal(payment.amount).quantize(Decimal("0.01"))
+    else:
+        gross_amount = Decimal(payment.amount).quantize(Decimal("0.01"))
+        commission_amount = (gross_amount * commission_rate / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    net_amount = gross_amount - commission_amount
     payout, created = Payout.objects.get_or_create(
         payment=payment,
         defaults={
             "owner": owner,
-            "amount": payment.amount,
+            "amount": net_amount,
+            "gross_amount": gross_amount,
+            "commission_rate": commission_rate,
+            "commission_amount": commission_amount,
             "status": Payout.Status.SCHEDULED,
             "available_at": available_at,
             **_payout_snapshot(owner),
@@ -445,9 +448,17 @@ def create_payout_for_payment(payment: Payment) -> Payout | None:
     ):
         # Keep the amount in sync if an admin corrected the payment before the
         # transfer, but never rewrite a paid/cancelled row.
-        if payout.amount != payment.amount:
-            payout.amount = payment.amount
-            payout.save(update_fields=["amount", "updated_at"])
+        revised_gross = Decimal(payment.amount).quantize(Decimal("0.01"))
+        commission_snapshot = (payment.gateway_payload or {}).get("commission") or {}
+        revised_commission = (Decimal(str(commission_snapshot["amount"])).quantize(Decimal("0.01")) if commission_snapshot else (revised_gross * payout.commission_rate / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        ))
+        revised_net = revised_gross - revised_commission
+        if payout.gross_amount != revised_gross or payout.amount != revised_net:
+            payout.gross_amount = revised_gross
+            payout.commission_amount = revised_commission
+            payout.amount = revised_net
+            payout.save(update_fields=["gross_amount", "commission_amount", "amount", "updated_at"])
     return payout
 
 
@@ -609,7 +620,12 @@ def reconcile_aba_payment(payment: Payment) -> bool:
     """Ask PayWay for the authoritative status and apply it."""
     if payment.provider != Payment.Provider.ABA_PAYWAY or not payment.provider_ref:
         return False
-    data = aba_gateway.check_transaction(payment.provider_ref)
+    gateway_payload = payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
+    request_payload = gateway_payload.get("request") if isinstance(gateway_payload.get("request"), dict) else {}
+    data = aba_gateway.check_transaction(
+        payment.provider_ref,
+        merchant_id_override=request_payload.get("merchant_id"),
+    )
     return confirm_aba_payment(
         payment.pk,
         status=str(data.get("payment_status") or ""),
@@ -678,7 +694,12 @@ def apply_aba_callback(payload: dict) -> bool:
     # also covers callbacks without an amount. Do not fail the callback if the
     # status endpoint is temporarily unreachable.
     try:
-        data = aba_gateway.check_transaction(tran_id)
+        gateway_payload = payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
+        request_payload = gateway_payload.get("request") if isinstance(gateway_payload.get("request"), dict) else {}
+        data = aba_gateway.check_transaction(
+            tran_id,
+            merchant_id_override=request_payload.get("merchant_id"),
+        )
     except Exception as exc:  # pragma: no cover - network path
         logger.warning("ABA PayWay reconciliation failed for %s: %s", tran_id, exc)
     else:
@@ -946,10 +967,11 @@ def pay_out(payout: Payout, actor=None, note: str = "") -> bool:
         raise PayoutDetailsMissing("The owner has not added payout details yet.")
 
     payout.payout_method = owner.payout_method
-    payout.payout_account_name = owner.payout_account_name
-    payout.payout_account_number = owner.payout_account_number
-    payout.payout_bank_name = owner.payout_bank_name
-    payout.payout_phone = owner.payout_phone
+    payout_account = owner.get_payout_account()
+    payout.payout_account_name = payout_account["account_name"]
+    payout.payout_account_number = payout_account["account_number"]
+    payout.payout_bank_name = payout_account["bank_name"]
+    payout.payout_phone = payout_account["phone"]
     payout.status = Payout.Status.PAID
     payout.paid_at = now
     payout.recorded_by = actor
@@ -975,7 +997,15 @@ def pay_out(payout: Payout, actor=None, note: str = "") -> bool:
         "notif_payout_paid_body",
         params={
             "amount": payout.amount_display,
+            "gross_amount": f"${payout.gross_amount:,.2f}",
+            "commission": f"${payout.commission_amount:,.2f}",
+            "commission_rate": f"{payout.commission_rate:g}%",
+            "method": payout.payment_method,
             "title": payout.property_title,
+        },
+        message_overrides={
+            "body_en": "{gross_amount} for {title} was paid using {method}. Platform commission: {commission_rate} ({commission}). Your payout of {amount} was sent to your account.",
+            "body_km": "ប្រាក់សរុប {gross_amount} សម្រាប់ {title} បានទូទាត់តាម {method}។ កម្រៃជើងសារវេទិកា៖ {commission_rate} ({commission})។ ប្រាក់ផ្ទេរចំនួន {amount} ត្រូវបានផ្ញើទៅគណនីរបស់អ្នក។",
         },
         link=f"/payments/{payout.payment_id}/",
     )

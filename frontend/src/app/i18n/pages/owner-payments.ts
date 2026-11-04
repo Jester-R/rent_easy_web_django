@@ -52,6 +52,7 @@ export const ownerPayments: PageCatalog = {
   tenant: ['Tenant', 'អ្នកជួល'],
   method: ['Method', 'វិធីសាស្ត្រ'],
   amount: ['Amount', 'ចំនួនទឹកប្រាក់'],
+  commissionDeducted: ['Commission deducted', 'កម្រៃជើងសារដែលបានកាត់'],
   status: ['Status', 'ស្ថានភាព'],
   date: ['Date', 'កាលបរិច្ឆេទ'],
   areYouSureYouWantToProcessThisRefund: ['Are you sure you want to process this refund?', 'តើអ្នកប្រាកដថាចង់ដំណើរការការសងប្រាក់វិញនេះឬទេ?'],

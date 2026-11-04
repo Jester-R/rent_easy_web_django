@@ -156,8 +156,6 @@ export function initials(name?: string | null): string {
 /** Canonical payment methods (shared by every payment modal). */
 export const PAYMENT_METHODS: readonly string[] = [
   'ABA Pay',
-  'Wing (Mock)',
-  'Credit Card (Mock)',
 ];
 
 /**
@@ -211,12 +209,9 @@ export function categoryLabel(value?: string | null): string {
   return PROPERTY_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
-/** Owner payout destinations (mirrors accounts.models.PayoutMethod). */
+/** Payout destination currently supported by the owner profile form. */
 export const PAYOUT_METHODS: readonly CategoryOption[] = [
   { value: 'aba', label: 'ABA Bank' },
-  { value: 'wing', label: 'Wing Bank' },
-  { value: 'acleda', label: 'ACLEDA Bank' },
-  { value: 'other', label: 'Other' },
 ];
 
 export function payoutMethodLabel(value?: string | null): string {

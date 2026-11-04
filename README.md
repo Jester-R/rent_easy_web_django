@@ -9,7 +9,7 @@ RentEasy Web is a browser based rental platform built with an Angular frontend a
 - **Superadmin console:** review platform activity and manage users, properties, bookings, and payments.
 - **Public browsing:** visitors can explore listings without signing in. Sign in to use renter account features such as favorites and booking requests.
 - **Language and theme preferences:** English and Khmer, with light and dark themes.
-- **Notifications:** in-app notifications with unread counts.
+- **Notifications:** in-app notifications with unread counts and optional Telegram delivery.
 - **Payments:** real ABA PayWay hosted checkout (sandbox or production), with automatic mock fallback, plus demo Wing/card flows and refunds.
 - **Rent hold and owner payouts:** rent is held by the platform for 7 days, cancellations/refunds are allowed during the hold, and admins record manual transfers to owner payout accounts.
 
@@ -103,12 +103,29 @@ directly, export the same variables first.
 | `ABA_PAYWAY_CALLBACK_URL` | `{BACKEND_PUBLIC_URL}/payments/aba/callback/` | Server-to-server notification URL. |
 | `ABA_PAYWAY_RETURN_URL` | `{BACKEND_PUBLIC_URL}/payments/aba/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. |
 | `ABA_PAYWAY_CANCEL_URL` | `{FRONTEND_BASE_URL}/bookings` | Where the browser goes when the payer cancels. |
+| `TELEGRAM_BOT_TOKEN` | empty | BotFather token used for account links and notification delivery. |
+| `TELEGRAM_BOT_USERNAME` | empty | Public username of the bot, without `@`. |
+| `TELEGRAM_WEBHOOK_SECRET` | empty | Secret Telegram sends to authenticate webhook updates. |
+| `TELEGRAM_CHAT_ID` | empty | Optional fallback destination for staff notifications only. |
 
 Leaving the merchant ID or API key empty, or setting `ABA_PAYWAY_ENABLED=false`,
 keeps the demo flow: `ABA Pay` is recorded as `ABA Pay (Mock)` using the existing
 90% success simulation. Wing and card remain demo-only methods. While PayWay is
 configured, a client cannot request a simulated ABA success; disable the gateway
 to use demo outcomes.
+
+### Telegram notifications
+
+Telegram delivery is optional. Create a bot with [@BotFather](https://t.me/BotFather)
+and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and a random
+`TELEGRAM_WEBHOOK_SECRET` in `.env`. Configure Telegram's webhook to send updates to
+`https://<your-domain>/api/telegram/webhook/` using that secret token. After deploying,
+run the database migrations. Each renter or owner connects from their profile page;
+they must open the bot link and press **Start**. Booking and payment alerts then go
+to that user's private bot chat. `TELEGRAM_CHAT_ID` is an optional fallback for staff
+notifications. Delivery is best-effort and does not block the in-app notification.
+Keep the bot token and webhook secret private, and restart the backend after changing
+these settings.
 
 ### Sandbox testing
 

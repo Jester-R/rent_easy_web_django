@@ -6,17 +6,16 @@ from the response: a wrong order produces a generic "Wrong hash" error, so the
 exact ABA order is kept in :data:`PURCHASE_HASH_FIELDS` and
 :data:`CHECK_HASH_FIELDS`.
 
-Only the hosted-checkout flow is implemented:
+The hosted-checkout helper remains available, and renter checkout uses the QR flow:
 
-1. :func:`create_purchase_form` returns a signed form that the browser POSTs
-   to PayWay.
+1. :func:`create_qr_payment` requests a signed KHQR and its data image.
 2. PayWay POSTs the result to ``ABA_PAYWAY_CALLBACK_URL``; the payload is
    verified by :func:`verify_callback_signature`.
 3. :func:`check_transaction` is the authoritative reconciliation path used by
    the return/refresh endpoints (useful when the callback cannot reach a
    local development server).
 
-Docs: https://developer.payway.com.kh/ecommerce-checkout-3158159f0
+Docs: https://developer.payway.com.kh/qr-api-14530840e0
 """
 
 from __future__ import annotations
@@ -31,6 +30,7 @@ from typing import Any
 
 import httpx
 from django.conf import settings
+from django.db.utils import OperationalError, ProgrammingError
 
 PURCHASE_HASH_FIELDS: tuple[str, ...] = (
     "req_time",
@@ -63,6 +63,13 @@ CHECK_HASH_FIELDS: tuple[str, ...] = ("req_time", "merchant_id", "tran_id")
 
 PURCHASE_PATH = "/api/payment-gateway/v1/payments/purchase"
 CHECK_PATH = "/api/payment-gateway/v1/payments/check-transaction-2"
+QR_PATH = "/api/payment-gateway/v1/payments/generate-qr"
+QR_HASH_FIELDS: tuple[str, ...] = (
+    "req_time", "merchant_id", "tran_id", "amount", "items", "first_name",
+    "last_name", "email", "phone", "purchase_type", "payment_option",
+    "callback_url", "return_deeplink", "currency", "custom_fields",
+    "return_params", "payout", "lifetime", "qr_image_template",
+)
 
 _SUCCESS_CODES = {"0", "00"}
 _APPROVED_STATUSES = {"APPROVED", "PRE-AUTH"}
@@ -78,11 +85,24 @@ class PayWayError(RuntimeError):
         super().__init__(f"{self.code}: {self.message}" if self.code else self.message)
 
 
+def merchant_id() -> str:
+    """Return the admin-configured merchant ID, falling back to environment config."""
+    try:
+        from accounts.models import PlatformSettings
+
+        configured = PlatformSettings.objects.filter(pk=1).values_list(
+            "aba_payway_merchant_id", flat=True
+        ).first()
+    except (OperationalError, ProgrammingError):  # migration/setup not complete yet
+        configured = ""
+    return str(configured or settings.ABA_PAYWAY_MERCHANT_ID or "").strip()
+
+
 def is_configured() -> bool:
     """Whether real PayWay calls are enabled for this environment."""
     return bool(
         getattr(settings, "ABA_PAYWAY_ENABLED", False)
-        and getattr(settings, "ABA_PAYWAY_MERCHANT_ID", "")
+        and merchant_id()
         and getattr(settings, "ABA_PAYWAY_API_KEY", "")
     )
 
@@ -146,6 +166,55 @@ def _payload(data: dict[str, Any]) -> dict[str, Any]:
     return body
 
 
+def create_qr_payment(
+    *, tran_id: str, amount: Decimal | int | float | str, firstname: str = "",
+    lastname: str = "", email: str = "", phone: str = "",
+    items: list[dict[str, Any]] | None = None, return_params: str = "",
+) -> dict[str, Any]:
+    """Create a PayWay KHQR and return its image data from the server."""
+    if not is_configured():
+        raise PayWayError("not_configured", "ABA PayWay is not configured")
+    mid = merchant_id()
+    if not mid:
+        raise PayWayError("not_configured", "ABA PayWay merchant ID is not configured")
+    callback = base64.b64encode(settings.ABA_PAYWAY_CALLBACK_URL.encode()).decode("ascii")
+    fields: dict[str, Any] = {
+        "req_time": _now(), "merchant_id": mid, "tran_id": str(tran_id)[:20],
+        "first_name": firstname[:20], "last_name": lastname[:20],
+        "email": email[:50], "phone": phone[:20],
+        "amount": amount_to_string(amount), "purchase_type": "purchase",
+        "payment_option": "abapay_khqr", "items": _b64_json(items or []),
+        "currency": settings.ABA_PAYWAY_CURRENCY, "callback_url": callback,
+        "return_deeplink": "", "custom_fields": "", "return_params": return_params,
+        "payout": "", "lifetime": int(settings.ABA_PAYWAY_LIFETIME_MINUTES),
+        "qr_image_template": "template3_color",
+    }
+    before_hash = "".join(str(fields.get(name, "") or "") for name in QR_HASH_FIELDS)
+    fields["hash"] = _sign(before_hash, settings.ABA_PAYWAY_API_KEY)
+    try:
+        response = httpx.post(
+            f"{settings.ABA_PAYWAY_BASE_URL}{QR_PATH}",
+            json=fields,
+            timeout=settings.ABA_PAYWAY_TIMEOUT_SECONDS,
+        )
+    except httpx.RequestError as exc:
+        raise PayWayError("unavailable", "Could not connect to ABA PayWay") from exc
+    try:
+        body = response.json()
+    except ValueError as exc:
+        raise PayWayError("invalid_response", f"PayWay returned HTTP {response.status_code}") from exc
+    if not isinstance(body, dict):
+        raise PayWayError("invalid_response", "PayWay returned a non-object response")
+    status = body.get("status") or {}
+    if str(status.get("code")) not in _SUCCESS_CODES:
+        raise PayWayError(str(status.get("code") or "unknown"), status.get("message") or "PayWay QR generation failed", body)
+    if not body.get("qrImage"):
+        raise PayWayError("invalid_response", "PayWay response did not include a QR image", body)
+    return {"image": body["qrImage"], "qr_string": body.get("qrString", ""),
+            "deeplink": body.get("abapay_deeplink", ""), "amount": body.get("amount", fields["amount"]),
+            "currency": body.get("currency", fields["currency"]), "expires_in": fields["lifetime"]}
+
+
 def create_purchase_form(
     *,
     tran_id: str,
@@ -179,9 +248,12 @@ def create_purchase_form(
     continue_url = settings.ABA_PAYWAY_RETURN_URL.format(payment_id=payment_id_text)
     cancel_url = settings.ABA_PAYWAY_CANCEL_URL
 
+    configured_merchant_id = merchant_id()
+    if not configured_merchant_id:
+        raise PayWayError("not_configured", "ABA PayWay merchant ID is not configured")
     fields: dict[str, str] = {
         "req_time": _now(),
-        "merchant_id": settings.ABA_PAYWAY_MERCHANT_ID,
+        "merchant_id": configured_merchant_id,
         "tran_id": str(tran_id)[:20],
         "amount": amount_to_string(amount),
         "items": _b64_json(items or []),
@@ -214,13 +286,18 @@ def create_purchase_form(
     }
 
 
-def check_transaction(tran_id: str) -> dict[str, Any]:
+def check_transaction(
+    tran_id: str, *, merchant_id_override: str | None = None
+) -> dict[str, Any]:
     """Fetch the authoritative transaction status from PayWay."""
     if not is_configured():
         raise PayWayError("not_configured", "ABA PayWay is not configured")
+    transaction_merchant_id = merchant_id_override or merchant_id()
+    if not transaction_merchant_id:
+        raise PayWayError("not_configured", "ABA PayWay merchant ID is not configured")
     fields = {
         "req_time": _now(),
-        "merchant_id": settings.ABA_PAYWAY_MERCHANT_ID,
+        "merchant_id": transaction_merchant_id,
         "tran_id": str(tran_id)[:20],
     }
     fields["hash"] = _hash_check_fields(fields)

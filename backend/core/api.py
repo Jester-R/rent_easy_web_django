@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+
+import httpx
 from django.db.models import Avg, Sum
 from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
 from django_bolt.responses import Redirect
 
-from core.ai import AIConfigError, generate_property_description
+from core.ai import AIConfigError, generate_property_description, generate_property_draft
 from core.bolt import (
     body_float,
     body_int,
@@ -20,11 +23,13 @@ from core.bolt import (
     session_set,
 )
 from core.bolt_serializers import property as serialize_property
+from core.maps import resolve_google_maps_url
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
     trailing_slash="keep",
 )
+logger = logging.getLogger(__name__)
 
 
 async def _landing_payload(request, limit: int = 6) -> dict:
@@ -100,6 +105,27 @@ async def landing(request):
     return await _landing_payload(request)
 
 
+@api.get("/core/payment-method-details/")
+async def payment_method_details(request):
+    from accounts.models import PlatformSettings
+    from payments.models import Payment
+
+    raw = await PlatformSettings.objects.filter(pk=1).values_list(
+        "payment_method_details", flat=True
+    ).afirst()
+    raw = raw if isinstance(raw, dict) else {}
+    result = {}
+    for method in (Payment.Method.ABA,):
+        item = raw.get(method) or {}
+        if not isinstance(item, dict):
+            item = {}
+        result[method] = {
+            key: str(item.get(key, "") or "")[:255]
+            for key in ("account_name", "account_number", "instructions_en", "instructions_km")
+        }
+    return {"payment_method_details": result}
+
+
 @api.get("/core/health/")
 async def health(request):
     from accounts.models import User
@@ -131,6 +157,20 @@ async def ai_property_description(request):
     await owner_required(request)
     data = json_body(request)
 
+    if body_str(data, "prompt"):
+        details = {
+            "prompt": body_str(data, "prompt"),
+            "locations": data.get("locations", []),
+            "categories": data.get("categories", []),
+        }
+        try:
+            return await generate_property_draft(details)
+        except AIConfigError as exc:
+            raise HTTPException(status_code=503, detail="ai_not_configured") from exc
+        except Exception as exc:
+            logger.exception("AI property draft generation failed")
+            raise HTTPException(status_code=502, detail="ai_generation_failed") from exc
+
     details = {
         "title": body_str(data, "title"),
         "title_km": body_str(data, "title_km"),
@@ -151,6 +191,20 @@ async def ai_property_description(request):
         raise HTTPException(status_code=503, detail="ai_not_configured") from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail="ai_generation_failed") from exc
+
+
+@api.post("/maps/resolve/")
+async def resolve_maps_link(request):
+    await owner_required(request)
+    data = json_body(request)
+    try:
+        coordinates = await resolve_google_maps_url(body_str(data, "url"))
+    except httpx.HTTPError as exc:
+        logger.info("Google Maps link lookup failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="maps_link_unavailable") from exc
+    if coordinates is None:
+        raise HTTPException(status_code=422, detail="coordinates_not_found")
+    return {"latitude": coordinates[0], "longitude": coordinates[1]}
 
 
 mark_full_request(api)

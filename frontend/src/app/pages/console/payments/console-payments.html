@@ -48,6 +48,30 @@
     </div>
   </div>
 
+  <section class="app-card space-y-3 p-4">
+    <div>
+      <h2 class="text-sm font-bold">{{ language.t('consoleSettings.paymentCommissions') }}</h2>
+      <p class="mt-1 text-xs text-ink-3">{{ language.t('consoleSettings.paymentCommissionsHelp') }}</p>
+    </div>
+    @if (commissionError(); as message) {
+      <div class="toast toast-error" role="alert">{{ message }}</div>
+    }
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="min-w-48 flex-1 text-[11px] text-ink-3">ABA PayWay
+        <div class="relative mt-1">
+          <input type="number" class="form-input pe-9" min="0" max="100" step="0.01" [value]="commissionRates()['ABA Pay'] ?? 0" (input)="updateCommissionRate($any($event.target).value)" />
+          <span class="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-xs">%</span>
+        </div>
+      </label>
+      <button type="button" class="btn btn-primary btn-sm" [disabled]="commissionSaving()" (click)="saveCommissionRate()">
+        {{ commissionSaving() ? language.t('profile.savingChanges') : language.t('consoleSettings.saveCommissionRates') }}
+      </button>
+      @if (commissionSaved()) {
+        <span class="text-xs font-semibold text-success" role="status">{{ language.t('consoleSettings.commissionRateSaved') }}</span>
+      }
+    </div>
+  </section>
+
   <div class="space-y-4">
     <section class="app-card p-4">
       <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
@@ -186,7 +210,10 @@
                   }
                 </td>
                 <td class="min-w-[10rem]"><span class="block truncate font-medium">{{ payout.property_title }}</span></td>
-                <td class="whitespace-nowrap text-end font-bold text-primary">{{ payout.amount_display }}</td>
+                <td class="whitespace-nowrap text-end">
+                  <span class="block font-bold text-primary">{{ payout.amount_display }}</span>
+                  <span class="block text-[10px] text-ink-3">{{ language.t('consolePayments.commission') }} {{ usd(payout.commission_amount) }} ({{ payout.commission_rate }}%)</span>
+                </td>
                 <td>
                   <span [class]="'pill whitespace-nowrap ' + payoutPill(payout.status)">{{ statusText(payout.status) }}</span>
                   @if (payout.status === 'Paid' && payout.paid_at) {
@@ -316,6 +343,9 @@
           <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.owner') }}</dt><dd class="font-semibold">{{ payout.owner.display_name }}</dd></div>
           <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.property') }}</dt><dd class="font-semibold">{{ payout.property_title }}</dd></div>
           <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.amount') }}</dt><dd class="font-semibold">{{ payout.amount_display }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.paymentMethod') }}</dt><dd class="font-semibold">{{ methodLabel(payout.payment_method) }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.grossAmount') }}</dt><dd class="font-semibold">{{ usd(payout.gross_amount) }}</dd></div>
+          <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.commission') }} ({{ payout.commission_rate }}%)</dt><dd class="font-semibold">{{ usd(payout.commission_amount) }}</dd></div>
           <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.status') }}</dt><dd class="font-semibold">{{ statusText(payout.status) }}</dd></div>
           <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.method') }}</dt><dd class="font-semibold">{{ payoutMethodLabel(payout.payout_method) }}</dd></div>
           <div><dt class="text-xs text-ink-3">{{ language.t('consolePayments.releaseDate') }}</dt><dd class="font-semibold">{{ shortDate(payout.paid_at || payout.available_at) }}</dd></div>

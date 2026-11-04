@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
-import { PAYOUT_METHODS } from '../../shared/ui';
+import { ConsoleService } from '../../services/console.service';
+import type { PaymentMethodDetail, PayoutAccountDetails } from '../../models';
 
 @Component({
   selector: 'app-profile',
@@ -14,43 +15,97 @@ export class ProfileComponent implements OnInit {
   readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
-  readonly payoutMethods = PAYOUT_METHODS;
+  private readonly console = inject(ConsoleService);
+  payoutAccounts = signal<Record<string, PayoutAccountDetails>>({});
+  paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
+  abaPaywayMerchantId = signal('');
+  isPaymentMethodSaving = signal(false);
+  paymentMethodError = signal<string | null>(null);
 
   successMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
   photoError = signal<string | null>(null);
   isPhotoReading = signal(false);
+  telegramLink = signal<string | null>(null);
+  isTelegramLoading = signal(false);
 
   form = this.fb.group({
     full_name: [''],
     username: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
     avatar_url: [''],
-    payout_method: [''],
-    payout_account_name: [''],
-    payout_account_number: [''],
-    payout_bank_name: [''],
-    payout_phone: [''],
-    payout_note: [''],
+    payment_account_name: [''],
+    payment_account_number: [''],
+    payment_phone: [''],
   });
 
   ngOnInit(): void {
     const user = this.auth.currentUser();
     if (user) {
+      const payoutAccounts: Record<string, PayoutAccountDetails> = {};
+      const abaAccount = user.payout_accounts?.['aba'];
+      if (abaAccount) {
+        payoutAccounts['aba'] = { ...abaAccount };
+      }
+      if (user.payout_method === 'aba' && !payoutAccounts['aba']) {
+        payoutAccounts[user.payout_method] = {
+          account_name: user.payout_account_name || '',
+          account_number: user.payout_account_number || '',
+          bank_name: user.payout_bank_name || '',
+          phone: user.payout_phone || '',
+          note: user.payout_note || '',
+        };
+      }
+      this.payoutAccounts.set(payoutAccounts);
       this.form.patchValue({
         full_name: user.full_name,
         username: user.username,
         email: user.email,
         avatar_url: user.avatar_url || '',
-        payout_method: user.payout_method || '',
-        payout_account_name: user.payout_account_name || '',
-        payout_account_number: user.payout_account_number || '',
-        payout_bank_name: user.payout_bank_name || '',
-        payout_phone: user.payout_phone || '',
-        payout_note: user.payout_note || '',
+        payment_account_name: user.payment_account_name || '',
+        payment_account_number: user.payment_account_number || '',
+        payment_phone: user.payment_phone || '',
       });
+      if (this.auth.isAdmin()) {
+        this.console.getSettings().subscribe({
+          next: (res) => {
+            this.paymentMethodDetails.set(res.settings.payment_method_details || {});
+            this.abaPaywayMerchantId.set(res.settings.aba_payway_merchant_id || '');
+          },
+          error: () => this.paymentMethodError.set(this.language.t('consoleSettings.failedToLoadSettings')),
+        });
+      }
     }
+  }
+
+  updatePaymentMethodDetail(field: keyof PaymentMethodDetail, value: string): void {
+    this.paymentMethodDetails.update((details) => ({
+      ...details,
+      'ABA Pay': {
+        ...(details['ABA Pay'] || { account_name: '', account_number: '', instructions_en: '', instructions_km: '' }),
+        [field]: value,
+      },
+    }));
+  }
+
+  savePaymentMethodDetails(): void {
+    this.isPaymentMethodSaving.set(true);
+    this.paymentMethodError.set(null);
+    this.console.updateSettings({
+      payment_method_details: this.paymentMethodDetails(),
+      aba_payway_merchant_id: this.abaPaywayMerchantId().trim(),
+    }).subscribe({
+      next: (res) => {
+        this.paymentMethodDetails.set(res.settings.payment_method_details);
+        this.abaPaywayMerchantId.set(res.settings.aba_payway_merchant_id || '');
+        this.isPaymentMethodSaving.set(false);
+      },
+      error: (err) => {
+        this.isPaymentMethodSaving.set(false);
+        this.paymentMethodError.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
+      },
+    });
   }
 
   async onPhotoSelected(event: Event): Promise<void> {
@@ -63,25 +118,33 @@ export class ProfileComponent implements OnInit {
       input.value = '';
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      this.photoError.set('Choose an image smaller than 2 MB.');
+    if (file.size > 12 * 1024 * 1024) {
+      this.photoError.set('Choose an image smaller than 12 MB.');
       input.value = '';
       return;
     }
 
-    const reader = new FileReader();
     this.isPhotoReading.set(true);
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        this.form.controls.avatar_url.setValue(reader.result);
-      }
-      this.isPhotoReading.set(false);
-    };
-    reader.onerror = () => {
+    try {
+      // Shrink camera photos before embedding them in the profile JSON request.
+      // Mobile images are often several megabytes even when the selected file looks small.
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('canvas_unavailable');
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      this.form.controls.avatar_url.setValue(canvas.toDataURL('image/jpeg', 0.82));
+    } catch {
       this.isPhotoReading.set(false);
       this.photoError.set('Could not read this image. Try another file.');
-    };
-    reader.readAsDataURL(file);
+      input.value = '';
+      return;
+    }
+    this.isPhotoReading.set(false);
   }
 
   onSubmit(): void {
@@ -92,19 +155,30 @@ export class ProfileComponent implements OnInit {
     this.errorMessage.set(null);
 
     const val = this.form.value;
-    const payload: Record<string, string> = {
+    const payload: {
+      full_name: string;
+      username: string;
+      email: string;
+      avatar_url: string;
+      payment_account_name?: string;
+      payment_account_number?: string;
+      payment_phone?: string;
+      payout_method?: string;
+      payout_accounts?: Record<string, PayoutAccountDetails>;
+    } = {
       full_name: val.full_name || '',
       username: val.username || '',
       email: val.email || '',
       avatar_url: val.avatar_url || '',
     };
+    if (this.auth.isRenter()) {
+      payload.payment_account_name = val.payment_account_name || '';
+      payload.payment_account_number = val.payment_account_number || '';
+      payload.payment_phone = val.payment_phone || '';
+    }
     if (this.auth.isOwner()) {
-      payload['payout_method'] = val.payout_method || '';
-      payload['payout_account_name'] = val.payout_account_name || '';
-      payload['payout_account_number'] = val.payout_account_number || '';
-      payload['payout_bank_name'] = val.payout_bank_name || '';
-      payload['payout_phone'] = val.payout_phone || '';
-      payload['payout_note'] = val.payout_note || '';
+      payload['payout_method'] = 'aba';
+      payload['payout_accounts'] = this.payoutAccounts();
     }
     this.auth
         .updatePreferences(payload)
@@ -127,5 +201,41 @@ export class ProfileComponent implements OnInit {
           }
         },
       });
+  }
+
+  updatePayoutAccount(method: string, field: keyof PayoutAccountDetails, value: string): void {
+    const empty: PayoutAccountDetails = { account_name: '', account_number: '', bank_name: '', phone: '', note: '' };
+    this.payoutAccounts.update((accounts) => ({
+      ...accounts,
+      [method]: { ...(accounts[method] || empty), [field]: value },
+    }));
+  }
+
+  connectTelegram(): void {
+    this.isTelegramLoading.set(true);
+    this.errorMessage.set(null);
+    this.auth.createTelegramLink().subscribe({
+      next: (res) => { this.telegramLink.set(res.url); this.isTelegramLoading.set(false); },
+      error: (err) => {
+        this.isTelegramLoading.set(false);
+        this.errorMessage.set(err.error?.detail === 'telegram_bot_not_configured' ? 'Telegram bot is not configured yet.' : 'Could not create the Telegram connection link.');
+      },
+    });
+  }
+
+  refreshTelegramStatus(): void {
+    this.isTelegramLoading.set(true);
+    this.auth.getPreferences().subscribe({
+      next: (res) => { this.auth.currentUser.set(res.user); this.isTelegramLoading.set(false); this.telegramLink.set(null); },
+      error: () => { this.isTelegramLoading.set(false); this.errorMessage.set('Could not refresh Telegram connection status.'); },
+    });
+  }
+
+  disconnectTelegram(): void {
+    this.isTelegramLoading.set(true);
+    this.auth.unlinkTelegram().subscribe({
+      next: () => { this.isTelegramLoading.set(false); this.telegramLink.set(null); },
+      error: () => { this.isTelegramLoading.set(false); this.errorMessage.set('Could not disconnect Telegram.'); },
+    });
   }
 }

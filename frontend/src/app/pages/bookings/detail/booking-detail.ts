@@ -9,10 +9,12 @@ import {
 } from '../../../components/searchable-select/searchable-select';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
+import { PaymentService } from '../../../services/payment.service';
 import { LanguageService } from '../../../services/language.service';
 import { propertyLocation, propertyTitle } from '../../../shared/property-text';
 import type { Property } from '../../../models';
 import { Booking, UserBrief } from '../../../models';
+import type { PaymentMethodDetail } from '../../../models';
 import {
   PAYMENT_METHODS,
   bookingPill,
@@ -20,7 +22,6 @@ import {
   prettyDate,
   roleLabel,
   shortDate,
-  submitHostedCheckout,
   usd,
 } from '../../../shared/ui';
 
@@ -45,6 +46,7 @@ export class BookingDetailComponent implements OnInit {
   readonly id = input<string>();
 
   private readonly bookingService = inject(BookingService);
+  private readonly paymentService = inject(PaymentService);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
@@ -58,10 +60,12 @@ export class BookingDetailComponent implements OnInit {
   readonly payOpen = signal(false);
   readonly isPaying = signal(false);
   readonly payError = signal<string | null>(null);
+  readonly payQr = signal<{ image: string; deeplink?: string; amount: number | string; currency: string } | null>(null);
   selectedMethod = PAYMENT_METHODS[0];
+  paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
   readonly methods = PAYMENT_METHODS;
 
-  readonly methodOptions: SelectOption[] = this.methods.map((m) => ({ value: m, label: m }));
+  readonly methodOptions: SelectOption[] = this.methods.map((m) => ({ value: m, label: 'ABA PayWay' }));
 
   readonly usd = usd;
   readonly prettyDate = prettyDate;
@@ -87,7 +91,15 @@ export class BookingDetailComponent implements OnInit {
   );
 
   ngOnInit(): void {
+    this.paymentService.getPaymentMethodDetails().subscribe({
+      next: (res) => this.paymentMethodDetails.set(res.payment_method_details),
+      error: () => undefined,
+    });
     this.load();
+  }
+
+  selectedPaymentInfo(): PaymentMethodDetail | null {
+    return this.paymentMethodDetails()[this.selectedMethod] || null;
   }
 
   load(): void {
@@ -227,12 +239,14 @@ export class BookingDetailComponent implements OnInit {
 
   openPay(): void {
     this.payError.set(null);
+    this.payQr.set(null);
     this.payOpen.set(true);
   }
 
   closePay(): void {
     if (this.isPaying()) return;
     this.payOpen.set(false);
+    this.payQr.set(null);
   }
 
   submitPayment(): void {
@@ -243,12 +257,12 @@ export class BookingDetailComponent implements OnInit {
     this.bookingService
       .payBooking(b.id, {
         method: this.selectedMethod,
-        simulate: this.selectedMethod.includes('(Mock)') ? 'success' : undefined,
       })
       .subscribe({
         next: (res) => {
-          if (res.checkout) {
-            submitHostedCheckout(res.checkout);
+          if (res.qr) {
+            this.payQr.set(res.qr);
+            this.isPaying.set(false);
             return;
           }
           this.isPaying.set(false);

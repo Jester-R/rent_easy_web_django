@@ -57,7 +57,7 @@ class Booking(models.Model):
     monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
     move_in_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    lease_months = models.PositiveSmallIntegerField(default=12)
+    lease_months = models.PositiveSmallIntegerField(default=1)
     note = models.TextField(blank=True)
     payment = models.ForeignKey(
         "payments.Payment",

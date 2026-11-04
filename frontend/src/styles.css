@@ -1253,6 +1253,12 @@ html {
 
 /* keep the last card clear of the bar */
 @media (max-width: 1023px) {
+    /* Keep fixed controls in the owner form attached to the viewport, not the
+       route transition's animated containing block. */
+    main > *:has(.ai-launcher) {
+        animation: none;
+    }
+
     main {
         padding-bottom: calc(4.4rem + env(safe-area-inset-bottom));
     }
@@ -1288,6 +1294,22 @@ html {
     select,
     textarea {
         font-size: 1rem !important;
+    }
+}
+
+.ai-panel {
+    right: 0.75rem;
+    bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    width: min(420px, calc(100vw - 1.5rem));
+    height: min(600px, calc(100dvh - 7.25rem - env(safe-area-inset-bottom)));
+}
+
+@media (min-width: 640px) {
+    .ai-panel {
+        right: 1rem;
+        bottom: 6rem;
+        width: min(420px, calc(100vw - 2rem));
+        height: min(600px, calc(100vh - 8rem));
     }
 }
 
@@ -1332,4 +1354,13 @@ html {
     opacity: 0;
     transform: scale(0.97);
     transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+@media (max-width: 639px) {
+    .console-category-modal {
+        width: calc(100% - 1rem);
+        max-height: min(76dvh, 620px);
+        margin: 0 auto 0.5rem;
+        border-radius: 1rem;
+    }
 }

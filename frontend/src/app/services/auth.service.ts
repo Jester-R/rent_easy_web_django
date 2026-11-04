@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal, PLATFORM_ID } from '@angular/core
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap, catchError, of } from 'rxjs';
-import { User, RenterDashboardData, OwnerDashboardData } from '../models';
+import { User, RenterDashboardData, OwnerDashboardData, PayoutAccountDetails } from '../models';
 
 export interface RegisterResult {
   status: 'active' | 'pending_approval' | 'otp_required';
@@ -247,12 +247,16 @@ export class AuthService {
     email?: string;
     username?: string;
     avatar_url?: string;
+    payment_account_name?: string;
+    payment_account_number?: string;
+    payment_phone?: string;
     payout_method?: string;
     payout_account_name?: string;
     payout_account_number?: string;
     payout_bank_name?: string;
     payout_phone?: string;
     payout_note?: string;
+    payout_accounts?: Record<string, PayoutAccountDetails>;
   }): Observable<{ user: User }> {
     return this.http
       .post<{ user: User }>(`${this.baseUrl}/auth/preferences/`, data, {
@@ -263,6 +267,16 @@ export class AuthService {
           this.currentUser.set(res.user);
         })
       );
+  }
+
+  createTelegramLink(): Observable<{ url: string }> {
+    return this.http.post<{ url: string }>(`${this.baseUrl}/auth/telegram/link/`, {}, { withCredentials: true });
+  }
+
+  unlinkTelegram(): Observable<{ user: User }> {
+    return this.http.post<{ user: User }>(`${this.baseUrl}/auth/telegram/unlink/`, {}, { withCredentials: true }).pipe(
+      tap((res) => this.currentUser.set(res.user)),
+    );
   }
 
   getRenterDashboard(): Observable<RenterDashboardData> {

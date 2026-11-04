@@ -2,8 +2,7 @@ import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from 
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { PropertyService } from '../../../services/property.service';
+import { CambodiaDistrict, PropertyService } from '../../../services/property.service';
 import { LanguageService } from '../../../services/language.service';
 import { LeafletMapComponent } from '../../../components/leaflet-map/leaflet-map';
 import {
@@ -51,8 +50,10 @@ export class OwnerPropertyFormComponent implements OnInit {
   ]);
 
   private readonly additionalLocations = signal<SelectOption[]>([]);
+  private readonly cambodiaDistricts = signal<CambodiaDistrict[]>([]);
+  districtLoadError = signal(false);
   readonly locationOptions = computed<SelectOption[]>(() => {
-    const locations: [string, string][] = [
+    const fallbackLocations: [string, string][] = [
       ['Phnom Penh - BKK1', 'ភ្នំពេញ - បឹងកេងកង ១'],
       ['Phnom Penh - Toul Kork', 'ភ្នំពេញ - ទួលគោក'],
       ['Phnom Penh - Tuol Khmao', 'ភ្នំពេញ - ទួលខ្មៅ'],
@@ -60,15 +61,21 @@ export class OwnerPropertyFormComponent implements OnInit {
       ['Phnom Penh - Daun Penh', 'ភ្នំពេញ - ដូនពេញ'],
       ['Siem Reap - Wat Bo', 'សៀមរាប - វត្តបូព៌'],
     ];
-    const options = locations.map(([value, khmer]) => ({
-      value,
-      label: this.language.current() === 'km' ? khmer : value,
-    }));
+    const districts = this.cambodiaDistricts();
+    const options = districts.length
+      ? districts.map((district) => {
+          const bilingualName = `${district.name_en} / ${district.name_km}`;
+          return { value: bilingualName, label: bilingualName };
+        })
+      : fallbackLocations.map(([value, khmer]) => ({
+          value,
+          label: `${value} / ${khmer}`,
+        }));
     for (const location of this.additionalLocations()) {
       if (!options.some((option) => option.value === location.value)) {
         options.push({
           value: location.value,
-          label: this.language.current() === 'km' ? location.label : location.value,
+          label: location.label,
         });
       }
     }
@@ -78,11 +85,13 @@ export class OwnerPropertyFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly propertyService = inject(PropertyService);
   private readonly router = inject(Router);
-  private readonly http = inject(HttpClient);
 
   isEdit = signal(false);
   isLoading = signal(false);
   isGeneratingDescription = signal(false);
+  aiPrompt = '';
+  aiPanelOpen = signal(false);
+  aiDraftApplied = signal(false);
   errorMessage = signal<string | null>(null);
   selectedImages = signal<string[]>([]);
   existingImages = signal<string[]>([]);
@@ -90,6 +99,9 @@ export class OwnerPropertyFormComponent implements OnInit {
   latitude = signal<number | null>(null);
   longitude = signal<number | null>(null);
   coordError = signal(false);
+  isResolvingCoordinates = signal(false);
+  private coordinateResolveTimer: ReturnType<typeof setTimeout> | null = null;
+  private coordinateResolveRequest = 0;
 
   form = this.fb.group({
     title: [''],
@@ -105,7 +117,10 @@ export class OwnerPropertyFormComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    if (isPlatformBrowser(this.platformId)) this.loadCategorySettings();
+    if (isPlatformBrowser(this.platformId)) {
+      this.loadCategorySettings();
+      this.loadDistricts();
+    }
     const editId = this.id();
     if (editId) {
       this.isEdit.set(true);
@@ -122,6 +137,18 @@ export class OwnerPropertyFormComponent implements OnInit {
     });
   }
 
+  loadDistricts(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.districtLoadError.set(false);
+    this.propertyService.getCambodiaDistricts().subscribe({
+      next: (districts) => {
+        this.cambodiaDistricts.set(districts);
+        this.districtLoadError.set(districts.length === 0);
+      },
+      error: () => this.districtLoadError.set(true),
+    });
+  }
+
   loadProperty(id: number): void {
     this.isLoading.set(true);
     this.propertyService.getPublicProperty(id).subscribe({
@@ -132,7 +159,10 @@ export class OwnerPropertyFormComponent implements OnInit {
         if (location && !this.locationOptions().some((option) => option.value === location)) {
           this.additionalLocations.update((items) => [
             ...items.filter((item) => item.value !== location),
-            { value: location, label: p.location_km || location },
+            {
+              value: location,
+              label: p.location_km ? `${location} / ${p.location_km}` : location,
+            },
           ]);
         }
         this.form.patchValue({
@@ -157,6 +187,9 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   /** Parse a pasted "lat, lng" or maps URL into the map pin. */
   onCoordinatesInput(): void {
+    const requestId = ++this.coordinateResolveRequest;
+    if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
+    this.isResolvingCoordinates.set(false);
     const raw = this.form.get('coordinates')?.value || '';
     const parsed = parseCoordinates(raw);
     if (parsed) {
@@ -168,39 +201,34 @@ export class OwnerPropertyFormComponent implements OnInit {
 
     if (raw.trim()) {
       const text = raw.trim();
-      if (text.includes('maps.app.goo.gl') || text.includes('goo.gl/maps') || text.includes('google.com/maps')) {
-        // Try to parse from the URL itself or just silently ignore if can't parse
-        // Don't show error - just don't set coordinates
+      if (
+        text.includes('maps.app.goo.gl') ||
+        text.includes('goo.gl/maps') ||
+        text.includes('google.com/maps') ||
+        text.includes('maps.google.com')
+      ) {
         this.coordError.set(false);
-        // Try quick patterns
-        try {
-          const m1 = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i);
-          if (m1) {
-            const lat = Number(m1[1]);
-            const lng = Number(m1[2]);
-            if (!isNaN(lat) && !isNaN(lng)) {
-              this.latitude.set(lat);
-              this.longitude.set(lng);
+        this.coordinateResolveTimer = setTimeout(() => {
+          this.isResolvingCoordinates.set(true);
+          this.propertyService.resolveGoogleMapsUrl(text).subscribe({
+            next: (point) => {
+              if (requestId !== this.coordinateResolveRequest) return;
+              this.latitude.set(point.latitude);
+              this.longitude.set(point.longitude);
+              this.form.patchValue(
+                { coordinates: formatCoordinates(point.latitude, point.longitude) },
+                { emitEvent: false },
+              );
+              this.isResolvingCoordinates.set(false);
               this.coordError.set(false);
-              this.form.patchValue({ coordinates: formatCoordinates(lat, lng) }, { emitEvent: false });
-              return;
-            }
-          }
-          const m2 = text.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-          if (m2) {
-            const lat = Number(m2[1]);
-            const lng = Number(m2[2]);
-            if (!isNaN(lat) && !isNaN(lng)) {
-              this.latitude.set(lat);
-              this.longitude.set(lng);
-              this.coordError.set(false);
-              this.form.patchValue({ coordinates: formatCoordinates(lat, lng) }, { emitEvent: false });
-              return;
-            }
-          }
-        } catch {}
-        // Can't parse - just don't set coordinates, don't show error
-        this.coordError.set(false);
+            },
+            error: () => {
+              if (requestId !== this.coordinateResolveRequest) return;
+              this.isResolvingCoordinates.set(false);
+              this.coordError.set(true);
+            },
+          });
+        }, 350);
         return;
       }
       this.coordError.set(false);
@@ -213,6 +241,9 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   /** Move the pin from a map click / drag. */
   onMapPick(point: { latitude: number; longitude: number }): void {
+    this.coordinateResolveRequest++;
+    if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
+    this.isResolvingCoordinates.set(false);
     this.latitude.set(point.latitude);
     this.longitude.set(point.longitude);
     this.coordError.set(false);
@@ -223,6 +254,9 @@ export class OwnerPropertyFormComponent implements OnInit {
   }
 
   clearCoordinates(): void {
+    this.coordinateResolveRequest++;
+    if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
+    this.isResolvingCoordinates.set(false);
     this.latitude.set(null);
     this.longitude.set(null);
     this.coordError.set(false);
@@ -290,37 +324,35 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   generateWithAi(): void {
     if (this.isGeneratingDescription()) return;
-    const val = this.form.value;
-    if (!val.title?.trim() && !val.title_km?.trim()) {
-      this.errorMessage.set(this.language.t('ownerForm.aiNeedsTitle'));
+    if (!this.aiPrompt.trim()) {
+      this.errorMessage.set(this.language.t('ownerForm.aiNeedsPrompt'));
       return;
     }
-
-    const notes = [val.description, val.description_km]
-      .map((text) => (text || '').trim())
-      .filter(Boolean)
-      .join('\n\n');
-
+    this.loadCategorySettings();
     this.isGeneratingDescription.set(true);
     this.errorMessage.set(null);
+    this.aiDraftApplied.set(false);
 
     this.propertyService
       .generateDescription({
-        title: val.title || '',
-        title_km: val.title_km || '',
-        location: val.location || '',
-        category: val.category || '',
-        price_per_month: Number(val.price_per_month) || undefined,
-        bedrooms: Number(val.bedrooms) || 0,
-        bathrooms: Number(val.bathrooms) || 0,
-        notes,
+        prompt: this.aiPrompt.trim(),
+        locations: this.locationOptions().map((option) => option.value).filter(Boolean),
+        categories: this.categorySettings().map((category) => category.value),
       })
       .subscribe({
         next: (res) => {
           this.isGeneratingDescription.set(false);
+          this.aiDraftApplied.set(true);
           this.form.patchValue({
-            description: res.description || '',
-            description_km: res.description_km || '',
+            ...(res.title ? { title: res.title } : {}),
+            ...(res.title_km ? { title_km: res.title_km } : {}),
+            location: res.location && this.locationOptions().some((option) => option.value === res.location) ? res.location : '',
+            ...(res.price_per_month != null ? { price_per_month: res.price_per_month } : {}),
+            ...(res.category && this.categorySettings().some((category) => category.value === res.category) ? { category: res.category } : {}),
+            ...(res.bedrooms != null ? { bedrooms: res.bedrooms } : {}),
+            ...(res.bathrooms != null ? { bathrooms: res.bathrooms } : {}),
+            ...(res.description ? { description: res.description } : {}),
+            ...(res.description_km ? { description_km: res.description_km } : {}),
           });
         },
         error: (err) => {
@@ -328,8 +360,6 @@ export class OwnerPropertyFormComponent implements OnInit {
           const detail = err?.error?.detail;
           if (detail === 'ai_not_configured') {
             this.errorMessage.set(this.language.t('ownerForm.aiNotConfigured'));
-          } else if (detail === 'title_required') {
-            this.errorMessage.set(this.language.t('ownerForm.aiNeedsTitle'));
           } else {
             this.errorMessage.set(this.language.t('ownerForm.aiGenerationFailed'));
           }

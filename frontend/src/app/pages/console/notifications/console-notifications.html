@@ -1,0 +1,81 @@
+<div class="space-y-4">
+  <header>
+    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleNotifications.title') }}</h1>
+    <p class="text-[12px] text-ink-3">{{ language.t('consoleNotifications.description') }}</p>
+  </header>
+
+  @if (error()) {
+    <div class="toast toast-error" role="alert">{{ error() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="app-card skeleton h-24" aria-hidden="true"></div>
+  } @else {
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.notificationMessages') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.editMessagesInBothLanguages') }}</p>
+      </div>
+      @if (messagesSaved()) {
+        <p class="toast toast-success" role="status">{{ language.t('consoleNotifications.messagesSaved') }}</p>
+      }
+      @for (message of notificationMessages(); track message.key) {
+        <div class="space-y-3 rounded-xl border border-hairline p-3">
+          <h3 class="text-[12px] font-bold">{{ language.current() === 'km' ? message.label_km : message.label_en }}</h3>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
+              <input class="form-input mt-1" [(ngModel)]="message.title_en" maxlength="500" />
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleKhmer') }}
+              <input class="form-input mt-1" [(ngModel)]="message.title_km" maxlength="500" />
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyEnglish') }}
+              <textarea class="form-input mt-1" rows="2" [(ngModel)]="message.body_en" maxlength="500"></textarea>
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyKhmer') }}
+              <textarea class="form-input mt-1" rows="2" [(ngModel)]="message.body_km" maxlength="500"></textarea>
+            </label>
+          </div>
+        </div>
+      }
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="saveNotificationMessages()">{{ language.t('consoleSettings.saveNotificationMessages') }}</button>
+      </div>
+    </section>
+
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.broadcastNotification') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.sendAnnouncementToOwnersOrRenters') }}</p>
+      </div>
+      @if (broadcastSentCount() !== null) {
+        <p class="toast toast-success" role="status">{{ language.t('consoleSettings.broadcastSentTo') }} {{ broadcastSentCount() }} {{ language.t('consoleSettings.users') }}</p>
+      }
+      <label class="block max-w-sm text-[11px] text-ink-3">
+        {{ language.t('consoleSettings.audience') }}
+        <select class="form-input mt-1" [(ngModel)]="broadcastTarget">
+          <option value="renters">{{ language.t('consoleSettings.renters') }}</option>
+          <option value="owners">{{ language.t('consoleSettings.owners') }}</option>
+          <option value="all">{{ language.t('consoleSettings.allUsers') }}</option>
+        </select>
+      </label>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
+          <input class="form-input mt-1" [(ngModel)]="broadcastTitleEn" maxlength="500" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleKhmer') }}
+          <input class="form-input mt-1" [(ngModel)]="broadcastTitleKm" maxlength="500" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyEnglish') }}
+          <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyEn" maxlength="500"></textarea>
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyKhmer') }}
+          <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyKm" maxlength="500"></textarea>
+        </label>
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="sendBroadcast()">{{ language.t('consoleSettings.sendBroadcast') }}</button>
+      </div>
+    </section>
+  }
+</div>

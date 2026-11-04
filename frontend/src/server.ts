@@ -6,6 +6,7 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import http from 'node:http';
+import https from 'node:https';
 import { join } from 'node:path';
 
 const BACKEND_URL = process.env['BACKEND_URL'] || 'http://127.0.0.1:8123';
@@ -35,7 +36,8 @@ app.use((req, res, next) => {
   headers['host'] = backendTarget.host;
   for (const name of HOP_BY_HOP) delete headers[name];
 
-  const proxyReq = http.request(
+  const transport = backendTarget.protocol === 'https:' ? https : http;
+  const proxyReq = transport.request(
     {
       protocol: backendTarget.protocol,
       hostname: backendTarget.hostname,

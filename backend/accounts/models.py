@@ -54,6 +54,10 @@ class PlatformSettings(models.Model):
         default=False,
         help_text="When enabled, new property owners are approved automatically.",
     )
+    commission_rates = models.JSONField(default=dict, blank=True)
+    commission_rates_updated_at = models.DateTimeField(null=True, blank=True)
+    payment_method_details = models.JSONField(default=dict, blank=True)
+    aba_payway_merchant_id = models.CharField(max_length=30, blank=True)
     property_categories = models.JSONField(default=list, blank=True)
     notification_messages = models.JSONField(default=dict, blank=True)
     home_promotion = models.JSONField(default=dict, blank=True)
@@ -151,12 +155,23 @@ class User(AbstractBaseUser, PermissionsMixin):
     payout_method = models.CharField(
         max_length=16, choices=PayoutMethod.choices, blank=True
     )
+    payout_accounts = models.JSONField(default=dict, blank=True)
     payout_account_name = models.CharField(max_length=120, blank=True)
     payout_account_number = models.CharField(max_length=64, blank=True)
     payout_bank_name = models.CharField(max_length=120, blank=True)
     payout_phone = models.CharField(max_length=32, blank=True)
     payout_note = models.CharField(max_length=255, blank=True)
     payout_updated_at = models.DateTimeField(null=True, blank=True)
+
+    # Renter's ABA details used as their saved payment profile.
+    payment_account_name = models.CharField(max_length=120, blank=True)
+    payment_account_number = models.CharField(max_length=64, blank=True)
+    payment_phone = models.CharField(max_length=32, blank=True)
+
+    # Telegram is linked through a short-lived bot deep-link token.
+    telegram_chat_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    telegram_link_token = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    telegram_link_expires_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
@@ -188,6 +203,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.role == Role.SUPERADMIN
 
     @property
+    def telegram_connected(self) -> bool:
+        return bool(self.telegram_chat_id)
+
+    @property
     def is_pending_approval(self) -> bool:
         return self.approval_status == ApprovalStatus.PENDING
 
@@ -198,11 +217,32 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def has_payout_details(self) -> bool:
         """A payout can only be sent when the owner supplied the essentials."""
-        return bool(
-            self.payout_method
-            and self.payout_account_name.strip()
-            and self.payout_account_number.strip()
-        )
+        account = self.get_payout_account()
+        return bool(self.payout_method and account["account_name"].strip() and account["account_number"].strip())
+
+    def get_payout_account(self, method: str | None = None) -> dict[str, str]:
+        method = method or self.payout_method
+        accounts = self.payout_accounts if isinstance(self.payout_accounts, dict) else {}
+        account = accounts.get(method) if method else None
+        if isinstance(account, dict):
+            return {
+                "account_name": str(account.get("account_name") or ""),
+                "account_number": str(account.get("account_number") or ""),
+                "bank_name": str(account.get("bank_name") or ""),
+                "phone": str(account.get("phone") or ""),
+                "note": str(account.get("note") or ""),
+            }
+        if accounts:
+            return {"account_name": "", "account_number": "", "bank_name": "", "phone": "", "note": ""}
+        if method and method == self.payout_method:
+            return {
+                "account_name": self.payout_account_name,
+                "account_number": self.payout_account_number,
+                "bank_name": self.payout_bank_name,
+                "phone": self.payout_phone,
+                "note": self.payout_note,
+            }
+        return {"account_name": "", "account_number": "", "bank_name": "", "phone": "", "note": ""}
 
     @property
     def home_url(self) -> str:

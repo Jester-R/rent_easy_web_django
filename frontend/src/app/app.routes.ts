@@ -28,6 +28,7 @@ import { ConsolePropertiesComponent } from './pages/console/properties/console-p
 import { ConsoleBookingsComponent } from './pages/console/bookings/console-bookings';
 import { ConsolePaymentsComponent } from './pages/console/payments/console-payments';
 import { ConsoleSettingsComponent } from './pages/console/settings/console-settings';
+import { ConsoleNotificationsComponent } from './pages/console/notifications/console-notifications';
 import { PaymentDetailComponent } from './pages/payments/detail/payment-detail';
 import { DeniedComponent } from './pages/auth/denied/denied';
 import { NotFoundComponent } from './pages/errors/not-found/not-found';
@@ -85,6 +86,7 @@ export const routes: Routes = [
   { path: 'console/properties', component: ConsolePropertiesComponent, canActivate: [adminGuard] },
   { path: 'console/bookings', component: ConsoleBookingsComponent, canActivate: [adminGuard] },
   { path: 'console/payments', component: ConsolePaymentsComponent, canActivate: [adminGuard] },
+  { path: 'console/notifications', component: ConsoleNotificationsComponent, canActivate: [adminGuard] },
   { path: 'console/settings', component: ConsoleSettingsComponent, canActivate: [adminGuard] },
 
   { path: '**', component: NotFoundComponent },
