@@ -7,6 +7,7 @@ export interface PayBookingResponse {
   payment: Payment;
   already_paid: boolean;
   checkout?: HostedCheckout | null;
+  qr?: { image: string; deeplink?: string; qr_string?: string; amount: number | string; currency: string; expires_in: number } | null;
 }
 
 export interface BookingListResponse {

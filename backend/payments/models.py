@@ -40,6 +40,7 @@ class Payment(models.Model):
         blank=True,
         related_name="payments",
     )
+    property_title_snapshot = models.CharField(max_length=160, blank=True)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payments"
     )
@@ -85,6 +86,14 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         if not self.reference:
             self.reference = self._generate_reference()
+        if not self.property_title_snapshot:
+            if self.property_id:
+                self.property_title_snapshot = self.property.title
+            elif self.booking_id:
+                self.property_title_snapshot = self.booking.property_title
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and self.property_title_snapshot:
+                kwargs["update_fields"] = set(update_fields) | {"property_title_snapshot"}
         super().save(*args, **kwargs)
 
     def _generate_reference(self) -> str:
@@ -124,10 +133,12 @@ class Payment(models.Model):
     @builtins.property
     def property_title(self) -> str:
         if self.property_id:
-            return self.property.title
+            return self.property.title or self.property_title_snapshot or "—"
         if self.booking_id:
-            return self.booking.property_title
-        return "—"
+            title = self.booking.property_title
+            if title and title != "—":
+                return title
+        return self.property_title_snapshot or "Property unavailable"
 
     def mark_refunded(self, amount: Decimal | None = None) -> None:
         value = Decimal(amount if amount is not None else (self.amount or 0))
@@ -160,6 +171,9 @@ class Payout(models.Model):
         Payment, on_delete=models.CASCADE, related_name="payout"
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    gross_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.SCHEDULED, db_index=True
     )
@@ -223,6 +237,10 @@ class Payout(models.Model):
     @builtins.property
     def payment_reference(self) -> str:
         return self.payment.reference if self.payment_id else "—"
+
+    @builtins.property
+    def payment_method(self) -> str:
+        return self.payment.method if self.payment_id else "—"
 
     @builtins.property
     def booking_id(self) -> int | None:

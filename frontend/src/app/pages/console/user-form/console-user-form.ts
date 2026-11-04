@@ -9,7 +9,7 @@ import {
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { User } from '../../../models';
-import { PAYOUT_METHODS, prettyDate, roleLabel } from '../../../shared/ui';
+import { prettyDate, roleLabel } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-user-form',
@@ -45,16 +45,13 @@ export class ConsoleUserFormComponent implements OnInit {
     role: ['renter', [Validators.required]],
     password: [''],
     is_active: [true],
-    payout_method: [''],
     payout_account_name: [''],
     payout_account_number: [''],
-    payout_bank_name: [''],
     payout_phone: [''],
     payout_note: [''],
   });
 
   roleOptions = ['renter', 'owner', 'superadmin'];
-  readonly payoutMethods = PAYOUT_METHODS;
 
   isOwnerSelected(): boolean {
     return this.form.get('role')?.value === 'owner';
@@ -89,10 +86,8 @@ export class ConsoleUserFormComponent implements OnInit {
           email: res.user.email,
           role: res.user.role,
           is_active: res.user.is_active,
-          payout_method: res.user.payout_method || '',
           payout_account_name: res.user.payout_account_name || '',
           payout_account_number: res.user.payout_account_number || '',
-          payout_bank_name: res.user.payout_bank_name || '',
           payout_phone: res.user.payout_phone || '',
           payout_note: res.user.payout_note || '',
         });
@@ -126,10 +121,9 @@ export class ConsoleUserFormComponent implements OnInit {
     const password = value.password || '';
     if (password) payload['password'] = password;
     if (value.role === 'owner') {
-      payload['payout_method'] = value.payout_method || '';
+      payload['payout_method'] = 'aba';
       payload['payout_account_name'] = value.payout_account_name || '';
       payload['payout_account_number'] = value.payout_account_number || '';
-      payload['payout_bank_name'] = value.payout_bank_name || '';
       payload['payout_phone'] = value.payout_phone || '';
       payload['payout_note'] = value.payout_note || '';
     }

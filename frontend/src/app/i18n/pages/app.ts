@@ -21,6 +21,7 @@ export const app: PageCatalog = {
   bookings: ['Bookings', 'ការកក់'],
   settings: ['Settings', 'ការកំណត់'],
   notifications: ['Notifications', 'ការជូនដំណឹង'],
+  notificationSettings: ['Notification settings', 'ការកំណត់ការជូនដំណឹង'],
   profile: ['Profile', 'ប្រវត្តិរូប'],
   logOut: ['Log out', 'ចាកចេញ'],
   saved: ['Saved', 'បានរក្សាទុក'],

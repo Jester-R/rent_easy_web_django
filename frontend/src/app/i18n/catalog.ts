@@ -3,6 +3,7 @@ import { bookingDetail } from './pages/booking-detail';
 import { browse } from './pages/browse';
 import { consoleBookings } from './pages/console-bookings';
 import { consoleDashboard } from './pages/console-dashboard';
+import { consoleNotifications } from './pages/console-notifications';
 import { consolePayments } from './pages/console-payments';
 import { consoleProperties } from './pages/console-properties';
 import { consoleSettings } from './pages/console-settings';
@@ -43,6 +44,7 @@ export const CATALOG: Catalog = {
   ...expand('browse', browse),
   ...expand('consoleBookings', consoleBookings),
   ...expand('consoleDashboard', consoleDashboard),
+  ...expand('consoleNotifications', consoleNotifications),
   ...expand('consolePayments', consolePayments),
   ...expand('consoleProperties', consoleProperties),
   ...expand('consoleSettings', consoleSettings),

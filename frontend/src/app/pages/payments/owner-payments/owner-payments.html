@@ -131,7 +131,12 @@
               <tr>
                 <td class="font-mono font-medium text-ink">{{ payout.reference }}</td>
                 <td class="font-medium text-ink">{{ payout.property_title }}</td>
-                <td class="font-extrabold text-primary text-sm">{{ payout.amount_display }}</td>
+                <td class="text-sm">
+                  <span class="block font-extrabold text-primary">{{ payout.amount_display }}</span>
+                  @if (payout.commission_amount > 0) {
+                    <span class="block text-[10px] text-ink-3">{{ language.t('ownerPayments.commissionDeducted') }}: {{ usd(payout.commission_amount) }} ({{ payout.commission_rate }}%)</span>
+                  }
+                </td>
                 <td>
                   <span [class]="'pill ' + payoutPill(payout.status)">{{ statusLabel(payout.status) }}</span>
                 </td>

@@ -162,9 +162,8 @@ DEFAULT_SUPERADMIN = {
 RENT_HOLD_DAYS = int(os.environ.get("RENT_HOLD_DAYS", "7") or "7")
 
 # -- ABA PayWay ---------------------------------------------------------------
-# Sandbox credentials are issued by https://sandbox.payway.com.kh/. When the
-# merchant id or API key is missing the payment service falls back to the
-# deterministic demo gateway, so local development keeps working.
+# ABA supplies the API key; the merchant ID can be set here or in the admin
+# Profile form. Checkout is unavailable until both are configured.
 ABA_PAYWAY_MERCHANT_ID = os.environ.get("ABA_PAYWAY_MERCHANT_ID", "").strip()
 ABA_PAYWAY_API_KEY = os.environ.get("ABA_PAYWAY_API_KEY", "").strip()
 ABA_PAYWAY_BASE_URL = os.environ.get(
@@ -172,7 +171,7 @@ ABA_PAYWAY_BASE_URL = os.environ.get(
 ).rstrip("/")
 _aba_enabled_env = os.environ.get("ABA_PAYWAY_ENABLED")
 ABA_PAYWAY_ENABLED = (
-    bool(ABA_PAYWAY_MERCHANT_ID and ABA_PAYWAY_API_KEY)
+    bool(ABA_PAYWAY_API_KEY)
     if _aba_enabled_env is None
     else _aba_enabled_env.strip().lower() in {"1", "true", "yes", "on"}
 )
@@ -217,9 +216,18 @@ GOOGLE_OAUTH_REDIRECT_URI = os.environ.get(
 ).strip()
 GOOGLE_OAUTH_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
 
-# -- AI (Groq) ----------------------------------------------------------------
+# -- AI providers -------------------------------------------------------------
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "").strip().lower()
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+
+# -- Telegram notifications ---------------------------------------------------
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "").strip()
+TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 # -- Email / OTP settings -----------------------------------------------------
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")

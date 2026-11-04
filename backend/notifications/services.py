@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.db import transaction
 from django.utils import timezone
 
 from .models import Notification, NotificationSeen
@@ -13,6 +14,7 @@ def notify(
     body_key: str,
     *,
     params=None,
+    message_overrides=None,
     link: str = "",
     action: str = "",
 ) -> Notification:
@@ -27,13 +29,18 @@ def notify(
         None,
     )
     if message:
-        params["message_overrides"] = {
+        configured_overrides = {
             "title_en": message.get("title_en", ""),
             "title_km": message.get("title_km", ""),
             "body_en": message.get("body_en", ""),
             "body_km": message.get("body_km", ""),
         }
-    return Notification.objects.create(
+        if isinstance(params.get("message_overrides"), dict):
+            configured_overrides.update(params["message_overrides"])
+        if isinstance(message_overrides, dict):
+            configured_overrides.update(message_overrides)
+        params["message_overrides"] = configured_overrides
+    notification = Notification.objects.create(
         recipient=recipient,
         kind=kind,
         title_key=title_key,
@@ -42,6 +49,10 @@ def notify(
         link=link,
         action=action,
     )
+    from .telegram import send_telegram_notification
+
+    transaction.on_commit(lambda: send_telegram_notification(notification.pk))
+    return notification
 
 
 def _notification_messages():

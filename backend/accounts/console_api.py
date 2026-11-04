@@ -11,7 +11,9 @@ payment/notification services and manager helpers hop through
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -233,6 +235,10 @@ async def settings_get(request):
     return {
         "settings": {
             "auto_approve_owners": platform.auto_approve_owners,
+            "commission_rates": _commission_rates_response(platform.commission_rates),
+            "payment_method_details": _payment_method_details_response(platform.payment_method_details),
+            "aba_payway_merchant_id": platform.aba_payway_merchant_id
+            or settings.ABA_PAYWAY_MERCHANT_ID,
             "property_categories": platform.property_categories
             or DEFAULT_PROPERTY_CATEGORIES,
             "notification_messages": platform.notification_messages
@@ -268,6 +274,65 @@ def _clean_property_categories(raw):
     if not result:
         raise HTTPException(status_code=422, detail="at_least_one_category_required")
     return result
+
+
+def _commission_rate_methods():
+    return [Payment.Method.ABA]
+
+
+def _commission_rates_response(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    return {method: float(raw.get(method, 0) or 0) for method in _commission_rate_methods()}
+
+
+def _clean_commission_rates(raw):
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=422, detail="invalid_commission_rates")
+    result = {}
+    for method in _commission_rate_methods():
+        try:
+            rate = Decimal(str(raw.get(method, 0)))
+            if not rate.is_finite() or rate < 0 or rate > 100:
+                raise HTTPException(status_code=422, detail="invalid_commission_rate")
+            result[method] = str(rate.quantize(Decimal("0.01")))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail="invalid_commission_rate") from exc
+    return result
+
+
+def _payment_method_detail_methods():
+    return [Payment.Method.ABA]
+
+
+def _payment_method_details_response(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    fields = ("account_name", "account_number", "instructions_en", "instructions_km")
+    result = {}
+    for method in _payment_method_detail_methods():
+        item = raw.get(method) or {}
+        if not isinstance(item, dict):
+            item = {}
+        result[method] = {
+            field: str(item.get(field, "") or "")[:255] for field in fields
+        }
+    return result
+
+
+def _clean_payment_method_details(raw):
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=422, detail="invalid_payment_method_details")
+    cleaned = {}
+    for method in _payment_method_detail_methods():
+        item = raw.get(method) or {}
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=422, detail="invalid_payment_method_details")
+        cleaned[method] = {
+            "account_name": body_str(item, "account_name").strip()[:120],
+            "account_number": body_str(item, "account_number").strip()[:64],
+            "instructions_en": body_str(item, "instructions_en").strip()[:255],
+            "instructions_km": body_str(item, "instructions_km").strip()[:255],
+        }
+    return cleaned
 
 
 def _clean_notification_messages(raw):
@@ -336,6 +401,16 @@ async def settings_update(request):
         platform.auto_approve_owners = body_bool(
             data, "auto_approve_owners", platform.auto_approve_owners
         )
+    if "commission_rates" in data:
+        platform.commission_rates = _clean_commission_rates(data["commission_rates"])
+        platform.commission_rates_updated_at = timezone.now()
+    if "payment_method_details" in data:
+        platform.payment_method_details = _clean_payment_method_details(data["payment_method_details"])
+    if "aba_payway_merchant_id" in data:
+        merchant_id = body_str(data, "aba_payway_merchant_id").strip()
+        if len(merchant_id) > 30 or any(char.isspace() for char in merchant_id):
+            raise HTTPException(status_code=422, detail="invalid_aba_payway_merchant_id")
+        platform.aba_payway_merchant_id = merchant_id
     if "property_categories" in data:
         platform.property_categories = _clean_property_categories(
             data["property_categories"]
@@ -367,6 +442,10 @@ async def settings_update(request):
     return {
         "settings": {
             "auto_approve_owners": platform.auto_approve_owners,
+            "commission_rates": _commission_rates_response(platform.commission_rates),
+            "payment_method_details": _payment_method_details_response(platform.payment_method_details),
+            "aba_payway_merchant_id": platform.aba_payway_merchant_id
+            or settings.ABA_PAYWAY_MERCHANT_ID,
             "property_categories": platform.property_categories
             or DEFAULT_PROPERTY_CATEGORIES,
             "notification_messages": platform.notification_messages
@@ -813,6 +892,7 @@ async def payments_list(request):
         queryset = queryset.filter(
             Q(reference__icontains=query)
             | Q(property__title__icontains=query)
+            | Q(property_title_snapshot__icontains=query)
             | Q(user__email__icontains=query)
         )
     if status in Payment.Status.values:

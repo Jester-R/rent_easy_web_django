@@ -374,11 +374,7 @@ async def owner_list(request):
         },
         "payout_account": {
             "method": user.payout_method,
-            "account_name": user.payout_account_name,
-            "account_number": user.payout_account_number,
-            "bank_name": user.payout_bank_name,
-            "phone": user.payout_phone,
-            "note": user.payout_note,
+            **user.get_payout_account(),
             "ready": user.has_payout_details,
         },
     }

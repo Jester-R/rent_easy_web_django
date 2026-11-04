@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Payment, Payout, PayoutAccount, PayoutTotals, Refund } from '../models';
+import { Payment, PaymentMethodDetail, Payout, PayoutAccount, PayoutTotals, Refund } from '../models';
 
 export interface RenterPaymentsResponse {
   payments: Payment[];
@@ -40,6 +40,10 @@ export interface OwnerPaymentsResponse {
 export class PaymentService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api';
+
+  getPaymentMethodDetails(): Observable<{ payment_method_details: Record<string, PaymentMethodDetail> }> {
+    return this.http.get<{ payment_method_details: Record<string, PaymentMethodDetail> }>(`${this.baseUrl}/core/payment-method-details/`);
+  }
 
   getRenterPayments(filters?: {
     q?: string;

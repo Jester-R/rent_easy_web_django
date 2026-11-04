@@ -7,7 +7,7 @@ import { Payment } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
 import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import { LanguageService } from '../../../services/language.service';
-import { payoutMethodLabel, payoutPill, refundReasonLabel } from '../../../shared/ui';
+import { payoutMethodLabel, payoutPill, refundReasonLabel, usd } from '../../../shared/ui';
 
 @Component({
   selector: 'app-owner-payments',
@@ -20,6 +20,7 @@ export class OwnerPaymentsComponent implements OnInit {
   readonly payoutPill = payoutPill;
   readonly payoutMethodLabel = payoutMethodLabel;
   readonly refundReasonLabel = refundReasonLabel;
+  readonly usd = usd;
 
   data = signal<OwnerPaymentsResponse | null>(null);
   page = signal(1);

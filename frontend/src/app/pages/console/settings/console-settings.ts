@@ -5,7 +5,6 @@ import { IconComponent } from '../../../components/icon/icon';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { ConsoleSettings, HomePromotion } from '../../../models';
-import { PropertyCategoryService } from '../../../services/property-category.service';
 
 const DEFAULT_HOME_PROMOTION: HomePromotion = {
   eyebrow_en: 'Make your next move',
@@ -38,27 +37,15 @@ function normalizeHomePromotion(value?: Partial<HomePromotion> | null): HomeProm
 })
 export class ConsoleSettingsComponent implements OnInit {
   private readonly console = inject(ConsoleService);
-  private readonly propertyCategoryService = inject(PropertyCategoryService);
   private readonly platformId = inject(PLATFORM_ID);
   readonly language = inject(LanguageService);
 
   isLoading = signal(true);
   isSaving = signal(false);
   error = signal<string | null>(null);
-  saved = signal(false);
   promotionSaved = signal(false);
-  categoriesSaved = signal(false);
   autoApproveOwners = signal(false);
-  categories = signal<ConsoleSettings['property_categories']>([]);
-  editingCategoryIndexes = signal<number[]>([]);
-  notificationMessages = signal<ConsoleSettings['notification_messages']>([]);
   homePromotion = signal<ConsoleSettings['home_promotion']>(DEFAULT_HOME_PROMOTION);
-  broadcastTarget: 'owners' | 'renters' | 'all' = 'renters';
-  broadcastTitleEn = '';
-  broadcastTitleKm = '';
-  broadcastBodyEn = '';
-  broadcastBodyKm = '';
-  broadcastSentCount = signal<number | null>(null);
 
   ngOnInit(): void {
     // The SSR renderer has no browser session cookie, so this request fails
@@ -68,8 +55,6 @@ export class ConsoleSettingsComponent implements OnInit {
     this.console.getSettings().subscribe({
       next: (res) => {
         this.autoApproveOwners.set(res.settings.auto_approve_owners);
-        this.categories.set(res.settings.property_categories || []);
-        this.notificationMessages.set(res.settings.notification_messages || []);
         this.homePromotion.set(normalizeHomePromotion(res.settings.home_promotion));
         this.isLoading.set(false);
       },
@@ -98,101 +83,6 @@ export class ConsoleSettingsComponent implements OnInit {
     });
   }
 
-  addCategory(): void {
-    const existing = new Set(this.categories().map((item) => item.value.trim().toLowerCase()));
-    const base = `new_category_${Date.now().toString(36)}`;
-    let value = base.slice(0, 24);
-    let suffix = 1;
-    while (existing.has(value)) {
-      const tail = `_${suffix++}`;
-      value = `${base.slice(0, 24 - tail.length)}${tail}`;
-    }
-    this.categories.update((items) => {
-      const next = [...items, {
-        value,
-        label_en: 'New category',
-        label_km: 'ប្រភេទថ្មី',
-      }];
-      this.editingCategoryIndexes.set([next.length - 1]);
-      return next;
-    });
-    this.categoriesSaved.set(false);
-  }
-
-  isCategoryEditing(index: number): boolean {
-    return this.editingCategoryIndexes().includes(index);
-  }
-
-  updateCategory(index: number, field: 'value' | 'label_en' | 'label_km', value: string): void {
-    this.categories.update((items) => items.map((item, itemIndex) =>
-      itemIndex === index ? { ...item, [field]: value } : item
-    ));
-    this.categoriesSaved.set(false);
-  }
-
-  toggleCategoryEditing(index: number): void {
-    this.editingCategoryIndexes.update((indexes) =>
-      indexes.includes(index) ? indexes.filter((item) => item !== index) : [...indexes, index]
-    );
-  }
-
-  removeCategory(value: string): void {
-    this.categories.update((items) => items.filter((item) => item.value !== value));
-    this.editingCategoryIndexes.set([]);
-    this.categoriesSaved.set(false);
-  }
-
-  saveCategories(): void {
-    const categories = this.categories().map((item) => ({
-      ...item,
-      value: item.value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_').slice(0, 24),
-      label_en: item.label_en.trim(),
-      label_km: item.label_km.trim(),
-    }));
-    const keys = categories.map((item) => item.value);
-    if (categories.some((item) => !item.value || !item.label_en || !item.label_km)) {
-      this.error.set(this.language.t('consoleSettings.categoryFieldsRequired'));
-      return;
-    }
-    if (new Set(keys).size !== keys.length) {
-      this.error.set(this.language.t('consoleSettings.categoryKeysMustBeUnique'));
-      return;
-    }
-    this.categories.set(categories);
-    this.isSaving.set(true);
-    this.error.set(null);
-    this.console.updateSettings({ property_categories: categories }).subscribe({
-      next: (res) => {
-        this.categories.set(res.settings.property_categories);
-        this.propertyCategoryService.setCategories(res.settings.property_categories);
-        this.editingCategoryIndexes.set([]);
-        this.categoriesSaved.set(true);
-        this.isSaving.set(false);
-        this.saved.set(true);
-      },
-      error: (err) => {
-        this.isSaving.set(false);
-        this.error.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
-      },
-    });
-  }
-
-  saveNotificationMessages(): void {
-    this.isSaving.set(true);
-    this.error.set(null);
-    this.console.updateSettings({ notification_messages: this.notificationMessages() }).subscribe({
-      next: (res) => {
-        this.notificationMessages.set(res.settings.notification_messages);
-        this.isSaving.set(false);
-        this.saved.set(true);
-      },
-      error: (err) => {
-        this.isSaving.set(false);
-        this.error.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
-      },
-    });
-  }
-
   saveHomePromotion(): void {
     const submitted = normalizeHomePromotion(this.homePromotion());
     this.isSaving.set(true);
@@ -212,37 +102,6 @@ export class ConsoleSettingsComponent implements OnInit {
       error: (err) => {
         this.isSaving.set(false);
         this.error.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
-      },
-    });
-  }
-
-  sendBroadcast(): void {
-    const data = {
-      target: this.broadcastTarget,
-      title_en: this.broadcastTitleEn.trim(),
-      title_km: this.broadcastTitleKm.trim(),
-      body_en: this.broadcastBodyEn.trim(),
-      body_km: this.broadcastBodyKm.trim(),
-    };
-    if (!data.title_en || !data.title_km || !data.body_en || !data.body_km) {
-      this.error.set(this.language.t('consoleSettings.broadcastFieldsRequired'));
-      return;
-    }
-    this.isSaving.set(true);
-    this.error.set(null);
-    this.broadcastSentCount.set(null);
-    this.console.sendNotificationBroadcast(data).subscribe({
-      next: (result) => {
-        this.isSaving.set(false);
-        this.broadcastSentCount.set(result.sent);
-        this.broadcastTitleEn = '';
-        this.broadcastTitleKm = '';
-        this.broadcastBodyEn = '';
-        this.broadcastBodyKm = '';
-      },
-      error: (err) => {
-        this.isSaving.set(false);
-        this.error.set(err?.error?.detail || this.language.t('consoleSettings.failedToSendBroadcast'));
       },
     });
   }

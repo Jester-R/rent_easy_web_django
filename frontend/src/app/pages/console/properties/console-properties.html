@@ -8,6 +8,72 @@
     <div class="toast toast-error" role="alert">{{ error() }}</div>
   }
 
+  <section class="app-card flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+    <div>
+      <h2 class="text-[16px] font-extrabold">{{ language.t('consoleProperties.propertyCategories') }}</h2>
+      <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleProperties.manageCategoryNamesInEnglishAndKhmer') }}</p>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="openCategoryModal()">{{ language.t('consoleProperties.manageCategories') }} ({{ categories().length }})</button>
+  </section>
+
+  @if (showCategoryModal()) {
+    <div class="modal-backdrop" role="presentation" (click)="closeCategoryModal()">
+      <section class="modal-panel console-category-modal app-card w-full max-w-4xl p-4 sm:p-6" role="dialog" aria-modal="true" [attr.aria-label]="language.t('consoleProperties.propertyCategories')" (click)="$event.stopPropagation()">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-extrabold">{{ language.t('consoleProperties.propertyCategories') }}</h2>
+            <p class="mt-1 text-xs text-ink-3">{{ language.t('consoleProperties.categoryEditAddDeleteHelp') }}</p>
+          </div>
+          <button type="button" class="btn btn-ghost" (click)="closeCategoryModal()">{{ language.t('consoleProperties.close') }}</button>
+        </header>
+
+        @if (categoryError()) {
+          <div class="toast toast-error mt-4" role="alert">{{ categoryError() }}</div>
+        }
+        @if (categoriesSaved()) {
+          <div class="toast toast-success mt-4" role="status">{{ language.t('consoleProperties.categoriesSaved') }}</div>
+        }
+
+        <div class="mt-4 flex flex-wrap gap-2">
+          <input class="form-input min-w-[14rem] flex-1" type="search" [placeholder]="language.t('consoleProperties.searchCategories')" [value]="categoryQuery()" (input)="categoryQuery.set($any($event.target).value); categoryPage.set(1)" />
+          <button type="button" class="btn btn-secondary" (click)="addCategory()">{{ language.t('consoleProperties.addCategory') }}</button>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          @for (entry of categoryPageItems(); track entry.category.value) {
+            <div class="grid gap-3 rounded-xl border border-hairline p-3 sm:grid-cols-[minmax(8rem,0.8fr)_minmax(10rem,1fr)_minmax(10rem,1fr)_auto] sm:items-end">
+              <div>
+                <label class="form-label">{{ language.t('consoleProperties.categoryKey') }}</label>
+                <input class="form-input" [value]="entry.category.value" [readonly]="!isCategoryEditing(entry.index)" (input)="updateCategory(entry.index, 'value', $any($event.target).value)" />
+              </div>
+              <div>
+                <label class="form-label">{{ language.t('consoleProperties.englishName') }}</label>
+                <input class="form-input" [value]="entry.category.label_en" [readonly]="!isCategoryEditing(entry.index)" (input)="updateCategory(entry.index, 'label_en', $any($event.target).value)" />
+              </div>
+              <div>
+                <label class="form-label">{{ language.t('consoleProperties.khmerName') }}</label>
+                <input class="form-input" [value]="entry.category.label_km" [readonly]="!isCategoryEditing(entry.index)" (input)="updateCategory(entry.index, 'label_km', $any($event.target).value)" />
+              </div>
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-secondary" (click)="toggleCategoryEditing(entry.index)">{{ isCategoryEditing(entry.index) ? language.t('consoleProperties.doneEditing') : language.t('consoleProperties.editCategory') }}</button>
+                <button type="button" class="btn btn-ghost text-danger" (click)="removeCategory(entry.category.value)">{{ language.t('consoleProperties.remove') }}</button>
+              </div>
+            </div>
+          } @empty {
+            <p class="py-6 text-center text-sm text-ink-3">{{ language.t('consoleProperties.noCategories') }}</p>
+          }
+        </div>
+
+        <app-data-pagination [page]="categoryPage()" [pageSize]="categoryPageSize" [total]="filteredCategories().length" (pageChange)="categoryPage.set($event)" />
+        <footer class="mt-4 flex justify-end border-t border-hairline pt-4">
+          <button type="button" class="btn btn-primary" [disabled]="isSavingCategories()" (click)="saveCategories()">
+            {{ isSavingCategories() ? language.t('consoleProperties.savingCategories') : language.t('consoleProperties.saveCategories') }}
+          </button>
+        </footer>
+      </section>
+    </div>
+  }
+
   <section class="app-card p-4">
     <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); page.set(1); load()">
       <input #q type="search" class="form-input" [placeholder]="language.t('consoleProperties.searchByTitleLocationOrOwner')" [value]="query()" (input)="query.set(q.value); page.set(1)" />

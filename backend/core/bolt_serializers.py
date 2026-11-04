@@ -77,6 +77,7 @@ class UserSerializer(UserBriefSerializer):
     avatar_hue: int
     avatar_url: str = ""
     payout_method: str = ""
+    payout_accounts: dict = {}
     payout_account_name: str = ""
     payout_account_number: str = ""
     payout_bank_name: str = ""
@@ -84,6 +85,10 @@ class UserSerializer(UserBriefSerializer):
     payout_note: str = ""
     has_payout_details: bool = False
     payout_updated_at: str | None = None
+    payment_account_name: str = ""
+    payment_account_number: str = ""
+    payment_phone: str = ""
+    telegram_connected: bool = False
     date_joined: str
     last_login_at: str | None = None
 
@@ -350,6 +355,10 @@ class PayoutSerializer(Serializer):
     reference: str
     amount: float
     amount_display: str
+    gross_amount: float
+    commission_rate: float
+    commission_amount: float
+    payment_method: str
     status: str
     available_at: str
     paid_at: str | None = None
@@ -370,6 +379,18 @@ class PayoutSerializer(Serializer):
 
     @field_validator("amount")
     def _amount(cls, value):
+        return _num(value)
+
+    @field_validator("gross_amount")
+    def _gross_amount(cls, value):
+        return _num(value)
+
+    @field_validator("commission_amount")
+    def _commission_amount(cls, value):
+        return _num(value)
+
+    @field_validator("commission_rate")
+    def _commission_rate(cls, value):
         return _num(value)
 
     @field_validator("available_at")

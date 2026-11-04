@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BookingService, BookingListResponse } from '../../../services/booking.service';
+import { PaymentService } from '../../../services/payment.service';
 import { Booking } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
 import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
@@ -13,7 +14,8 @@ import {
 import { LanguageService } from '../../../services/language.service';
 import { propertyLocation, propertyTitle } from '../../../shared/property-text';
 import type { Property } from '../../../models';
-import { PAYMENT_METHODS, submitHostedCheckout } from '../../../shared/ui';
+import type { PaymentMethodDetail } from '../../../models';
+import { PAYMENT_METHODS } from '../../../shared/ui';
 
 @Component({
   selector: 'app-renter-bookings',
@@ -31,6 +33,7 @@ export class RenterBookingsComponent implements OnInit {
     return propertyLocation(property, this.language.current());
   }
   private readonly bookingService = inject(BookingService);
+  private readonly paymentService = inject(PaymentService);
 
   bookings = signal<Booking[]>([]);
   counts = signal<Record<string, number>>({});
@@ -47,15 +50,25 @@ export class RenterBookingsComponent implements OnInit {
   // Pay modal state
   readonly methods = PAYMENT_METHODS;
 
-  readonly methodOptions: SelectOption[] = PAYMENT_METHODS.map((m) => ({ value: m, label: m }));
+  readonly methodOptions: SelectOption[] = PAYMENT_METHODS.map((m) => ({ value: m, label: 'ABA PayWay' }));
   selectedBookingForPay = signal<Booking | null>(null);
   selectedPaymentMethod = PAYMENT_METHODS[0];
+  paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
   isPaying = signal(false);
   paySuccessMessage = signal<string | null>(null);
   payErrorMessage = signal<string | null>(null);
+  payQr = signal<{ image: string; deeplink?: string; amount: number | string; currency: string } | null>(null);
 
   ngOnInit(): void {
     this.loadBookings();
+    this.paymentService.getPaymentMethodDetails().subscribe({
+      next: (res) => this.paymentMethodDetails.set(res.payment_method_details),
+      error: () => undefined,
+    });
+  }
+
+  selectedPaymentInfo(): PaymentMethodDetail | null {
+    return this.paymentMethodDetails()[this.selectedPaymentMethod] || null;
   }
 
   loadBookings(status: string = this.activeTab()): void {
@@ -93,10 +106,13 @@ export class RenterBookingsComponent implements OnInit {
     this.selectedBookingForPay.set(booking);
     this.paySuccessMessage.set(null);
     this.payErrorMessage.set(null);
+    this.payQr.set(null);
   }
 
   closePayModal(): void {
+    if (this.isPaying()) return;
     this.selectedBookingForPay.set(null);
+    this.payQr.set(null);
   }
 
   submitPayment(): void {
@@ -110,13 +126,12 @@ export class RenterBookingsComponent implements OnInit {
     this.bookingService
       .payBooking(b.id, {
         method: this.selectedPaymentMethod,
-        simulate: this.selectedPaymentMethod.includes('(Mock)') ? 'success' : undefined,
       })
       .subscribe({
         next: (res) => {
-          if (res.checkout) {
-            this.paySuccessMessage.set('Redirecting to ABA PayWay…');
-            submitHostedCheckout(res.checkout);
+          if (res.qr) {
+            this.payQr.set(res.qr);
+            this.isPaying.set(false);
             return;
           }
           this.isPaying.set(false);

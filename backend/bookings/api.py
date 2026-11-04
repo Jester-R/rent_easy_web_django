@@ -157,7 +157,6 @@ async def renter_pay(request):
             pay_booking,
             booking=booking,
             method=method,
-            simulate=body_str(data, "simulate"),
         )
     except PayWayError as exc:
         raise HTTPException(
@@ -168,6 +167,7 @@ async def renter_pay(request):
         return {
             "payment": await serialize_payment(payment),
             "checkout": result.checkout,
+            "qr": result.qr,
             "already_paid": False,
         }
     if not payment.is_successful:

@@ -19,12 +19,17 @@ export interface User extends UserBrief {
   avatar_hue: number;
   avatar_url?: string;
   payout_method?: string;
+  payout_accounts?: Record<string, PayoutAccountDetails>;
   payout_account_name?: string;
   payout_account_number?: string;
   payout_bank_name?: string;
   payout_phone?: string;
   payout_note?: string;
   payout_updated_at?: string | null;
+  payment_account_name?: string;
+  payment_account_number?: string;
+  payment_phone?: string;
+  telegram_connected?: boolean;
   has_payout_details?: boolean;
   date_joined?: string;
   last_login_at?: string | null;
@@ -33,6 +38,14 @@ export interface User extends UserBrief {
 export interface CategoryOption {
   value: string;
   label: string;
+}
+
+export interface PayoutAccountDetails {
+  account_name: string;
+  account_number: string;
+  bank_name: string;
+  phone: string;
+  note: string;
 }
 
 export interface Property {
@@ -161,6 +174,10 @@ export interface Payout {
   reference: string;
   amount: number;
   amount_display: string;
+  gross_amount: number;
+  commission_rate: number;
+  commission_amount: number;
+  payment_method: string;
   status: 'Scheduled' | 'Eligible' | 'Paid' | 'Cancelled' | string;
   available_at: string;
   paid_at?: string | null;
@@ -349,9 +366,19 @@ export interface ConsoleUsersResponse {
 
 export interface ConsoleSettings {
   auto_approve_owners: boolean;
+  commission_rates: Record<string, number>;
+  payment_method_details: Record<string, PaymentMethodDetail>;
+  aba_payway_merchant_id: string;
   property_categories: PropertyCategorySetting[];
   notification_messages: NotificationMessageSetting[];
   home_promotion: HomePromotion;
+}
+
+export interface PaymentMethodDetail {
+  account_name: string;
+  account_number: string;
+  instructions_en: string;
+  instructions_km: string;
 }
 
 export interface PropertyCategorySetting {
