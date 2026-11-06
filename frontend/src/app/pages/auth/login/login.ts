@@ -4,10 +4,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { LanguageService } from '../../../services/language.service';
+import { TelegramLoginButtonComponent } from '../../../shared/telegram-login';
 
 @Component({
   selector: 'app-login',
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TelegramLoginButtonComponent],
   templateUrl: './login.html',
 })
 export class LoginComponent implements OnInit {
@@ -48,6 +49,13 @@ export class LoginComponent implements OnInit {
         this.errorMessage.set(
           this.language.t('login.thisAccountIsNotAuthorizedToSignIn')
         );
+      } else if (error === 'telegram_not_configured') {
+        this.errorMessage.set(this.language.t('login.telegramNotConfigured'));
+      } else if (
+        error === 'telegram_invalid' ||
+        error === 'telegram_account_failed'
+      ) {
+        this.errorMessage.set(this.language.t('login.telegramLoginFailed'));
       } else {
         this.errorMessage.set(this.language.t('login.oauthFailed'));
       }

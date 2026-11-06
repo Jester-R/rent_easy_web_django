@@ -134,6 +134,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     google_id = models.CharField(
         max_length=255, blank=True, null=True, unique=True, db_index=True
     )
+    # Telegram user id captured during sign-in (kept separate from the
+    # notification chat link so unlinking notifications does not break sign-in).
+    telegram_id = models.CharField(
+        max_length=64, blank=True, null=True, unique=True, db_index=True
+    )
     # Supports either an external avatar URL or a small uploaded image data URL.
     avatar_url = models.TextField(blank=True)
     role = models.CharField(
@@ -331,6 +336,40 @@ class EmailVerification(models.Model):
 
     def __str__(self) -> str:
         return f"OTP({self.email}, {self.purpose}, code={self.code})"
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+
+class TelegramLoginRequest(models.Model):
+    """Short-lived browser request that waits for a Telegram bot ``/start``.
+
+    The website creates a request and opens ``https://t.me/<bot>?start=<token>``.
+    When the bot receives that token it stores the Telegram profile here and
+    replies with a one-time login code. The browser submits the code to finish
+    signing in.
+    """
+
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    code = models.CharField(max_length=6, blank=True, default="", db_index=True)
+    role = models.CharField(max_length=16, blank=True, default="")
+    telegram_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    username = models.CharField(max_length=64, blank=True, default="")
+    first_name = models.CharField(max_length=120, blank=True, default="")
+    last_name = models.CharField(max_length=120, blank=True, default="")
+    photo_url = models.CharField(max_length=500, blank=True, default="")
+    attempts = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["expires_at", "consumed_at"])]
+
+    def __str__(self) -> str:
+        return f"TelegramLoginRequest({self.token[:8]}...)"
 
     @property
     def is_expired(self) -> bool:

@@ -106,7 +106,9 @@ directly, export the same variables first.
 | `TELEGRAM_BOT_TOKEN` | empty | BotFather token used for account links and notification delivery. |
 | `TELEGRAM_BOT_USERNAME` | empty | Public username of the bot, without `@`. |
 | `TELEGRAM_WEBHOOK_SECRET` | empty | Secret Telegram sends to authenticate webhook updates. |
+| `TELEGRAM_WEBHOOK_URL` | `{FRONTEND_BASE_URL}/api/telegram/webhook/` | Public webhook URL registered with Telegram. |
 | `TELEGRAM_CHAT_ID` | empty | Optional fallback destination for staff notifications only. |
+| `TELEGRAM_LOGIN_AUTH_URL` | `{FRONTEND_BASE_URL}/api/auth/telegram/callback/` | Legacy Login Widget callback (the app UI uses the bot code flow). |
 
 Leaving the merchant ID or API key empty, or setting `ABA_PAYWAY_ENABLED=false`,
 keeps the demo flow: `ABA Pay` is recorded as `ABA Pay (Mock)` using the existing
@@ -114,15 +116,45 @@ keeps the demo flow: `ABA Pay` is recorded as `ABA Pay (Mock)` using the existin
 configured, a client cannot request a simulated ABA success; disable the gateway
 to use demo outcomes.
 
-### Telegram notifications
+### Telegram login and notifications
 
-Telegram delivery is optional. Create a bot with [@BotFather](https://t.me/BotFather)
-and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and a random
-`TELEGRAM_WEBHOOK_SECRET` in `.env`. Configure Telegram's webhook to send updates to
-`https://<your-domain>/api/telegram/webhook/` using that secret token. After deploying,
-run the database migrations. Each renter or owner connects from their profile page;
-they must open the bot link and press **Start**. Booking and payment alerts then go
-to that user's private bot chat. `TELEGRAM_CHAT_ID` is an optional fallback for staff
+The Telegram integration is free and uses the same bot for sign-in and notification
+delivery. Create a bot with [@BotFather](https://t.me/BotFather), then set
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and a random
+`TELEGRAM_WEBHOOK_SECRET` in `.env`.
+
+Sign-in uses a bot deep link, so the **Sign in with Telegram** icon works without
+registering a widget domain:
+
+1. The user taps the Telegram icon on the login or register page.
+2. RentEasy creates a short-lived token and opens
+   `https://t.me/<bot>?start=<token>` in Telegram.
+3. The user presses **Start**. Telegram calls the bot webhook, which stores the
+   Telegram profile and replies with a one-time 6-digit code.
+4. The user enters the code on the website. RentEasy verifies it, creates or finds
+   the account, and signs the user in. Codes expire after 10 minutes, allow five
+   attempts, and are single-use.
+
+After the backend is publicly reachable, register the webhook with:
+
+```bash
+just telegram-webhook
+```
+
+`just run` and `./run.sh` also register it automatically when
+`TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` are set. The command uses
+`TELEGRAM_WEBHOOK_URL`, or `{FRONTEND_BASE_URL}/api/telegram/webhook/` by
+default. Re-run it whenever the public URL changes (for example after restarting
+a development tunnel). You can inspect or remove the webhook with
+`just telegram-webhook --info` or `just telegram-webhook --delete`.
+
+If someone opens the bot and presses **Start** without a deep-link token, the bot
+replies with a short instruction to tap the Telegram icon on the RentEasy login
+page instead of leaving them with silence.
+
+Each renter or owner can also connect notifications from their profile page; they
+must open the bot link and press **Start**. Booking and payment alerts then go to that
+user's private bot chat. `TELEGRAM_CHAT_ID` is an optional fallback for staff
 notifications. Delivery is best-effort and does not block the in-app notification.
 Keep the bot token and webhook secret private, and restart the backend after changing
 these settings.

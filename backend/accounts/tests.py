@@ -9,6 +9,13 @@ from accounts.google_oauth import (
     is_google_oauth_configured,
     verify_oauth_state,
 )
+from accounts.telegram_login import (
+    authorize_telegram_login_request,
+    create_telegram_login_request,
+    get_or_create_telegram_user,
+    verify_telegram_login,
+    verify_telegram_login_code,
+)
 from accounts.models import ApprovalStatus, EmailVerification, PlatformSettings, Role, User
 
 
@@ -220,12 +227,13 @@ class GoogleOAuthConfigurationTests(TestCase):
 
 
 class MockBoltRequest:
-    def __init__(self, query=None, body=b"", session=None):
+    def __init__(self, query=None, body=b"", session=None, headers=None):
         from django.contrib.sessions.backends.db import SessionStore
 
         self.query = query or {}
         self.body = body
         self.session = session if session is not None else SessionStore()
+        self.headers = headers or {}
         self.user = None
         self.META = {}
 
@@ -628,3 +636,219 @@ class EmailVerificationTests(TestCase):
 
 
 
+
+
+class TelegramLoginTests(TestCase):
+    @staticmethod
+    def _signed_payload(token: str, **overrides) -> dict[str, str]:
+        import hashlib
+        import hmac
+        import time
+
+        payload = {
+            "id": "555000111",
+            "first_name": "Tele",
+            "last_name": "Gram",
+            "username": "tele_gram",
+            "photo_url": "",
+            "auth_date": str(int(time.time())),
+        }
+        payload.update({key: str(value) for key, value in overrides.items()})
+        check_string = "\n".join(
+            f"{key}={payload[key]}" for key in sorted(payload)
+        )
+        secret_key = hashlib.sha256(token.encode("utf-8")).digest()
+        payload["hash"] = hmac.new(
+            secret_key, check_string.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        return payload
+
+    @override_settings(TELEGRAM_BOT_TOKEN="123456:test-token")
+    def test_verify_valid_payload(self):
+        payload = self._signed_payload("123456:test-token")
+        verified = verify_telegram_login(payload)
+        self.assertIsNotNone(verified)
+        self.assertEqual(verified["id"], "555000111")
+        self.assertNotIn("hash", verified)
+
+    @override_settings(TELEGRAM_BOT_TOKEN="123456:test-token")
+    def test_verify_rejects_tampered_payload(self):
+        payload = self._signed_payload("123456:test-token")
+        payload["first_name"] = "Mallory"
+        self.assertIsNone(verify_telegram_login(payload))
+
+    @override_settings(TELEGRAM_BOT_TOKEN="123456:test-token")
+    def test_verify_rejects_expired_payload(self):
+        payload = self._signed_payload("123456:test-token", auth_date=1)
+        self.assertIsNone(verify_telegram_login(payload))
+
+    async def test_creates_telegram_only_user(self):
+        payload = {
+            "id": "777888999",
+            "first_name": "Sok",
+            "last_name": "Dara",
+            "username": "sokdara",
+            "photo_url": "",
+        }
+        user, created, block = await get_or_create_telegram_user(
+            payload, requested_role=Role.RENTER
+        )
+        self.assertTrue(created)
+        self.assertIsNone(block)
+        self.assertEqual(user.telegram_id, "777888999")
+        self.assertEqual(user.telegram_chat_id, "777888999")
+        self.assertEqual(user.full_name, "Sok Dara")
+        self.assertEqual(user.email, "telegram_777888999@telegram.local")
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.has_usable_password())
+
+    async def test_existing_linked_user_signs_in(self):
+        linked = await User.objects.acreate(
+            email="linked@example.com",
+            username="linked_user",
+            telegram_chat_id="123123123",
+        )
+        payload = {"id": "123123123", "first_name": "Linked"}
+        user, created, block = await get_or_create_telegram_user(
+            payload, requested_role=Role.RENTER
+        )
+        self.assertFalse(created)
+        self.assertIsNone(block)
+        self.assertEqual(user.pk, linked.pk)
+        self.assertEqual(user.telegram_id, "123123123")
+
+    async def test_bot_deep_link_login_roundtrip(self):
+        login_request = await create_telegram_login_request(Role.RENTER)
+        authorized = await authorize_telegram_login_request(
+            login_request.token,
+            telegram_id="888777666",
+            username="tg_user",
+            first_name="Tele",
+            last_name="Gram",
+        )
+        self.assertIsNotNone(authorized)
+        self.assertEqual(len(authorized.code), 6)
+        self.assertEqual(authorized.telegram_id, "888777666")
+
+        user, created, block = await verify_telegram_login_code(
+            login_request.token, authorized.code
+        )
+        self.assertTrue(created)
+        self.assertIsNone(block)
+        self.assertEqual(user.telegram_id, "888777666")
+        self.assertEqual(user.full_name, "Tele Gram")
+        self.assertTrue(user.is_active)
+
+    async def test_bot_deep_link_rejects_wrong_code(self):
+        login_request = await create_telegram_login_request(Role.RENTER)
+        authorized = await authorize_telegram_login_request(
+            login_request.token, telegram_id="888777667"
+        )
+        self.assertIsNotNone(authorized)
+        with self.assertRaisesMessage(ValueError, "invalid_code"):
+            await verify_telegram_login_code(login_request.token, "000000")
+
+        authorized.attempts = 5
+        await authorized.asave(update_fields=["attempts"])
+        with self.assertRaisesMessage(ValueError, "too_many_attempts"):
+            await verify_telegram_login_code(login_request.token, authorized.code)
+
+    async def test_deep_link_token_cannot_be_reused_by_another_telegram_user(self):
+        login_request = await create_telegram_login_request(Role.RENTER)
+        self.assertIsNotNone(
+            await authorize_telegram_login_request(
+                login_request.token, telegram_id="111111111"
+            )
+        )
+        self.assertIsNone(
+            await authorize_telegram_login_request(
+                login_request.token, telegram_id="222222222"
+            )
+        )
+
+    async def test_new_user_without_role_needs_selection(self):
+        payload = {"id": "321321321", "first_name": "Role"}
+        user, created, block = await get_or_create_telegram_user(
+            payload, requested_role=""
+        )
+        self.assertTrue(created)
+        self.assertEqual(block, "select_role")
+        self.assertFalse(user.is_active)
+
+    @override_settings(TELEGRAM_WEBHOOK_SECRET="test-webhook-secret")
+    async def test_webhook_bare_start_returns_instructions(self):
+        import json
+        from accounts.api import telegram_webhook
+
+        req = MockBoltRequest(
+            body=json.dumps(
+                {
+                    "message": {
+                        "chat": {"id": 444555666, "type": "private"},
+                        "from": {"id": 444555666, "first_name": "NoLink"},
+                        "text": "/start",
+                    }
+                }
+            ).encode("utf-8"),
+            headers={"x-telegram-bot-api-secret-token": "test-webhook-secret"},
+        )
+        with patch("notifications.telegram.send_telegram_message") as send:
+            result = await telegram_webhook(req)
+        self.assertEqual(result, {"ok": True})
+        send.assert_called_once()
+        self.assertIn("blue Telegram icon", send.call_args.args[1])
+
+    @override_settings(TELEGRAM_WEBHOOK_SECRET="test-webhook-secret")
+    async def test_webhook_expired_login_token_asks_retry(self):
+        import json
+        from accounts.api import telegram_webhook
+
+        req = MockBoltRequest(
+            body=json.dumps(
+                {
+                    "message": {
+                        "chat": {"id": 444555667, "type": "private"},
+                        "from": {"id": 444555667, "first_name": "Expired"},
+                        "text": "/start tl_expired-token",
+                    }
+                }
+            ).encode("utf-8"),
+            headers={"x-telegram-bot-api-secret-token": "test-webhook-secret"},
+        )
+        with patch("notifications.telegram.send_telegram_message") as send:
+            result = await telegram_webhook(req)
+        self.assertEqual(result, {"ok": True})
+        send.assert_called_once()
+        self.assertIn("invalid or expired", send.call_args.args[1])
+        self.assertIn("tap the Telegram icon again", send.call_args.args[1])
+
+    @override_settings(TELEGRAM_WEBHOOK_SECRET="test-webhook-secret")
+    async def test_webhook_sends_code_for_valid_login_token(self):
+        import json
+        from accounts.api import telegram_webhook
+        from accounts.models import TelegramLoginRequest
+
+        login_request = await create_telegram_login_request(Role.RENTER)
+        req = MockBoltRequest(
+            body=json.dumps(
+                {
+                    "message": {
+                        "chat": {"id": 444555668, "type": "private"},
+                        "from": {
+                            "id": 444555668,
+                            "first_name": "Code",
+                            "username": "code_user",
+                        },
+                        "text": f"/start {login_request.token}",
+                    }
+                }
+            ).encode("utf-8"),
+            headers={"x-telegram-bot-api-secret-token": "test-webhook-secret"},
+        )
+        with patch("notifications.telegram.send_telegram_message") as send:
+            result = await telegram_webhook(req)
+        self.assertEqual(result, {"ok": True})
+        send.assert_called_once()
+        stored = await TelegramLoginRequest.objects.aget(token=login_request.token)
+        self.assertEqual(stored.telegram_id, "444555668")
+        self.assertIn(stored.code, send.call_args.args[1])

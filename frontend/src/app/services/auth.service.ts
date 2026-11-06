@@ -269,6 +269,63 @@ export class AuthService {
       );
   }
 
+  getTelegramLoginConfig(): Observable<{
+    enabled: boolean;
+    bot_username: string;
+    bot_id: string;
+    auth_url: string;
+  }> {
+    return this.http.get<{
+      enabled: boolean;
+      bot_username: string;
+      bot_id: string;
+      auth_url: string;
+    }>(`${this.baseUrl}/auth/telegram/config/`, { withCredentials: true });
+  }
+
+  startTelegramLogin(role?: 'renter' | 'owner' | ''): Observable<{
+    token: string;
+    url: string;
+    expires_in: number;
+  }> {
+    return this.http.post<{ token: string; url: string; expires_in: number }>(
+      `${this.baseUrl}/auth/telegram/login/start/`,
+      { role: role || '' },
+      { withCredentials: true }
+    );
+  }
+
+  verifyTelegramLogin(
+    token: string,
+    code: string
+  ): Observable<{
+    ok: boolean;
+    status: 'active' | 'select_role' | 'pending_approval';
+    user?: User;
+    home_url?: string;
+    redirect?: string;
+  }> {
+    return this.http
+      .post<{
+        ok: boolean;
+        status: 'active' | 'select_role' | 'pending_approval';
+        user?: User;
+        home_url?: string;
+        redirect?: string;
+      }>(
+        `${this.baseUrl}/auth/telegram/login/verify/`,
+        { token, code },
+        { withCredentials: true }
+      )
+      .pipe(
+        tap((res) => {
+          if (res.status === 'active' && res.user) {
+            this.currentUser.set(res.user);
+          }
+        })
+      );
+  }
+
   createTelegramLink(): Observable<{ url: string }> {
     return this.http.post<{ url: string }>(`${this.baseUrl}/auth/telegram/link/`, {}, { withCredentials: true });
   }

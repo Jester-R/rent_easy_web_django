@@ -227,7 +227,12 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "").strip()
 TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+TELEGRAM_WEBHOOK_URL = os.environ.get("TELEGRAM_WEBHOOK_URL", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+TELEGRAM_LOGIN_AUTH_URL = os.environ.get(
+    "TELEGRAM_LOGIN_AUTH_URL",
+    f"{FRONTEND_BASE_URL}/api/auth/telegram/callback/",
+).strip()
 
 # -- Email / OTP settings -----------------------------------------------------
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")

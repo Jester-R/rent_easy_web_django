@@ -116,6 +116,16 @@ wait_for_backend() {
   return 1
 }
 
+ensure_telegram_webhook() {
+  if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_WEBHOOK_SECRET:-}" ]; then
+    return 0
+  fi
+  info "Registering Telegram bot webhook..."
+  if ! ( cd backend && .venv/bin/python manage.py set_telegram_webhook ); then
+    warn "Telegram webhook registration failed; run 'just telegram-webhook' to retry"
+  fi
+}
+
 start_backend() {
   info "Starting Django Bolt on http://127.0.0.1:${BACKEND_PORT} (log: ${LOG_DIR}/backend.log)"
   ( cd backend && .venv/bin/python manage.py runbolt \
@@ -167,6 +177,10 @@ if [ "$ONLY" != "frontend" ]; then
 fi
 
 # --- run --------------------------------------------------------------------
+if [ "$ONLY" != "frontend" ]; then
+  ensure_telegram_webhook
+fi
+
 if [ "$ONLY" = "backend" ]; then
   start_backend
   info "Backend ready. Press CTRL+C to stop."

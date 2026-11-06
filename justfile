@@ -29,6 +29,15 @@ migrate:
 migrate:
     @cd /d backend && .venv\Scripts\python.exe manage.py migrate
 
+# Register the Telegram bot webhook (uses FRONTEND_BASE_URL unless --url is given).
+[unix]
+telegram-webhook *ARGS:
+    @cd backend && .venv/bin/python manage.py set_telegram_webhook {{ARGS}}
+
+[windows]
+telegram-webhook *ARGS:
+    @cd /d backend && .venv\Scripts\python.exe manage.py set_telegram_webhook {{ARGS}}
+
 # Create demo accounts and sample content. Use `just seed -- --reset` to recreate them.
 [unix]
 seed *ARGS:
@@ -68,6 +77,7 @@ build:
 # Start backend in the background and frontend in the foreground.
 [unix]
 run:
+    @{{just_executable()}} telegram-webhook || true
     @{{just_executable()}} backend > /tmp/bolt.log 2>&1 &
     @{{just_executable()}} frontend
 

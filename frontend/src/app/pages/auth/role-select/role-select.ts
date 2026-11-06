@@ -45,7 +45,7 @@ export class RoleSelectComponent {
         this.isLoading.set(false);
         const detail = err.error?.detail;
         if (detail === 'no_pending_registration') {
-          this.errorMessage.set('No pending registration found. Please sign in again with Google.');
+          this.errorMessage.set('No pending registration found. Please sign in again.');
         } else {
           this.errorMessage.set('Failed to set role. Please try again.');
         }

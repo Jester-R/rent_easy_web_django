@@ -42,6 +42,18 @@ from accounts.models import (
     normalize_identity,
 )
 from accounts.payouts import apply_payout_fields
+from accounts.telegram_login import (
+    TELEGRAM_LOGIN_REQUEST_TTL,
+    TELEGRAM_LOGIN_TOKEN_PREFIX,
+    authorize_telegram_login_request,
+    create_telegram_login_request,
+    get_or_create_telegram_user,
+    is_telegram_login_configured,
+    telegram_bot_id,
+    telegram_login_auth_url,
+    verify_telegram_login,
+    verify_telegram_login_code,
+)
 from notifications.models import Notification
 from notifications.services import notify
 from bookings.models import Booking, BookingStatus
@@ -52,6 +64,7 @@ from core.bolt import (
     mark_full_request,
     owner_required,
     q,
+    query,
     renter_required,
     session_get,
     session_pop,
@@ -632,6 +645,145 @@ async def google_oauth_callback_post(request):
 
 
 # ---------------------------------------------------------------------------
+# Telegram sign-in (bot deep link + legacy Login Widget callback)
+# ---------------------------------------------------------------------------
+
+
+@api.get("/auth/telegram/config/")
+async def telegram_login_config_view(request):
+    enabled = is_telegram_login_configured()
+    return {
+        "enabled": enabled,
+        "bot_username": (
+            getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
+            if enabled
+            else ""
+        ),
+        "bot_id": telegram_bot_id() if enabled else "",
+        "auth_url": telegram_login_auth_url() if enabled else "",
+    }
+
+
+@api.post("/auth/telegram/login/start/")
+async def telegram_login_start(request):
+    bot_username = (
+        getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
+    )
+    if not is_telegram_login_configured() or not bot_username:
+        raise HTTPException(status_code=503, detail="telegram_not_configured")
+
+    data = json_body(request)
+    login_request = await create_telegram_login_request(
+        body_str(data, "role") or ""
+    )
+    return {
+        "token": login_request.token,
+        "url": f"https://t.me/{bot_username}?start={login_request.token}",
+        "expires_in": TELEGRAM_LOGIN_REQUEST_TTL,
+    }
+
+
+@api.post("/auth/telegram/login/verify/")
+async def telegram_login_verify(request):
+    data = json_body(request)
+    token = body_str(data, "token")
+    code = body_str(data, "code")
+    if not token or not code:
+        raise HTTPException(status_code=422, detail="code_required")
+
+    try:
+        user, _created, block = await verify_telegram_login_code(token, code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if block:
+        if block == "select_role":
+            await session_set(request, PENDING_ROLE_KEY, user.pk)
+            return {
+                "ok": True,
+                "status": "select_role",
+                "redirect": "/role-select",
+            }
+        if block == "approval_pending":
+            return {
+                "ok": True,
+                "status": "pending_approval",
+                "redirect": "/register?pending=1",
+            }
+        raise HTTPException(status_code=403, detail=block)
+
+    await in_thread(login, request, user)
+    await in_thread(user.touch_login)
+    return {
+        "ok": True,
+        "status": "active",
+        "user": await serialize_user(user),
+        "home_url": user.home_url,
+        "redirect": user.home_url,
+    }
+
+
+@api.get("/auth/telegram/callback/")
+async def telegram_login_callback(request):
+    frontend_base = getattr(
+        settings, "FRONTEND_BASE_URL", "http://localhost:4200"
+    ).rstrip("/")
+    if not is_telegram_login_configured():
+        return Redirect(
+            f"{frontend_base}/login?error=telegram_not_configured", status_code=303
+        )
+
+    received = query(request)
+    payload = {
+        key: received[key]
+        for key in (
+            "id",
+            "first_name",
+            "last_name",
+            "username",
+            "photo_url",
+            "auth_date",
+            "hash",
+        )
+        if key in received
+    }
+    verified = verify_telegram_login(payload)
+    if verified is None:
+        return Redirect(
+            f"{frontend_base}/login?error=telegram_invalid", status_code=303
+        )
+
+    role = q(request, "role", "")
+    next_url = q(request, "next", "")
+
+    try:
+        user, _created, block = await get_or_create_telegram_user(
+            verified, requested_role=role
+        )
+    except Exception as exc:
+        logger.error("Failed getting/creating Telegram user: %s", exc)
+        return Redirect(
+            f"{frontend_base}/login?error=telegram_account_failed", status_code=303
+        )
+
+    if block:
+        if block == "select_role":
+            await session_set(request, PENDING_ROLE_KEY, user.pk)
+            return Redirect(f"{frontend_base}/role-select", status_code=303)
+        if block == "approval_pending":
+            return Redirect(f"{frontend_base}/register?pending=1", status_code=303)
+        return Redirect(f"{frontend_base}/login?error={block}", status_code=303)
+
+    await in_thread(login, request, user)
+    await in_thread(user.touch_login)
+
+    destination = (
+        next_url if (next_url and next_url.startswith("/")) else user.home_url
+    )
+    return Redirect(f"{frontend_base}{destination}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
 # Profile + preferences
 # ---------------------------------------------------------------------------
 
@@ -720,7 +872,11 @@ async def telegram_unlink(request):
 @api.post("/telegram/webhook/")
 async def telegram_webhook(request):
     expected_secret = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "")
-    supplied_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    supplied_secret = ""
+    for header_name, header_value in request.headers.items():
+        if header_name.lower() == "x-telegram-bot-api-secret-token":
+            supplied_secret = header_value
+            break
     if not expected_secret or not secrets.compare_digest(supplied_secret, expected_secret):
         raise HTTPException(status_code=403, detail="invalid_webhook_secret")
 
@@ -730,22 +886,63 @@ async def telegram_webhook(request):
     chat_id = str(chat.get("id") or "")
     text = str(message.get("text") or "")
     parts = text.split(maxsplit=1)
-    if chat.get("type") != "private" or not chat_id or not parts or parts[0] != "/start" or len(parts) != 2:
+    if (
+        chat.get("type") != "private"
+        or not chat_id
+        or not parts
+        or parts[0] != "/start"
+    ):
         return {"ok": True}
 
-    token = parts[1].strip()
+    from notifications.telegram import send_telegram_message
+
+    token = parts[1].strip().split()[0] if len(parts) == 2 and parts[1].strip() else ""
+    if not token:
+        await in_thread(
+            send_telegram_message,
+            chat_id,
+            "Open RentEasy, tap the blue Telegram icon, and press Start "
+            "to receive a sign-in code.",
+        )
+        return {"ok": True}
+
+    login_request = await authorize_telegram_login_request(
+        token,
+        telegram_id=chat_id,
+        username=str(message.get("from", {}).get("username") or ""),
+        first_name=str(message.get("from", {}).get("first_name") or ""),
+        last_name=str(message.get("from", {}).get("last_name") or ""),
+    )
+    if login_request is not None:
+        await in_thread(
+            send_telegram_message,
+            chat_id,
+            "Your RentEasy login code is "
+            f"{login_request.code}\n\n"
+            "Enter it on the website to finish signing in. "
+            "The code expires in 10 minutes.",
+        )
+        return {"ok": True}
+
+    if token.startswith(TELEGRAM_LOGIN_TOKEN_PREFIX):
+        await in_thread(
+            send_telegram_message,
+            chat_id,
+            "This Telegram sign-in link is invalid or expired. "
+            "Go back to RentEasy and tap the Telegram icon again.",
+        )
+        return {"ok": True}
+
     user = await User.objects.filter(
         telegram_link_token=token,
         telegram_link_expires_at__gt=timezone.now(),
     ).afirst()
     if user is None:
-        from notifications.telegram import send_telegram_message
         await in_thread(send_telegram_message, chat_id, "This account link is invalid or expired. Please create a new link from your RentEasy profile.")
         return {"ok": True}
 
     linked_elsewhere = await User.objects.filter(telegram_chat_id=chat_id).exclude(pk=user.pk).aexists()
     if linked_elsewhere:
-        from notifications.telegram import send_telegram_message
         await in_thread(send_telegram_message, chat_id, "This Telegram account is already linked to another RentEasy account. Unlink it there first.")
         return {"ok": True}
 
@@ -753,7 +950,6 @@ async def telegram_webhook(request):
     user.telegram_link_token = ""
     user.telegram_link_expires_at = None
     await user.asave(update_fields=["telegram_chat_id", "telegram_link_token", "telegram_link_expires_at"])
-    from notifications.telegram import send_telegram_message
     await in_thread(send_telegram_message, chat_id, "Your RentEasy account is connected. Booking and payment updates will be sent here.")
     return {"ok": True}
 
