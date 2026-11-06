@@ -156,7 +156,12 @@ async def is_real_email_domain(domain: str) -> bool:
                 if any(ans.get("type") == 1 for ans in data_a.get("Answer", [])):
                     return True
     except Exception as exc:
-        logger.debug("DNS over HTTPS lookup failed for %s: %s; trying socket fallback", domain, exc)
+        logger.debug(
+            "DNS over HTTPS lookup failed for %s: %s; trying socket fallback",
+            domain,
+            exc,
+        )
+
         # Fallback to local socket DNS lookup in worker thread
         def _socket_check():
             try:
@@ -199,7 +204,9 @@ def generate_otp_code() -> str:
 
 def send_otp_email(email: str, code: str, purpose: str = "register") -> None:
     """Send verification OTP email to user."""
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "RentEasy <noreply@renteasy.com>")
+    from_email = getattr(
+        settings, "DEFAULT_FROM_EMAIL", "RentEasy <noreply@renteasy.com>"
+    )
     subject = f"RentEasy - Verification Code: {code}"
 
     text_content = (
@@ -241,7 +248,11 @@ def send_otp_email(email: str, code: str, purpose: str = "register") -> None:
     </html>
     """
 
-    logger.info("========== [EMAIL OTP] Sending verification code %s to %s ==========", code, email)
+    logger.info(
+        "========== [EMAIL OTP] Sending verification code %s to %s ==========",
+        code,
+        email,
+    )
     send_mail(
         subject=subject,
         message=text_content,

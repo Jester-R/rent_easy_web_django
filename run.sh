@@ -4,7 +4,7 @@
 #   ./run.sh                # set up if needed, then run backend + frontend
 #   ./run.sh --reset        # re-seed the demo data before starting
 #   ./run.sh --no-setup     # skip dependency/install checks, just run
-#   ./run.sh --backend-only # start only Django Bolt on :8123
+#   ./run.sh --backend-only # start only Django Bolt on :8000
 #   ./run.sh --frontend-only# start only Angular on :4200
 #
 # Press CTRL+C to stop everything.
@@ -23,7 +23,7 @@ if [ -f "$ROOT/.env" ]; then
   set +a
 fi
 
-BACKEND_PORT="${BACKEND_PORT:-8123}"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-4200}"
 LOG_DIR="${TMPDIR:-/tmp}/renteasy"
 mkdir -p "$LOG_DIR"

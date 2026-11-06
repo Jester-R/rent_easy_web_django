@@ -93,7 +93,9 @@ class Payment(models.Model):
                 self.property_title_snapshot = self.booking.property_title
             update_fields = kwargs.get("update_fields")
             if update_fields is not None and self.property_title_snapshot:
-                kwargs["update_fields"] = set(update_fields) | {"property_title_snapshot"}
+                kwargs["update_fields"] = set(update_fields) | {
+                    "property_title_snapshot"
+                }
         super().save(*args, **kwargs)
 
     def _generate_reference(self) -> str:
@@ -171,9 +173,15 @@ class Payout(models.Model):
         Payment, on_delete=models.CASCADE, related_name="payout"
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    gross_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
-    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
-    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    gross_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("0.00")
+    )
+    commission_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
+    )
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.SCHEDULED, db_index=True
     )

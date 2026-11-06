@@ -148,7 +148,7 @@ class Command(BaseCommand):
                 model.objects.all().delete()
             User.objects.exclude(email=SUPERADMIN["email"]).delete()
 
-        admin = self._ensure_superadmin()
+        self._ensure_superadmin()
         owners = [
             self._ensure_user(
                 email,

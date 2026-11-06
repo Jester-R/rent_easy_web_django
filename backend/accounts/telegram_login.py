@@ -99,7 +99,7 @@ def verify_telegram_login(data: dict[str, Any]) -> dict[str, str] | None:
 
     try:
         auth_date = int(payload["auth_date"])
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if time.time() - auth_date > TELEGRAM_LOGIN_MAX_AGE:
         logger.warning("Telegram login payload expired")
@@ -123,9 +123,7 @@ def _apply_telegram_profile(user: User, full_name: str, avatar_url: str) -> list
     current_avatar = (user.avatar_url or "").strip()
     incoming_avatar = (avatar_url or "").strip()
     if incoming_avatar and (
-        not current_avatar
-        or "t.me" in current_avatar
-        or "telesco.pe" in current_avatar
+        not current_avatar or "t.me" in current_avatar or "telesco.pe" in current_avatar
     ):
         if current_avatar != incoming_avatar:
             user.avatar_url = incoming_avatar
@@ -199,13 +197,11 @@ async def authorize_telegram_login_request(
     photo_url: str = "",
 ) -> TelegramLoginRequest | None:
     """Attach the Telegram identity from a bot ``/start <token>`` update."""
-    login_request = (
-        await TelegramLoginRequest.objects.filter(
-            token=token,
-            consumed_at__isnull=True,
-            expires_at__gt=timezone.now(),
-        ).afirst()
-    )
+    login_request = await TelegramLoginRequest.objects.filter(
+        token=token,
+        consumed_at__isnull=True,
+        expires_at__gt=timezone.now(),
+    ).afirst()
     if login_request is None:
         return None
 
@@ -236,11 +232,9 @@ async def verify_telegram_login_code(
     token: str, code: str
 ) -> tuple[User, bool, str | None]:
     """Redeem the one-time code the bot sent and sign the user in."""
-    login_request = (
-        await TelegramLoginRequest.objects.filter(
-            token=token, consumed_at__isnull=True
-        ).afirst()
-    )
+    login_request = await TelegramLoginRequest.objects.filter(
+        token=token, consumed_at__isnull=True
+    ).afirst()
     if login_request is None or login_request.is_expired:
         raise ValueError("code_expired")
     if not login_request.telegram_id or not login_request.code:
@@ -264,9 +258,7 @@ async def verify_telegram_login_code(
         "username": login_request.username,
         "photo_url": login_request.photo_url,
     }
-    return await get_or_create_telegram_user(
-        payload, requested_role=login_request.role
-    )
+    return await get_or_create_telegram_user(payload, requested_role=login_request.role)
 
 
 async def _generate_unique_telegram_email(telegram_id: str) -> str:
@@ -306,7 +298,10 @@ async def get_or_create_telegram_user(
         user = await User.objects.filter(telegram_chat_id=telegram_id).afirst()
         if user is not None:
             user.telegram_id = telegram_id
-            updates = ["telegram_id", *_apply_telegram_profile(user, full_name, avatar_url)]
+            updates = [
+                "telegram_id",
+                *_apply_telegram_profile(user, full_name, avatar_url),
+            ]
             await user.asave(update_fields=updates)
 
     # 3. Existing account: keep the notification link in sync.
@@ -338,9 +333,7 @@ async def get_or_create_telegram_user(
         approval_status = ApprovalStatus.PENDING
 
     email = await _generate_unique_telegram_email(telegram_id)
-    username = await _generate_unique_username(
-        full_name or telegram_username, email
-    )
+    username = await _generate_unique_username(full_name or telegram_username, email)
 
     user = await in_thread(
         _create_telegram_user,

@@ -8,12 +8,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="user",
             name="telegram_chat_id",
-            field=models.CharField(blank=True, db_index=True, default="", max_length=64),
+            field=models.CharField(
+                blank=True, db_index=True, default="", max_length=64
+            ),
         ),
         migrations.AddField(
             model_name="user",
             name="telegram_link_token",
-            field=models.CharField(blank=True, db_index=True, default="", max_length=64),
+            field=models.CharField(
+                blank=True, db_index=True, default="", max_length=64
+            ),
         ),
         migrations.AddField(
             model_name="user",

@@ -1,9 +1,11 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
 import { ConsoleService } from '../../services/console.service';
+import { compressImageToFile } from '../../shared/image';
 import type { PaymentMethodDetail, PayoutAccountDetails } from '../../models';
 
 @Component({
@@ -125,26 +127,26 @@ export class ProfileComponent implements OnInit {
     }
 
     this.isPhotoReading.set(true);
+    this.photoError.set(null);
     try {
-      // Shrink camera photos before embedding them in the profile JSON request.
-      // Mobile images are often several megabytes even when the selected file looks small.
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('canvas_unavailable');
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      bitmap.close();
-      this.form.controls.avatar_url.setValue(canvas.toDataURL('image/jpeg', 0.82));
-    } catch {
+      // Shrink camera photos before uploading; mobile images are often
+      // several megabytes even when the selected file looks small.
+      const compressed = await compressImageToFile(file, 512, 0.82);
+      const res = await firstValueFrom(this.auth.uploadAvatar(compressed));
+      this.form.controls.avatar_url.setValue(res.url);
+    } catch (error) {
+      const detail = (error as { error?: { detail?: string } })?.error?.detail;
+      if (detail === 'image_too_large') {
+        this.photoError.set('Choose an image smaller than 12 MB.');
+      } else if (detail === 'invalid_image_file') {
+        this.photoError.set('Choose a valid JPG, PNG, WebP, or GIF image.');
+      } else {
+        this.photoError.set('Could not upload this image. Try another file.');
+      }
+    } finally {
       this.isPhotoReading.set(false);
-      this.photoError.set('Could not read this image. Try another file.');
       input.value = '';
-      return;
     }
-    this.isPhotoReading.set(false);
   }
 
   onSubmit(): void {

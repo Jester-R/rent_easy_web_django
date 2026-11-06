@@ -242,6 +242,20 @@ export class AuthService {
     });
   }
 
+  uploadAvatar(file: File): Observable<{ user: User; url: string }> {
+    const form = new FormData();
+    form.append('avatar', file, file.name);
+    return this.http
+      .post<{ user: User; url: string }>(`${this.baseUrl}/auth/avatar/`, form, {
+        withCredentials: true,
+      })
+      .pipe(
+        tap((res) => {
+          this.currentUser.set(res.user);
+        })
+      );
+  }
+
   updatePreferences(data: {
     full_name?: string;
     email?: string;

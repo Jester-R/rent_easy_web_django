@@ -2,6 +2,7 @@ import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from 
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { CambodiaDistrict, PropertyService } from '../../../services/property.service';
 import { LanguageService } from '../../../services/language.service';
 import { LeafletMapComponent } from '../../../components/leaflet-map/leaflet-map';
@@ -11,6 +12,7 @@ import {
 } from '../../../components/searchable-select/searchable-select';
 import { PropertyCategorySetting } from '../../../models';
 import { formatCoordinates, parseCoordinates } from '../../../shared/coords';
+import { compressImageToFile } from '../../../shared/image';
 
 @Component({
   selector: 'app-owner-property-form',
@@ -88,6 +90,7 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   isEdit = signal(false);
   isLoading = signal(false);
+  isUploadingPhotos = signal(false);
   isGeneratingDescription = signal(false);
   aiPrompt = '';
   aiPanelOpen = signal(false);
@@ -272,46 +275,39 @@ export class OwnerPropertyFormComponent implements OnInit {
       input.value = '';
       return;
     }
+    if (!files.length) return;
+
+    this.isUploadingPhotos.set(true);
+    this.errorMessage.set(null);
     try {
-      const data = await Promise.all(files.map((file) => {
-        if (!file.type.startsWith('image/')) throw new Error('Please choose image files only.');
-        if (file.size > 15 * 1024 * 1024) throw new Error('Each photo must be 15 MB or smaller.');
-        return this.compressPhoto(file);
-      }));
-      this.selectedImages.update((images) => [...images, ...data]);
-      this.errorMessage.set(null);
+      const prepared = await Promise.all(
+        files.map((file) => {
+          if (!file.type.startsWith('image/')) throw new Error('not_image');
+          if (file.size > 15 * 1024 * 1024) throw new Error('file_too_large');
+          return compressImageToFile(file, 1280, 0.72, 100_000);
+        }),
+      );
+      const res = await firstValueFrom(this.propertyService.uploadPropertyImages(prepared));
+      this.selectedImages.update((images) => [...images, ...res.urls]);
     } catch (error) {
-      this.errorMessage.set(error instanceof Error ? error.message : 'Could not read selected photos.');
+      this.errorMessage.set(this.imageUploadError(error));
+    } finally {
+      this.isUploadingPhotos.set(false);
+      input.value = '';
     }
-    input.value = '';
   }
 
-  private async compressPhoto(file: File): Promise<string> {
-    let bitmap: ImageBitmap;
-    try {
-      bitmap = await createImageBitmap(file);
-    } catch {
-      throw new Error('Could not open a selected photo.');
+  private imageUploadError(error: unknown): string {
+    if (error instanceof Error) {
+      if (error.message === 'not_image') return 'Please choose image files only.';
+      if (error.message === 'file_too_large') return 'Each photo must be 15 MB or smaller.';
+      if (error.message === 'image_unreadable') return 'Could not open a selected photo.';
+      if (error.message === 'image_too_large') return 'A photo could not be compressed enough.';
     }
-    try {
-      const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Could not process a selected photo.');
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      let quality = 0.72;
-      let result = canvas.toDataURL('image/jpeg', quality);
-      while (result.length > 100_000 && quality > 0.3) {
-        quality -= 0.1;
-        result = canvas.toDataURL('image/jpeg', quality);
-      }
-      if (result.length > 100_000) throw new Error('A photo could not be compressed enough.');
-      return result;
-    } finally {
-      bitmap.close();
-    }
+    const detail = (error as { error?: { detail?: string } })?.error?.detail;
+    if (detail === 'image_too_large') return 'Each photo must be 15 MB or smaller.';
+    if (detail === 'invalid_image_file') return 'Please choose a valid image file.';
+    return 'Could not upload the selected photos. Please try again.';
   }
 
   removeSelectedImage(index: number): void {
@@ -378,6 +374,10 @@ export class OwnerPropertyFormComponent implements OnInit {
       return;
     }
     if (this.form.invalid) return;
+    if (this.isUploadingPhotos()) {
+      this.errorMessage.set('Please wait for the photos to finish uploading.');
+      return;
+    }
 
     this.isLoading.set(true);
     this.errorMessage.set(null);
@@ -397,12 +397,6 @@ export class OwnerPropertyFormComponent implements OnInit {
       longitude: this.longitude(),
       images: [...this.existingImages(), ...this.selectedImages()],
     };
-    const imagePayloadSize = payload.images.reduce((size, image) => size + image.length, 0);
-    if (imagePayloadSize > 2_000_000) {
-      this.errorMessage.set('Photos are too large to submit together. Remove a photo and try again.');
-      this.isLoading.set(false);
-      return;
-    }
 
     const editId = this.id();
     if (editId) {

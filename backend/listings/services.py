@@ -14,9 +14,7 @@ from payments.services import queue_refund
 def soft_delete_owner_property(property_id: int, owner) -> tuple[Property | None, int]:
     """Hide an owner's listing and queue admin review for active paid bookings."""
     prop = (
-        Property.objects.select_for_update()
-        .filter(pk=property_id, owner=owner)
-        .first()
+        Property.objects.select_for_update().filter(pk=property_id, owner=owner).first()
     )
     if prop is None:
         return None, 0
@@ -47,9 +45,10 @@ def soft_delete_owner_property(property_id: int, owner) -> tuple[Property | None
                 )[:5000]
                 pending_refund.save(update_fields=["request_note"])
             refund = pending_refund
-        elif payment.is_refunded or payment.refunds.filter(
-            status=Refund.Status.PROCESSED
-        ).exists():
+        elif (
+            payment.is_refunded
+            or payment.refunds.filter(status=Refund.Status.PROCESSED).exists()
+        ):
             continue
         else:
             refund = queue_refund(

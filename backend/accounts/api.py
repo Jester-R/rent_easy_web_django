@@ -11,12 +11,14 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import timedelta
+from typing import Annotated
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
-from django_bolt import BoltAPI
+from django_bolt import BoltAPI, UploadFile
 from django_bolt.exceptions import HTTPException
+from django_bolt.params import File
 from django_bolt.responses import Redirect
 
 from accounts.email_verification import (
@@ -75,6 +77,7 @@ from core.bolt_serializers import booking as serialize_booking
 from core.bolt_serializers import payment as serialize_payment
 from core.bolt_serializers import property as serialize_property
 from core.bolt_serializers import user as serialize_user
+from core.uploads import MAX_IMAGE_BYTES, delete_image_url, save_image
 from listings.models import Favorite, Property
 from payments.models import Payment
 
@@ -169,8 +172,7 @@ async def login_view(request):
         # Check if user registered but hasn't completed email OTP verification yet
         pending_reg = (
             await EmailVerification.objects.filter(
-                Q(email__iexact=identifier)
-                | Q(payload__username__iexact=identifier),
+                Q(email__iexact=identifier) | Q(payload__username__iexact=identifier),
                 purpose=EmailVerification.Purpose.REGISTER,
                 is_verified=False,
             )
@@ -378,7 +380,6 @@ async def register_resend_otp_view(request):
     return {"ok": True, "message": "otp_resent"}
 
 
-
 @api.post("/auth/role/")
 async def role_select_view(request):
     data = json_body(request)
@@ -519,9 +520,7 @@ async def google_oauth_callback_get(request):
 
     error = q(request, "error", "")
     if error:
-        return Redirect(
-            f"{frontend_base}/login?error=oauth_cancelled", status_code=303
-        )
+        return Redirect(f"{frontend_base}/login?error=oauth_cancelled", status_code=303)
 
     code = q(request, "code", "")
     state = q(request, "state", "")
@@ -563,17 +562,13 @@ async def google_oauth_callback_get(request):
             await session_set(request, PENDING_ROLE_KEY, user.pk)
             return Redirect(f"{frontend_base}/role-select", status_code=303)
         if block == "approval_pending":
-            return Redirect(
-                f"{frontend_base}/register?pending=1", status_code=303
-            )
+            return Redirect(f"{frontend_base}/register?pending=1", status_code=303)
         return Redirect(f"{frontend_base}/login?error={block}", status_code=303)
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
 
-    destination = (
-        next_url if (next_url and next_url.startswith("/")) else user.home_url
-    )
+    destination = next_url if (next_url and next_url.startswith("/")) else user.home_url
     return Redirect(f"{frontend_base}{destination}", status_code=303)
 
 
@@ -632,9 +627,7 @@ async def google_oauth_callback_post(request):
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
 
-    destination = (
-        next_url if (next_url and next_url.startswith("/")) else user.home_url
-    )
+    destination = next_url if (next_url and next_url.startswith("/")) else user.home_url
     return {
         "ok": True,
         "status": "active",
@@ -666,16 +659,12 @@ async def telegram_login_config_view(request):
 
 @api.post("/auth/telegram/login/start/")
 async def telegram_login_start(request):
-    bot_username = (
-        getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
-    )
+    bot_username = getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
     if not is_telegram_login_configured() or not bot_username:
         raise HTTPException(status_code=503, detail="telegram_not_configured")
 
     data = json_body(request)
-    login_request = await create_telegram_login_request(
-        body_str(data, "role") or ""
-    )
+    login_request = await create_telegram_login_request(body_str(data, "role") or "")
     return {
         "token": login_request.token,
         "url": f"https://t.me/{bot_username}?start={login_request.token}",
@@ -777,15 +766,40 @@ async def telegram_login_callback(request):
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
 
-    destination = (
-        next_url if (next_url and next_url.startswith("/")) else user.home_url
-    )
+    destination = next_url if (next_url and next_url.startswith("/")) else user.home_url
     return Redirect(f"{frontend_base}{destination}", status_code=303)
 
 
 # ---------------------------------------------------------------------------
 # Profile + preferences
 # ---------------------------------------------------------------------------
+
+
+@api.post("/auth/avatar/")
+async def avatar_upload(
+    request,
+    avatar: Annotated[
+        UploadFile,
+        File(
+            max_size=MAX_IMAGE_BYTES,
+            allowed_types=["image/jpeg", "image/png", "image/webp", "image/gif"],
+        ),
+    ],
+):
+    user = await require_login(request)
+    data = await avatar.read()
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="image_too_large")
+    try:
+        url = await in_thread(save_image, data, f"avatars/{user.pk}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    previous = user.avatar_url
+    user.avatar_url = url
+    await user.asave(update_fields=["avatar_url"])
+    if previous and previous != url:
+        await in_thread(delete_image_url, previous)
+    return {"user": await serialize_user(user), "url": url}
 
 
 @api.get("/auth/preferences/")
@@ -829,7 +843,12 @@ async def profile_update(request):
         if avatar_url.startswith("data:") and (
             len(avatar_url) > 2_800_000
             or not avatar_url.startswith(
-                ("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,", "data:image/gif;base64,")
+                (
+                    "data:image/jpeg;base64,",
+                    "data:image/png;base64,",
+                    "data:image/webp;base64,",
+                    "data:image/gif;base64,",
+                )
             )
         ):
             raise HTTPException(status_code=422, detail="invalid_avatar_image")
@@ -839,7 +858,9 @@ async def profile_update(request):
         if user.role != Role.RENTER:
             raise HTTPException(status_code=403, detail="renter_required")
         user.payment_account_name = body_str(data, "payment_account_name").strip()[:120]
-        user.payment_account_number = body_str(data, "payment_account_number").strip()[:64]
+        user.payment_account_number = body_str(data, "payment_account_number").strip()[
+            :64
+        ]
         user.payment_phone = body_str(data, "payment_phone").strip()[:32]
     apply_payout_fields(user, data)
     await user.asave()
@@ -865,7 +886,13 @@ async def telegram_unlink(request):
     user.telegram_chat_id = ""
     user.telegram_link_token = ""
     user.telegram_link_expires_at = None
-    await user.asave(update_fields=["telegram_chat_id", "telegram_link_token", "telegram_link_expires_at"])
+    await user.asave(
+        update_fields=[
+            "telegram_chat_id",
+            "telegram_link_token",
+            "telegram_link_expires_at",
+        ]
+    )
     return {"user": await serialize_user(user)}
 
 
@@ -877,7 +904,9 @@ async def telegram_webhook(request):
         if header_name.lower() == "x-telegram-bot-api-secret-token":
             supplied_secret = header_value
             break
-    if not expected_secret or not secrets.compare_digest(supplied_secret, expected_secret):
+    if not expected_secret or not secrets.compare_digest(
+        supplied_secret, expected_secret
+    ):
         raise HTTPException(status_code=403, detail="invalid_webhook_secret")
 
     update = json_body(request)
@@ -938,19 +967,41 @@ async def telegram_webhook(request):
         telegram_link_expires_at__gt=timezone.now(),
     ).afirst()
     if user is None:
-        await in_thread(send_telegram_message, chat_id, "This account link is invalid or expired. Please create a new link from your RentEasy profile.")
+        await in_thread(
+            send_telegram_message,
+            chat_id,
+            "This account link is invalid or expired. Please create a new link from your RentEasy profile.",
+        )
         return {"ok": True}
 
-    linked_elsewhere = await User.objects.filter(telegram_chat_id=chat_id).exclude(pk=user.pk).aexists()
+    linked_elsewhere = (
+        await User.objects.filter(telegram_chat_id=chat_id)
+        .exclude(pk=user.pk)
+        .aexists()
+    )
     if linked_elsewhere:
-        await in_thread(send_telegram_message, chat_id, "This Telegram account is already linked to another RentEasy account. Unlink it there first.")
+        await in_thread(
+            send_telegram_message,
+            chat_id,
+            "This Telegram account is already linked to another RentEasy account. Unlink it there first.",
+        )
         return {"ok": True}
 
     user.telegram_chat_id = chat_id
     user.telegram_link_token = ""
     user.telegram_link_expires_at = None
-    await user.asave(update_fields=["telegram_chat_id", "telegram_link_token", "telegram_link_expires_at"])
-    await in_thread(send_telegram_message, chat_id, "Your RentEasy account is connected. Booking and payment updates will be sent here.")
+    await user.asave(
+        update_fields=[
+            "telegram_chat_id",
+            "telegram_link_token",
+            "telegram_link_expires_at",
+        ]
+    )
+    await in_thread(
+        send_telegram_message,
+        chat_id,
+        "Your RentEasy account is connected. Booking and payment updates will be sent here.",
+    )
     return {"ok": True}
 
 

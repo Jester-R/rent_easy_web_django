@@ -12,13 +12,25 @@ def backfill_property_titles(apps, schema_editor):
             if booking_property_id:
                 title = payment.booking.property.title
         if not title:
-            payload = payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
-            request = payload.get("request") if isinstance(payload.get("request"), dict) else {}
-            items = request.get("items") if isinstance(request.get("items"), list) else []
+            payload = (
+                payment.gateway_payload
+                if isinstance(payment.gateway_payload, dict)
+                else {}
+            )
+            request = (
+                payload.get("request")
+                if isinstance(payload.get("request"), dict)
+                else {}
+            )
+            items = (
+                request.get("items") if isinstance(request.get("items"), list) else []
+            )
             if items and isinstance(items[0], dict):
                 title = str(items[0].get("name") or "")[:160]
         if title:
-            Payment.objects.filter(pk=payment.pk).update(property_title_snapshot=title[:160])
+            Payment.objects.filter(pk=payment.pk).update(
+                property_title_snapshot=title[:160]
+            )
 
 
 class Migration(migrations.Migration):

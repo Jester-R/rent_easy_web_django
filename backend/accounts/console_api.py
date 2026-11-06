@@ -63,7 +63,6 @@ from payments.services import (
     RefundRequiresGateway,
     backfill_missing_payouts,
     cancel_payout_for_payment,
-    create_payout_for_payment,
     pay_out,
     process_refund,
     release_due_payouts,
@@ -236,7 +235,9 @@ async def settings_get(request):
         "settings": {
             "auto_approve_owners": platform.auto_approve_owners,
             "commission_rates": _commission_rates_response(platform.commission_rates),
-            "payment_method_details": _payment_method_details_response(platform.payment_method_details),
+            "payment_method_details": _payment_method_details_response(
+                platform.payment_method_details
+            ),
             "aba_payway_merchant_id": platform.aba_payway_merchant_id
             or settings.ABA_PAYWAY_MERCHANT_ID,
             "property_categories": platform.property_categories
@@ -282,7 +283,9 @@ def _commission_rate_methods():
 
 def _commission_rates_response(raw):
     raw = raw if isinstance(raw, dict) else {}
-    return {method: float(raw.get(method, 0) or 0) for method in _commission_rate_methods()}
+    return {
+        method: float(raw.get(method, 0) or 0) for method in _commission_rate_methods()
+    }
 
 
 def _clean_commission_rates(raw):
@@ -296,7 +299,9 @@ def _clean_commission_rates(raw):
                 raise HTTPException(status_code=422, detail="invalid_commission_rate")
             result[method] = str(rate.quantize(Decimal("0.01")))
         except (InvalidOperation, TypeError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail="invalid_commission_rate") from exc
+            raise HTTPException(
+                status_code=422, detail="invalid_commission_rate"
+            ) from exc
     return result
 
 
@@ -325,7 +330,9 @@ def _clean_payment_method_details(raw):
     for method in _payment_method_detail_methods():
         item = raw.get(method) or {}
         if not isinstance(item, dict):
-            raise HTTPException(status_code=422, detail="invalid_payment_method_details")
+            raise HTTPException(
+                status_code=422, detail="invalid_payment_method_details"
+            )
         cleaned[method] = {
             "account_name": body_str(item, "account_name").strip()[:120],
             "account_number": body_str(item, "account_number").strip()[:64],
@@ -379,15 +386,24 @@ def _clean_home_promotion(raw):
     image_url = body_str(raw, "image_url")
     if image_url.startswith("data:"):
         if len(image_url) > 2_800_000 or not image_url.startswith(
-            ("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,", "data:image/gif;base64,")
+            (
+                "data:image/jpeg;base64,",
+                "data:image/png;base64,",
+                "data:image/webp;base64,",
+                "data:image/gif;base64,",
+            )
         ):
             raise HTTPException(status_code=422, detail="invalid_home_promotion_image")
     elif image_url:
         parsed = urlparse(image_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise HTTPException(status_code=422, detail="invalid_home_promotion_image_url")
+            raise HTTPException(
+                status_code=422, detail="invalid_home_promotion_image_url"
+            )
         if len(image_url) > 1000:
-            raise HTTPException(status_code=422, detail="invalid_home_promotion_image_url")
+            raise HTTPException(
+                status_code=422, detail="invalid_home_promotion_image_url"
+            )
     result["image_url"] = image_url
     return result
 
@@ -405,11 +421,15 @@ async def settings_update(request):
         platform.commission_rates = _clean_commission_rates(data["commission_rates"])
         platform.commission_rates_updated_at = timezone.now()
     if "payment_method_details" in data:
-        platform.payment_method_details = _clean_payment_method_details(data["payment_method_details"])
+        platform.payment_method_details = _clean_payment_method_details(
+            data["payment_method_details"]
+        )
     if "aba_payway_merchant_id" in data:
         merchant_id = body_str(data, "aba_payway_merchant_id").strip()
         if len(merchant_id) > 30 or any(char.isspace() for char in merchant_id):
-            raise HTTPException(status_code=422, detail="invalid_aba_payway_merchant_id")
+            raise HTTPException(
+                status_code=422, detail="invalid_aba_payway_merchant_id"
+            )
         platform.aba_payway_merchant_id = merchant_id
     if "property_categories" in data:
         platform.property_categories = _clean_property_categories(
@@ -428,9 +448,11 @@ async def settings_update(request):
             home_promotion=platform.home_promotion,
             updated_at=timezone.now(),
         )
-        platform.home_promotion = await PlatformSettings.objects.filter(
-            pk=platform.pk
-        ).values_list("home_promotion", flat=True).afirst()
+        platform.home_promotion = (
+            await PlatformSettings.objects.filter(pk=platform.pk)
+            .values_list("home_promotion", flat=True)
+            .afirst()
+        )
     await platform.asave()
     await audit(
         actor,
@@ -443,7 +465,9 @@ async def settings_update(request):
         "settings": {
             "auto_approve_owners": platform.auto_approve_owners,
             "commission_rates": _commission_rates_response(platform.commission_rates),
-            "payment_method_details": _payment_method_details_response(platform.payment_method_details),
+            "payment_method_details": _payment_method_details_response(
+                platform.payment_method_details
+            ),
             "aba_payway_merchant_id": platform.aba_payway_merchant_id
             or settings.ABA_PAYWAY_MERCHANT_ID,
             "property_categories": platform.property_categories
@@ -1094,10 +1118,18 @@ async def refund_reject(request):
     if refund is None:
         raise _not_found("refund")
     data = json_body(request)
-    ok = await in_thread(reject_refund, refund, actor=actor, note=body_str(data, "note"))
+    ok = await in_thread(
+        reject_refund, refund, actor=actor, note=body_str(data, "note")
+    )
     if not ok:
         raise HTTPException(status_code=409, detail="refund_not_pending")
-    await audit(actor, AuditLog.Action.REFUND, "refund", refund.pk, f"rejected {refund.reference}")
+    await audit(
+        actor,
+        AuditLog.Action.REFUND,
+        "refund",
+        refund.pk,
+        f"rejected {refund.reference}",
+    )
     refund = await (
         Refund.objects.select_related("payment", "booking", "requested_by")
         .filter(pk=pk)
@@ -1127,7 +1159,8 @@ async def refund_create(request):
         booking=booking,
         amount=payment.amount,
         reason=body_str(data, "reason") or Refund.Reason.OTHER,
-        request_note=body_str(data, "request_note") or "Refund created by an administrator for manual review.",
+        request_note=body_str(data, "request_note")
+        or "Refund created by an administrator for manual review.",
         requested_by=actor,
     )
     if payment.refund_status != Payment.RefundStatus.PROCESSED:

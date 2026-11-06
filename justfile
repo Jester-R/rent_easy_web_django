@@ -3,7 +3,7 @@
 
 set dotenv-load := true
 
-port := "8123"
+port := "8000"
 
 # Create the backend environment, install Python packages, and install frontend packages.
 [unix]
@@ -67,11 +67,11 @@ frontend:
 
 # Build the frontend.
 [unix]
-build:
+build-frontend:
     @cd frontend && if command -v bun >/dev/null 2>&1; then bun run build; else npm run build; fi
 
 [windows]
-build:
+build-frontend:
     @cd /d frontend && (where bun >nul 2>nul && bun run build) || npm run build
 
 # Start backend in the background and frontend in the foreground.
@@ -85,3 +85,13 @@ run:
 run:
     @start "renteasy-backend" {{just_executable()}} backend
     @{{just_executable()}} frontend
+
+
+# Build frontend and prepare the package directory.
+[unix]
+pack:
+    @{{just_executable()}} build-frontend
+    mkdir -p package/backend package/frontend
+
+    cp -r backend/. package/backend/
+    cp -r frontend/dist/frontend/. package/frontend/

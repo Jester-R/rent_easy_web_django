@@ -142,8 +142,11 @@
 
       <div>
         <label class="form-label">{{ bilingualLabel('ownerForm.propertyPhotos') }}</label>
-        <input type="file" accept="image/*" multiple (change)="onImagesSelected($event)" class="form-input" />
+        <input type="file" accept="image/*" multiple (change)="onImagesSelected($event)" [disabled]="isUploadingPhotos()" class="form-input" />
         <p class="text-xs text-ink-3 mt-1">{{ language.t('ownerForm.selectUpTo12PhotosMax2MbEachFirstIsCover') }}</p>
+        @if (isUploadingPhotos()) {
+          <p class="mt-1 text-xs text-ink-3" role="status">Uploading photos…</p>
+        }
         @if (existingImages().length || selectedImages().length) {
           <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
             @for (photo of existingImages(); track photo; let i = $index) {
@@ -214,7 +217,7 @@
         </a>
         <button
           type="submit"
-          [disabled]="form.invalid || isLoading()"
+          [disabled]="form.invalid || isLoading() || isUploadingPhotos()"
           class="btn btn-primary"
         >
           @if (isLoading()) {

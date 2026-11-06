@@ -65,10 +65,25 @@ PURCHASE_PATH = "/api/payment-gateway/v1/payments/purchase"
 CHECK_PATH = "/api/payment-gateway/v1/payments/check-transaction-2"
 QR_PATH = "/api/payment-gateway/v1/payments/generate-qr"
 QR_HASH_FIELDS: tuple[str, ...] = (
-    "req_time", "merchant_id", "tran_id", "amount", "items", "first_name",
-    "last_name", "email", "phone", "purchase_type", "payment_option",
-    "callback_url", "return_deeplink", "currency", "custom_fields",
-    "return_params", "payout", "lifetime", "qr_image_template",
+    "req_time",
+    "merchant_id",
+    "tran_id",
+    "amount",
+    "items",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "purchase_type",
+    "payment_option",
+    "callback_url",
+    "return_deeplink",
+    "currency",
+    "custom_fields",
+    "return_params",
+    "payout",
+    "lifetime",
+    "qr_image_template",
 )
 
 _SUCCESS_CODES = {"0", "00"}
@@ -90,10 +105,12 @@ def merchant_id() -> str:
     try:
         from accounts.models import PlatformSettings
 
-        configured = PlatformSettings.objects.filter(pk=1).values_list(
-            "aba_payway_merchant_id", flat=True
-        ).first()
-    except (OperationalError, ProgrammingError):  # migration/setup not complete yet
+        configured = (
+            PlatformSettings.objects.filter(pk=1)
+            .values_list("aba_payway_merchant_id", flat=True)
+            .first()
+        )
+    except OperationalError, ProgrammingError:  # migration/setup not complete yet
         configured = ""
     return str(configured or settings.ABA_PAYWAY_MERCHANT_ID or "").strip()
 
@@ -167,9 +184,15 @@ def _payload(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def create_qr_payment(
-    *, tran_id: str, amount: Decimal | int | float | str, firstname: str = "",
-    lastname: str = "", email: str = "", phone: str = "",
-    items: list[dict[str, Any]] | None = None, return_params: str = "",
+    *,
+    tran_id: str,
+    amount: Decimal | int | float | str,
+    firstname: str = "",
+    lastname: str = "",
+    email: str = "",
+    phone: str = "",
+    items: list[dict[str, Any]] | None = None,
+    return_params: str = "",
 ) -> dict[str, Any]:
     """Create a PayWay KHQR and return its image data from the server."""
     if not is_configured():
@@ -177,16 +200,28 @@ def create_qr_payment(
     mid = merchant_id()
     if not mid:
         raise PayWayError("not_configured", "ABA PayWay merchant ID is not configured")
-    callback = base64.b64encode(settings.ABA_PAYWAY_CALLBACK_URL.encode()).decode("ascii")
+    callback = base64.b64encode(settings.ABA_PAYWAY_CALLBACK_URL.encode()).decode(
+        "ascii"
+    )
     fields: dict[str, Any] = {
-        "req_time": _now(), "merchant_id": mid, "tran_id": str(tran_id)[:20],
-        "first_name": firstname[:20], "last_name": lastname[:20],
-        "email": email[:50], "phone": phone[:20],
-        "amount": amount_to_string(amount), "purchase_type": "purchase",
-        "payment_option": "abapay_khqr", "items": _b64_json(items or []),
-        "currency": settings.ABA_PAYWAY_CURRENCY, "callback_url": callback,
-        "return_deeplink": "", "custom_fields": "", "return_params": return_params,
-        "payout": "", "lifetime": int(settings.ABA_PAYWAY_LIFETIME_MINUTES),
+        "req_time": _now(),
+        "merchant_id": mid,
+        "tran_id": str(tran_id)[:20],
+        "first_name": firstname[:20],
+        "last_name": lastname[:20],
+        "email": email[:50],
+        "phone": phone[:20],
+        "amount": amount_to_string(amount),
+        "purchase_type": "purchase",
+        "payment_option": "abapay_khqr",
+        "items": _b64_json(items or []),
+        "currency": settings.ABA_PAYWAY_CURRENCY,
+        "callback_url": callback,
+        "return_deeplink": "",
+        "custom_fields": "",
+        "return_params": return_params,
+        "payout": "",
+        "lifetime": int(settings.ABA_PAYWAY_LIFETIME_MINUTES),
         "qr_image_template": "template3_color",
     }
     before_hash = "".join(str(fields.get(name, "") or "") for name in QR_HASH_FIELDS)
@@ -202,17 +237,30 @@ def create_qr_payment(
     try:
         body = response.json()
     except ValueError as exc:
-        raise PayWayError("invalid_response", f"PayWay returned HTTP {response.status_code}") from exc
+        raise PayWayError(
+            "invalid_response", f"PayWay returned HTTP {response.status_code}"
+        ) from exc
     if not isinstance(body, dict):
         raise PayWayError("invalid_response", "PayWay returned a non-object response")
     status = body.get("status") or {}
     if str(status.get("code")) not in _SUCCESS_CODES:
-        raise PayWayError(str(status.get("code") or "unknown"), status.get("message") or "PayWay QR generation failed", body)
+        raise PayWayError(
+            str(status.get("code") or "unknown"),
+            status.get("message") or "PayWay QR generation failed",
+            body,
+        )
     if not body.get("qrImage"):
-        raise PayWayError("invalid_response", "PayWay response did not include a QR image", body)
-    return {"image": body["qrImage"], "qr_string": body.get("qrString", ""),
-            "deeplink": body.get("abapay_deeplink", ""), "amount": body.get("amount", fields["amount"]),
-            "currency": body.get("currency", fields["currency"]), "expires_in": fields["lifetime"]}
+        raise PayWayError(
+            "invalid_response", "PayWay response did not include a QR image", body
+        )
+    return {
+        "image": body["qrImage"],
+        "qr_string": body.get("qrString", ""),
+        "deeplink": body.get("abapay_deeplink", ""),
+        "amount": body.get("amount", fields["amount"]),
+        "currency": body.get("currency", fields["currency"]),
+        "expires_in": fields["lifetime"],
+    }
 
 
 def create_purchase_form(

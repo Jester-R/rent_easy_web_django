@@ -18,6 +18,7 @@ from core.bolt import (
     body_str,
     in_thread,
     json_body,
+    login_required,
     mark_full_request,
     pagination,
     owner_required,
@@ -254,9 +255,12 @@ async def renter_detail(request):
         raise HTTPException(status_code=404, detail="payment_not_found")
     if payment.user_id != user.pk:
         raise HTTPException(status_code=403, detail="not_authorized")
-    refund = await Refund.objects.select_related("payment", "requested_by").filter(
-        payment_id=pk
-    ).order_by("-created_at").afirst()
+    refund = (
+        await Refund.objects.select_related("payment", "requested_by")
+        .filter(payment_id=pk)
+        .order_by("-created_at")
+        .afirst()
+    )
     return {
         "payment": await serialize_payment(payment),
         "refund": await serialize_refund(refund) if refund else None,

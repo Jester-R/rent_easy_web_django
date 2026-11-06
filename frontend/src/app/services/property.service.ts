@@ -226,6 +226,18 @@ export class PropertyService {
     );
   }
 
+  uploadPropertyImages(files: File[]): Observable<{ urls: string[] }> {
+    const form = new FormData();
+    for (const file of files) {
+      form.append('images', file, file.name);
+    }
+    return this.http.post<{ urls: string[] }>(
+      `${this.baseUrl}/uploads/property-images/`,
+      form,
+      { withCredentials: true }
+    );
+  }
+
   createProperty(data: Partial<Property>): Observable<{ property: Property }> {
     return this.http.post<{ property: Property }>(
       `${this.baseUrl}/owner/properties/new/`,

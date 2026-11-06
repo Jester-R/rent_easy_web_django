@@ -11,7 +11,10 @@ import httpx
 _COORDINATE_PATTERNS = (
     re.compile(r"!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)", re.I),
     re.compile(r"@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)"),
-    re.compile(r"(?:[?&](?:q|query|ll|sll|center|latlng|daddr)=)(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)", re.I),
+    re.compile(
+        r"(?:[?&](?:q|query|ll|sll|center|latlng|daddr)=)(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)",
+        re.I,
+    ),
 )
 
 
@@ -49,7 +52,11 @@ def _extract_coordinates(value: str) -> tuple[float, float] | None:
         if not match:
             continue
         latitude, longitude = float(match.group(1)), float(match.group(2))
-        if -90 <= latitude <= 90 and -180 <= longitude <= 180 and (latitude or longitude):
+        if (
+            -90 <= latitude <= 90
+            and -180 <= longitude <= 180
+            and (latitude or longitude)
+        ):
             return latitude, longitude
     return None
 
@@ -91,5 +98,7 @@ async def resolve_google_maps_url(value: str) -> tuple[float, float] | None:
                 continue
             if response.status_code >= 400:
                 return None
-            return _extract_coordinates(str(response.url)) or _extract_coordinates(response.text)
+            return _extract_coordinates(str(response.url)) or _extract_coordinates(
+                response.text
+            )
     return None

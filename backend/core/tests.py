@@ -158,9 +158,7 @@ class _FakeGroqClient:
     async def post(self, url, json=None, headers=None):
         type(self).last_request = json
         content = json_module.dumps(type(self).response_payload)
-        return _FakeGroqResponse(
-            {"choices": [{"message": {"content": content}}]}
-        )
+        return _FakeGroqResponse({"choices": [{"message": {"content": content}}]})
 
 
 class AIDescriptionTests(TestCase):

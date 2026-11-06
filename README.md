@@ -32,7 +32,7 @@ just setup
 just run
 ```
 
-Open [http://localhost:4200](http://localhost:4200). Angular runs on port `4200` and proxies API requests to Django Bolt on port `8123`. `just run` starts the backend and frontend; press `Ctrl+C` to stop the frontend, and stop the backend process if it remains running.
+Open [http://localhost:4200](http://localhost:4200). Angular runs on port `4200` and proxies API requests to Django Bolt on port `8000`. `just run` starts the backend and frontend; press `Ctrl+C` to stop the frontend, and stop the backend process if it remains running.
 
 ### Without Nix
 
@@ -99,7 +99,7 @@ directly, export the same variables first.
 | `ABA_PAYWAY_TIMEOUT_SECONDS` | `15` | Timeout for backend PayWay API calls. |
 | `RENT_HOLD_DAYS` | `7` | Days the platform holds rent before the owner payout is due. |
 | `FRONTEND_BASE_URL` | `http://localhost:4200` | Used for return/cancel redirects into Angular. |
-| `BACKEND_PUBLIC_URL` | `http://127.0.0.1:8123` | Public backend origin used to build the callback and return URLs. |
+| `BACKEND_PUBLIC_URL` | `http://127.0.0.1:8000` | Public backend origin used to build the callback and return URLs. |
 | `ABA_PAYWAY_CALLBACK_URL` | `{BACKEND_PUBLIC_URL}/payments/aba/callback/` | Server-to-server notification URL. |
 | `ABA_PAYWAY_RETURN_URL` | `{BACKEND_PUBLIC_URL}/payments/aba/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. |
 | `ABA_PAYWAY_CANCEL_URL` | `{FRONTEND_BASE_URL}/bookings` | Where the browser goes when the payer cancels. |
@@ -178,7 +178,7 @@ To exercise the server-to-server callback as well, expose the backend publicly
 and whitelist that domain in the PayWay merchant profile:
 
 ```bash
-cloudflared tunnel --url http://127.0.0.1:8123
+cloudflared tunnel --url http://127.0.0.1:8000
 # then set in .env:
 # BACKEND_PUBLIC_URL=https://<random>.trycloudflare.com
 ```
@@ -245,7 +245,7 @@ Run these at the repository root:
 | --- | --- |
 | `just setup` | Set up Python and frontend dependencies. |
 | `just run` | Start the backend and Angular development server. |
-| `just backend` | Start only Django Bolt on `127.0.0.1:8123`. |
+| `just backend` | Start only Django Bolt on `127.0.0.1:8000`. |
 | `just frontend` | Start only Angular on `localhost:4200`. |
 | `just build` | Build the Angular frontend for production. |
 

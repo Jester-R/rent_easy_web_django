@@ -20,17 +20,23 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="payout",
             name="gross_amount",
-            field=models.DecimalField(decimal_places=2, default=Decimal("0.00"), max_digits=10),
+            field=models.DecimalField(
+                decimal_places=2, default=Decimal("0.00"), max_digits=10
+            ),
         ),
         migrations.AddField(
             model_name="payout",
             name="commission_rate",
-            field=models.DecimalField(decimal_places=2, default=Decimal("0.00"), max_digits=5),
+            field=models.DecimalField(
+                decimal_places=2, default=Decimal("0.00"), max_digits=5
+            ),
         ),
         migrations.AddField(
             model_name="payout",
             name="commission_amount",
-            field=models.DecimalField(decimal_places=2, default=Decimal("0.00"), max_digits=10),
+            field=models.DecimalField(
+                decimal_places=2, default=Decimal("0.00"), max_digits=10
+            ),
         ),
         migrations.RunPython(copy_existing_gross_amounts, migrations.RunPython.noop),
     ]
