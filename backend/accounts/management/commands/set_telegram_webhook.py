@@ -52,7 +52,7 @@ class Command(BaseCommand):
         if not secret:
             raise CommandError(
                 "TELEGRAM_WEBHOOK_SECRET is not configured. Generate one with "
-                "`python -c \"import secrets; print(secrets.token_hex(32))\"` "
+                '`python -c "import secrets; print(secrets.token_hex(32))"` '
                 "and add it to .env."
             )
 

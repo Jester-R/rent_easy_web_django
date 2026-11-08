@@ -22,7 +22,7 @@ class _SafeFormat(dict):
 def _render(template: str, params: dict[str, Any]) -> str:
     try:
         return template.format_map(_SafeFormat(params))
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return template
 
 
@@ -33,11 +33,21 @@ def _message_text(notification: Notification) -> str:
     from .services import _notification_messages
 
     configured = next(
-        (item for item in _notification_messages() if item.get("key") == notification.title_key),
+        (
+            item
+            for item in _notification_messages()
+            if item.get("key") == notification.title_key
+        ),
         {},
     )
-    title_en = overrides.get("title_en") or configured.get("title_en") or notification.get_kind_display()
-    body_en = overrides.get("body_en") or configured.get("body_en") or notification.body_key
+    title_en = (
+        overrides.get("title_en")
+        or configured.get("title_en")
+        or notification.get_kind_display()
+    )
+    body_en = (
+        overrides.get("body_en") or configured.get("body_en") or notification.body_key
+    )
     title_km = overrides.get("title_km") or configured.get("title_km") or ""
     body_km = overrides.get("body_km") or configured.get("body_km") or ""
     text = (
@@ -51,7 +61,10 @@ def _message_text(notification: Notification) -> str:
 
 def send_telegram_notification(notification_id: int) -> None:
     """Mirror an in-app notification to its linked Telegram account."""
-    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "") or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    token = (
+        getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+        or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    )
     if not token:
         return
 
@@ -65,8 +78,13 @@ def send_telegram_notification(notification_id: int) -> None:
 
     chat_id = notification.recipient.telegram_chat_id
     # A shared admin chat remains an optional fallback for staff notifications.
-    if not chat_id and (notification.recipient.is_staff or notification.recipient.is_superuser):
-        chat_id = getattr(settings, "TELEGRAM_CHAT_ID", "") or os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if not chat_id and (
+        notification.recipient.is_staff or notification.recipient.is_superuser
+    ):
+        chat_id = (
+            getattr(settings, "TELEGRAM_CHAT_ID", "")
+            or os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+        )
     if not chat_id:
         return
 
@@ -74,7 +92,10 @@ def send_telegram_notification(notification_id: int) -> None:
 
 
 def send_telegram_message(chat_id: str, text: str) -> bool:
-    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "") or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    token = (
+        getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+        or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    )
     if not token or not chat_id:
         return False
 

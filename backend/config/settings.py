@@ -6,54 +6,32 @@ Feature parity with the mobile app, redesigned for the web platform.
 """
 
 import os
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY", "rent_easy_web_django_change_me_in_production"
+)
+PRODUCTION = bool(os.environ.get("DJANGO_PRODUCTION", False))
+SQLITE_PATH = os.environ.get("SQLITE_PATH", "")
+MEDIA_PATH = os.environ.get("MEDIA_PATH")
 
+if PRODUCTION:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-def _load_dotenv(env_path: Path) -> None:
-    if not env_path.is_file():
-        return
-    try:
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, v = line.split("=", 1)
-                k, v = k.strip(), v.strip().strip("'\"")
-                os.environ[k] = v
-    except OSError:
-        pass
+if os.environ.get("TRUST_FORWARDED_PROTO") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-
-_load_dotenv(BASE_DIR / ".env")
-_load_dotenv(BASE_DIR.parent / ".env")
-
-SECRET_KEY = "django-insecure-renteasy-web-dev-key-change-me-in-production"
-
-DEBUG = True
-
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "testserver"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]
 ALLOWED_HOSTS += [
     host.strip()
     for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
     if host.strip()
 ]
-if DEBUG:
-    ALLOWED_HOSTS.append("*")
+
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
-
-# A TLS-terminating tunnel (ngrok, cloudflared) forwards plain HTTP and sets
-# X-Forwarded-Proto: https. Without trusting that header Django builds an
-# http:// origin, the browser sends https://, and every POST is rejected with
-# "Origin checking failed". run.sh exports both variables when a tunnel is up.
-if os.environ.get("TRUST_FORWARDED_PROTO") == "1":
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 CSRF_TRUSTED_ORIGINS += [
     origin.strip()
@@ -92,7 +70,6 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -110,7 +87,7 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": SQLITE_PATH,
         "OPTIONS": {
             "timeout": 20,
             "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
@@ -135,8 +112,8 @@ TIME_ZONE = "Asia/Phnom_Penh"
 USE_I18N = True
 USE_TZ = True
 
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = MEDIA_PATH
 
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
 SESSION_SAVE_EVERY_REQUEST = False
@@ -190,7 +167,7 @@ FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:4200")
     "/"
 )
 BACKEND_PUBLIC_URL = os.environ.get(
-    "BACKEND_PUBLIC_URL", "http://127.0.0.1:8123"
+    "BACKEND_PUBLIC_URL", "http://127.0.0.1:8000"
 ).rstrip("/")
 
 # PayWay must be able to POST to this URL from the public internet. In local
@@ -254,7 +231,6 @@ if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     )
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
 
 
 LOGGING = {

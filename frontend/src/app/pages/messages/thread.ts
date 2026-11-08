@@ -100,7 +100,7 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
     this.isSending.set(true);
     this.sendError.set(false);
     this.chat.sendMessage(this.conversationId, body).subscribe({
-      next: (res) => {
+      next: () => {
         this.draft = '';
         this.isSending.set(false);
         this.page.set(1);

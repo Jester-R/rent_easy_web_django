@@ -174,8 +174,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     payment_phone = models.CharField(max_length=32, blank=True)
 
     # Telegram is linked through a short-lived bot deep-link token.
-    telegram_chat_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
-    telegram_link_token = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    telegram_chat_id = models.CharField(
+        max_length=64, blank=True, default="", db_index=True
+    )
+    telegram_link_token = models.CharField(
+        max_length=64, blank=True, default="", db_index=True
+    )
     telegram_link_expires_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
@@ -223,11 +227,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     def has_payout_details(self) -> bool:
         """A payout can only be sent when the owner supplied the essentials."""
         account = self.get_payout_account()
-        return bool(self.payout_method and account["account_name"].strip() and account["account_number"].strip())
+        return bool(
+            self.payout_method
+            and account["account_name"].strip()
+            and account["account_number"].strip()
+        )
 
     def get_payout_account(self, method: str | None = None) -> dict[str, str]:
         method = method or self.payout_method
-        accounts = self.payout_accounts if isinstance(self.payout_accounts, dict) else {}
+        accounts = (
+            self.payout_accounts if isinstance(self.payout_accounts, dict) else {}
+        )
         account = accounts.get(method) if method else None
         if isinstance(account, dict):
             return {
@@ -238,7 +248,13 @@ class User(AbstractBaseUser, PermissionsMixin):
                 "note": str(account.get("note") or ""),
             }
         if accounts:
-            return {"account_name": "", "account_number": "", "bank_name": "", "phone": "", "note": ""}
+            return {
+                "account_name": "",
+                "account_number": "",
+                "bank_name": "",
+                "phone": "",
+                "note": "",
+            }
         if method and method == self.payout_method:
             return {
                 "account_name": self.payout_account_name,
@@ -247,7 +263,13 @@ class User(AbstractBaseUser, PermissionsMixin):
                 "phone": self.payout_phone,
                 "note": self.payout_note,
             }
-        return {"account_name": "", "account_number": "", "bank_name": "", "phone": "", "note": ""}
+        return {
+            "account_name": "",
+            "account_number": "",
+            "bank_name": "",
+            "phone": "",
+            "note": "",
+        }
 
     @property
     def home_url(self) -> str:

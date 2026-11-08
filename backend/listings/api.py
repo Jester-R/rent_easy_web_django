@@ -9,10 +9,12 @@ from __future__ import annotations
 import contextlib
 import re
 from decimal import Decimal, InvalidOperation
+from typing import Annotated
 
 from django.db.models import Count, Max, Min, Q
-from django_bolt import BoltAPI
+from django_bolt import BoltAPI, UploadFile
 from django_bolt.exceptions import HTTPException
+from django_bolt.params import File
 
 from core.bolt import (
     body_float,
@@ -29,6 +31,7 @@ from core.bolt import (
     renter_required,
 )
 from core.bolt_serializers import property as serialize_property
+from core.uploads import MAX_IMAGE_BYTES, save_image
 from listings.category_config import DEFAULT_PROPERTY_CATEGORIES
 from listings.models import Favorite, Property
 
@@ -91,6 +94,7 @@ async def _owned_property(pk: int, user) -> Property:
 
 
 MAX_IMAGES = 12
+IMAGE_UPLOAD_TYPES = ("image/jpeg", "image/png", "image/webp", "image/gif")
 
 
 def _clean_images(data: dict) -> list[str]:
@@ -418,6 +422,31 @@ async def owner_list(request):
         "page": page,
         "page_size": page_size,
     }
+
+
+@api.post("/uploads/property-images/")
+async def upload_property_images(
+    request,
+    images: Annotated[
+        list[UploadFile],
+        File(
+            max_size=MAX_IMAGE_BYTES,
+            allowed_types=list(IMAGE_UPLOAD_TYPES),
+            max_files=MAX_IMAGES,
+        ),
+    ],
+):
+    user = await owner_required(request)
+    urls = []
+    for upload in images:
+        data = await upload.read()
+        if len(data) > MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=413, detail="image_too_large")
+        try:
+            urls.append(await in_thread(save_image, data, f"properties/{user.pk}"))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"urls": urls}
 
 
 @api.post("/owner/properties/new/")

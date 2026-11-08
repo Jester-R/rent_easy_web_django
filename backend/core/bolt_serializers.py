@@ -263,7 +263,10 @@ class BookingSerializer(Serializer):
     def can_cancel(self) -> bool:
         if self.status == "Pending" and not self.payment_id:
             return True
-        if self.status not in ("Pending", "Approved", "Confirmed") or not self.payment_id:
+        if (
+            self.status not in ("Pending", "Approved", "Confirmed")
+            or not self.payment_id
+        ):
             return False
         if not self.payout_status:
             return True  # legacy payment row without a payout

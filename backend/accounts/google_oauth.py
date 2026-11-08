@@ -11,7 +11,6 @@ from typing import Any
 import httpx
 from django.conf import settings
 from django.core import signing
-from django.db.models import Q
 
 from accounts.models import ApprovalStatus, Role, User
 from core.bolt import in_thread
@@ -57,7 +56,7 @@ def verify_oauth_state(state: str) -> dict[str, Any] | None:
         data = signing.loads(state, salt=STATE_SALT, max_age=STATE_MAX_AGE)
         if isinstance(data, dict):
             return data
-    except (signing.BadSignature, signing.SignatureExpired):
+    except signing.BadSignature, signing.SignatureExpired:
         logger.warning("Invalid or expired OAuth state token received")
     return None
 

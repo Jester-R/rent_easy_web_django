@@ -23,7 +23,10 @@ EXPLICIT_RENT_PATTERNS = (
     re.compile(rf"(?:US\$|USD|\$)\s*{PRICE_NUMBER}", re.IGNORECASE),
     re.compile(rf"{PRICE_NUMBER}\s*\$"),
     re.compile(rf"{PRICE_NUMBER}\s*(?:USD|US dollars?|dollars?)\b", re.IGNORECASE),
-    re.compile(rf"(?:rent|price|monthly)\s*(?:is|to|at|of|:|=)?\s*(?:US\$|\$)?\s*{PRICE_NUMBER}\s*(?:/\s*month|per\s+month|a\s+month|monthly)?", re.IGNORECASE),
+    re.compile(
+        rf"(?:rent|price|monthly)\s*(?:is|to|at|of|:|=)?\s*(?:US\$|\$)?\s*{PRICE_NUMBER}\s*(?:/\s*month|per\s+month|a\s+month|monthly)?",
+        re.IGNORECASE,
+    ),
 )
 
 PROPERTY_DRAFT_SCHEMA = {
@@ -40,8 +43,15 @@ PROPERTY_DRAFT_SCHEMA = {
         "description_km": {"type": "STRING"},
     },
     "required": [
-        "title", "title_km", "location", "price_per_month", "category",
-        "bedrooms", "bathrooms", "description", "description_km",
+        "title",
+        "title_km",
+        "location",
+        "price_per_month",
+        "category",
+        "bedrooms",
+        "bathrooms",
+        "description",
+        "description_km",
     ],
 }
 DESCRIPTION_SCHEMA = {
@@ -60,7 +70,9 @@ class AIConfigError(RuntimeError):
 
 def _provider() -> str:
     configured = os.environ.get("AI_PROVIDER", "").strip().lower()
-    provider = configured or ("gemini" if os.environ.get("GEMINI_API_KEY", "").strip() else "groq")
+    provider = configured or (
+        "gemini" if os.environ.get("GEMINI_API_KEY", "").strip() else "groq"
+    )
     if provider not in {"groq", "gemini"}:
         raise AIConfigError("AI_PROVIDER must be 'groq' or 'gemini'")
     return provider
@@ -107,10 +119,17 @@ async def _request_json(
                 "reasoning_effort": "low",
                 "response_format": {"type": "json_object"},
             },
-            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+            },
         )
         if response.status_code != 200:
-            logger.warning("Groq AI request failed (status %s): %s", response.status_code, response.text[:500])
+            logger.warning(
+                "Groq AI request failed (status %s): %s",
+                response.status_code,
+                response.text[:500],
+            )
             raise RuntimeError("AI generation request failed")
         try:
             content = response.json()["choices"][0]["message"]["content"]
@@ -122,10 +141,22 @@ async def _request_json(
     response = await client.post(
         f"{GEMINI_API_URL}/{model_path}:generateContent",
         json={
-            "systemInstruction": {"parts": [{"text": "\n".join(m["content"] for m in messages if m["role"] == "system")}]},
+            "systemInstruction": {
+                "parts": [
+                    {
+                        "text": "\n".join(
+                            m["content"] for m in messages if m["role"] == "system"
+                        )
+                    }
+                ]
+            },
             "contents": [
-                {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
-                for m in messages if m["role"] != "system"
+                {
+                    "role": "model" if m["role"] == "assistant" else "user",
+                    "parts": [{"text": m["content"]}],
+                }
+                for m in messages
+                if m["role"] != "system"
             ],
             "generationConfig": {
                 "temperature": temperature,
@@ -137,7 +168,11 @@ async def _request_json(
         headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
     )
     if response.status_code != 200:
-        logger.warning("Gemini AI request failed (status %s): %s", response.status_code, response.text[:500])
+        logger.warning(
+            "Gemini AI request failed (status %s): %s",
+            response.status_code,
+            response.text[:500],
+        )
         raise RuntimeError("AI generation request failed")
     try:
         content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -226,7 +261,10 @@ def build_property_draft_prompt(details: dict[str, Any]) -> list[dict[str, str]]
         "category, rent 1200, a mini-house title, and descriptions mentioning the "
         "12-month rental term. Leave unknown location and room counts blank/null."
     )
-    return [{"role": "system", "content": system}, {"role": "user", "content": instruction}]
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": instruction},
+    ]
 
 
 async def generate_property_draft(details: dict[str, Any]) -> dict[str, Any]:
@@ -241,14 +279,16 @@ async def generate_property_draft(details: dict[str, Any]) -> dict[str, Any]:
         data: dict[str, Any] | None = None
         for attempt in range(2):
             if attempt:
-                messages.append({
-                    "role": "user",
-                    "content": (
-                        "Your previous response could not be read as a JSON object. "
-                        "Return a complete valid JSON object now with every required "
-                        "key and the correct value types. Do not use markdown."
-                    ),
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Your previous response could not be read as a JSON object. "
+                            "Return a complete valid JSON object now with every required "
+                            "key and the correct value types. Do not use markdown."
+                        ),
+                    }
+                )
             try:
                 data = await _request_json(
                     client,
@@ -271,8 +311,17 @@ async def generate_property_draft(details: dict[str, Any]) -> dict[str, Any]:
         if data is None:
             raise RuntimeError("AI generation response was invalid")
     result: dict[str, Any] = {}
-    for key in ("title", "title_km", "location", "category", "description", "description_km"):
-        result[key] = _clean(data.get(key), 4000 if key.startswith("description") else 160)
+    for key in (
+        "title",
+        "title_km",
+        "location",
+        "category",
+        "description",
+        "description_km",
+    ):
+        result[key] = _clean(
+            data.get(key), 4200 if key.startswith("description") else 160
+        )
     prompt = _clean(details.get("prompt"), 3000)
     for key in ("price_per_month", "bedrooms", "bathrooms"):
         value = data.get(key)
@@ -280,8 +329,12 @@ async def generate_property_draft(details: dict[str, Any]) -> dict[str, Any]:
             if key == "price_per_month" and isinstance(value, str):
                 value = re.sub(r"[^0-9.]", "", value.replace(",", "")) or None
             number = float(value) if value is not None else None
-            result[key] = int(number) if key != "price_per_month" and number is not None else number
-        except (TypeError, ValueError):
+            result[key] = (
+                int(number)
+                if key != "price_per_month" and number is not None
+                else number
+            )
+        except TypeError, ValueError:
             result[key] = None
     # Treat an amount explicitly written in the owner's prompt as authoritative.
     # This prevents the model from omitting or changing prices such as "50$".
@@ -300,6 +353,7 @@ async def generate_property_draft(details: dict[str, Any]) -> dict[str, Any]:
 
 def _match_prompt_location(candidate: str, prompt: str, options: Any) -> str:
     """Return a supplied district only when its name appears in the request."""
+
     def clean(value: Any) -> str:
         return " ".join(str(value or "").casefold().split())
 
@@ -311,7 +365,12 @@ def _match_prompt_location(candidate: str, prompt: str, options: Any) -> str:
     for option in options:
         if isinstance(option, dict):
             value = str(option.get("value") or "").strip()
-            names = [option.get("name_en"), option.get("name_km"), option.get("label"), value]
+            names = [
+                option.get("name_en"),
+                option.get("name_km"),
+                option.get("label"),
+                value,
+            ]
         else:
             value = str(option or "").strip()
             names = [value]
@@ -395,12 +454,12 @@ async def generate_property_description(details: dict[str, Any]) -> dict[str, An
                 )
                 raise RuntimeError("AI generation response was invalid") from exc
 
-            description_km = _clean(data.get("description_km"), 4000)
+            description_km = _clean(data.get("description_km"), 4200)
             if not THAI_RE.search(description_km):
                 break
 
-    description = _clean(data.get("description"), 4000)
-    description_km = _clean(data.get("description_km"), 4000)
+    description = _clean(data.get("description"), 4200)
+    description_km = _clean(data.get("description_km"), 4200)
     if not description or not description_km:
         raise RuntimeError("AI generation response was incomplete")
 

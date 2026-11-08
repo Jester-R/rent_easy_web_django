@@ -37,3 +37,6 @@ staticfiles/
 # Local configuration
 .env
 .env.local
+
+# package
+/package

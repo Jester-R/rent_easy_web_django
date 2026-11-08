@@ -70,7 +70,9 @@ def normalize_method(value: str | None, default: str = Payment.Method.ABA) -> st
         return default
     normalized = _METHOD_ALIASES.get(str(value).strip().lower())
     if normalized is None:
-        raise aba_gateway.PayWayError("unsupported_method", "Only ABA PayWay is available")
+        raise aba_gateway.PayWayError(
+            "unsupported_method", "Only ABA PayWay is available"
+        )
     return normalized
 
 
@@ -268,7 +270,9 @@ def pay_booking(*, booking: Booking, method: str, simulate: str = "") -> Payment
     """Start a booking payment through the configured ABA PayWay gateway."""
     canonical = normalize_method(method)
     if canonical != Payment.Method.ABA:
-        raise aba_gateway.PayWayError("unsupported_method", "Only ABA PayWay is available")
+        raise aba_gateway.PayWayError(
+            "unsupported_method", "Only ABA PayWay is available"
+        )
     if not aba_gateway.is_configured():
         raise aba_gateway.PayWayError("not_configured", "ABA PayWay is not configured")
     return _start_aba_payment(booking)
@@ -282,7 +286,7 @@ def _start_aba_payment(booking: Booking) -> PaymentResult:
     rates = (platform_settings.commission_rates if platform_settings else {}) or {}
     try:
         commission_rate = Decimal(str(rates.get(Payment.Method.ABA, 0)))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         commission_rate = Decimal("0")
     commission_rate = min(Decimal("100"), max(Decimal("0"), commission_rate))
     fee = (rent * commission_rate / Decimal("100")).quantize(
@@ -331,9 +335,16 @@ def _start_aba_payment(booking: Booking) -> PaymentResult:
         raise
 
     payment.gateway_payload = {
-        "request": {"amount": aba_gateway.amount_to_string(payment.amount),
-                    "merchant_id": aba_gateway.merchant_id(), "tran_id": payment.provider_ref},
-        "commission": {"base_amount": str(rent), "rate": str(commission_rate), "amount": str(fee)},
+        "request": {
+            "amount": aba_gateway.amount_to_string(payment.amount),
+            "merchant_id": aba_gateway.merchant_id(),
+            "tran_id": payment.provider_ref,
+        },
+        "commission": {
+            "base_amount": str(rent),
+            "rate": str(commission_rate),
+            "amount": str(fee),
+        },
     }
     payment.save(update_fields=["gateway_payload"])
     return PaymentResult(payment, qr=qr)
@@ -405,10 +416,12 @@ def create_payout_for_payment(payment: Payment) -> Payout | None:
     paid_at = payment.paid_at or payment.created_at or timezone.now()
     available_at = paid_at + timedelta(days=hold_days())
     platform_settings = PlatformSettings.objects.filter(pk=1).first()
-    commission_rates = (platform_settings.commission_rates if platform_settings else {}) or {}
+    commission_rates = (
+        platform_settings.commission_rates if platform_settings else {}
+    ) or {}
     try:
         commission_rate = Decimal(str(commission_rates.get(payment.method, 0)))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         commission_rate = Decimal("0")
     commission_rate = min(Decimal("100"), max(Decimal("0"), commission_rate))
     paid_at_for_rate = payment.paid_at or payment.created_at or timezone.now()
@@ -421,7 +434,9 @@ def create_payout_for_payment(payment: Payment) -> Payout | None:
     commission_snapshot = (payment.gateway_payload or {}).get("commission") or {}
     if payment.provider == Payment.Provider.ABA_PAYWAY and commission_snapshot:
         commission_rate = Decimal(str(commission_snapshot.get("rate", commission_rate)))
-        commission_amount = Decimal(str(commission_snapshot.get("amount", "0"))).quantize(Decimal("0.01"))
+        commission_amount = Decimal(
+            str(commission_snapshot.get("amount", "0"))
+        ).quantize(Decimal("0.01"))
         gross_amount = Decimal(payment.amount).quantize(Decimal("0.01"))
     else:
         gross_amount = Decimal(payment.amount).quantize(Decimal("0.01"))
@@ -450,15 +465,26 @@ def create_payout_for_payment(payment: Payment) -> Payout | None:
         # transfer, but never rewrite a paid/cancelled row.
         revised_gross = Decimal(payment.amount).quantize(Decimal("0.01"))
         commission_snapshot = (payment.gateway_payload or {}).get("commission") or {}
-        revised_commission = (Decimal(str(commission_snapshot["amount"])).quantize(Decimal("0.01")) if commission_snapshot else (revised_gross * payout.commission_rate / Decimal("100")).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        ))
+        revised_commission = (
+            Decimal(str(commission_snapshot["amount"])).quantize(Decimal("0.01"))
+            if commission_snapshot
+            else (revised_gross * payout.commission_rate / Decimal("100")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        )
         revised_net = revised_gross - revised_commission
         if payout.gross_amount != revised_gross or payout.amount != revised_net:
             payout.gross_amount = revised_gross
             payout.commission_amount = revised_commission
             payout.amount = revised_net
-            payout.save(update_fields=["gross_amount", "commission_amount", "amount", "updated_at"])
+            payout.save(
+                update_fields=[
+                    "gross_amount",
+                    "commission_amount",
+                    "amount",
+                    "updated_at",
+                ]
+            )
     return payout
 
 
@@ -620,8 +646,14 @@ def reconcile_aba_payment(payment: Payment) -> bool:
     """Ask PayWay for the authoritative status and apply it."""
     if payment.provider != Payment.Provider.ABA_PAYWAY or not payment.provider_ref:
         return False
-    gateway_payload = payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
-    request_payload = gateway_payload.get("request") if isinstance(gateway_payload.get("request"), dict) else {}
+    gateway_payload = (
+        payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
+    )
+    request_payload = (
+        gateway_payload.get("request")
+        if isinstance(gateway_payload.get("request"), dict)
+        else {}
+    )
     data = aba_gateway.check_transaction(
         payment.provider_ref,
         merchant_id_override=request_payload.get("merchant_id"),
@@ -694,8 +726,14 @@ def apply_aba_callback(payload: dict) -> bool:
     # also covers callbacks without an amount. Do not fail the callback if the
     # status endpoint is temporarily unreachable.
     try:
-        gateway_payload = payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
-        request_payload = gateway_payload.get("request") if isinstance(gateway_payload.get("request"), dict) else {}
+        gateway_payload = (
+            payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
+        )
+        request_payload = (
+            gateway_payload.get("request")
+            if isinstance(gateway_payload.get("request"), dict)
+            else {}
+        )
         data = aba_gateway.check_transaction(
             tran_id,
             merchant_id_override=request_payload.get("merchant_id"),
@@ -753,9 +791,11 @@ def queue_refund(
 def notify_refund_team(refund: Refund) -> None:
     """Notify active administrators that a refund needs review."""
     booking = refund.booking
-    admins = User.objects.filter(is_active=True).filter(
-        Q(role=Role.SUPERADMIN) | Q(is_staff=True) | Q(is_superuser=True)
-    ).distinct()
+    admins = (
+        User.objects.filter(is_active=True)
+        .filter(Q(role=Role.SUPERADMIN) | Q(is_staff=True) | Q(is_superuser=True))
+        .distinct()
+    )
     for admin in admins:
         notify(
             admin,
@@ -773,7 +813,9 @@ def notify_refund_team(refund: Refund) -> None:
 
 
 @transaction.atomic
-def request_refund(payment: Payment, requester, reason: str, request_note: str) -> Refund:
+def request_refund(
+    payment: Payment, requester, reason: str, request_note: str
+) -> Refund:
     """Queue a payment refund for manual administrator review."""
     payment = (
         Payment.objects.select_for_update()
@@ -787,12 +829,13 @@ def request_refund(payment: Payment, requester, reason: str, request_note: str) 
 
     booking = payment.booking if payment.booking_id else None
     owner_id = (
-        booking.owner_id if booking is not None else
-        payment.property.owner_id if payment.property_id else None
+        booking.owner_id
+        if booking is not None
+        else payment.property.owner_id
+        if payment.property_id
+        else None
     )
-    allowed = (
-        requester.is_renter and payment.user_id == requester.pk
-    ) or (
+    allowed = (requester.is_renter and payment.user_id == requester.pk) or (
         requester.is_owner and owner_id == requester.pk
     )
     if not allowed:
@@ -839,9 +882,7 @@ def reject_refund(refund: Refund, actor=None, note: str = "") -> bool:
         return False
     payment = Payment.objects.select_for_update().get(pk=refund.payment_id)
     refund.status = Refund.Status.REJECTED
-    refund.note = (
-        (note or "").strip()[:255] or "Refund request rejected after review."
-    )
+    refund.note = (note or "").strip()[:255] or "Refund request rejected after review."
     refund.save(update_fields=["status", "note"])
     payment.refund_status = Payment.RefundStatus.NONE
     payment.save(update_fields=["refund_status"])

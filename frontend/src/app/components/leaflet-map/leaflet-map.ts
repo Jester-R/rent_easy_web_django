@@ -50,7 +50,6 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly platformId = inject(PLATFORM_ID);
 
-  private L: any = null;
   private map: any = null;
   private marker: any = null;
   private lastEmit = '';
@@ -76,7 +75,6 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private initMap(L: any): void {
-    this.L = L;
     const lat = this.latitude();
     const lng = this.longitude();
     const hasCoords = typeof lat === 'number' && typeof lng === 'number';

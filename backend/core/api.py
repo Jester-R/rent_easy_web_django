@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
+import os
 
 import httpx
+from django.conf import settings
 from django.db.models import Avg, Sum
 from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
-from django_bolt.responses import Redirect
+from django_bolt.responses import FileResponse, Redirect
 
-from core.ai import AIConfigError, generate_property_description, generate_property_draft
+from core.ai import (
+    AIConfigError,
+    generate_property_description,
+    generate_property_draft,
+)
 from core.bolt import (
     body_float,
     body_int,
@@ -74,9 +81,11 @@ async def _landing_payload(request, limit: int = 6) -> dict:
             or 0
         ),
     }
-    stored_promotion = await PlatformSettings.objects.filter(pk=1).values_list(
-        "home_promotion", flat=True
-    ).afirst()
+    stored_promotion = (
+        await PlatformSettings.objects.filter(pk=1)
+        .values_list("home_promotion", flat=True)
+        .afirst()
+    )
     promotion = {**DEFAULT_HOME_PROMOTION, **(stored_promotion or {})}
     return {
         "home_promotion": promotion,
@@ -110,9 +119,11 @@ async def payment_method_details(request):
     from accounts.models import PlatformSettings
     from payments.models import Payment
 
-    raw = await PlatformSettings.objects.filter(pk=1).values_list(
-        "payment_method_details", flat=True
-    ).afirst()
+    raw = (
+        await PlatformSettings.objects.filter(pk=1)
+        .values_list("payment_method_details", flat=True)
+        .afirst()
+    )
     raw = raw if isinstance(raw, dict) else {}
     result = {}
     for method in (Payment.Method.ABA,):
@@ -121,7 +132,12 @@ async def payment_method_details(request):
             item = {}
         result[method] = {
             key: str(item.get(key, "") or "")[:255]
-            for key in ("account_name", "account_number", "instructions_en", "instructions_km")
+            for key in (
+                "account_name",
+                "account_number",
+                "instructions_en",
+                "instructions_km",
+            )
         }
     return {"payment_method_details": result}
 
@@ -205,6 +221,22 @@ async def resolve_maps_link(request):
     if coordinates is None:
         raise HTTPException(status_code=422, detail="coordinates_not_found")
     return {"latitude": coordinates[0], "longitude": coordinates[1]}
+
+
+@api.get("/media/{path:path}")
+async def serve_media(path: str):
+    """Serve uploaded media files from MEDIA_ROOT."""
+    media_root = str(settings.MEDIA_ROOT or "")
+    if not media_root:
+        raise HTTPException(status_code=404, detail="media_not_configured")
+    # Prevent path traversal
+    abs_path = os.path.realpath(os.path.join(media_root, path))
+    if not abs_path.startswith(os.path.realpath(media_root)):
+        raise HTTPException(status_code=404, detail="not_found")
+    if not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="not_found")
+    mime_type, _ = mimetypes.guess_type(abs_path)
+    return FileResponse(abs_path, media_type=mime_type)
 
 
 mark_full_request(api)

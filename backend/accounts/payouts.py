@@ -31,7 +31,13 @@ def apply_payout_fields(user, data: dict) -> None:
         if not isinstance(raw_accounts, dict):
             raise HTTPException(status_code=422, detail="payout_accounts_invalid")
         clean_accounts = {}
-        limits = {"account_name": 120, "account_number": 64, "bank_name": 120, "phone": 32, "note": 255}
+        limits = {
+            "account_name": 120,
+            "account_number": 64,
+            "bank_name": 120,
+            "phone": 32,
+            "note": 255,
+        }
         for method, account in raw_accounts.items():
             method = str(method).strip().lower()
             if method not in PAYOUT_METHOD_VALUES or not isinstance(account, dict):
@@ -46,10 +52,19 @@ def apply_payout_fields(user, data: dict) -> None:
         if method and method not in PAYOUT_METHOD_VALUES:
             raise HTTPException(status_code=422, detail="payout_method_invalid")
         previous_method = user.payout_method
-        if previous_method and previous_method != method and "payout_accounts" not in data:
-            accounts = user.payout_accounts if isinstance(user.payout_accounts, dict) else {}
+        if (
+            previous_method
+            and previous_method != method
+            and "payout_accounts" not in data
+        ):
+            accounts = (
+                user.payout_accounts if isinstance(user.payout_accounts, dict) else {}
+            )
             if previous_method not in accounts:
-                accounts = {**accounts, previous_method: user.get_payout_account(previous_method)}
+                accounts = {
+                    **accounts,
+                    previous_method: user.get_payout_account(previous_method),
+                }
                 user.payout_accounts = accounts
         user.payout_method = method
     account = user.get_payout_account()

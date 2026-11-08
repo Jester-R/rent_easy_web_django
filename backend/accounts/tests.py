@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import Client, TestCase, override_settings
+from django.test import TestCase, override_settings
 
 from accounts.google_oauth import (
     generate_oauth_state,
@@ -16,12 +16,22 @@ from accounts.telegram_login import (
     verify_telegram_login,
     verify_telegram_login_code,
 )
-from accounts.models import ApprovalStatus, EmailVerification, PlatformSettings, Role, User
+from accounts.models import (
+    ApprovalStatus,
+    EmailVerification,
+    PlatformSettings,
+    Role,
+    User,
+)
 
 
 class GoogleOAuthStateTests(TestCase):
     def test_state_generation_and_verification(self):
-        state = generate_oauth_state(role=Role.OWNER, next_url="/owner", redirect_uri="http://localhost:4200/callback")
+        state = generate_oauth_state(
+            role=Role.OWNER,
+            next_url="/owner",
+            redirect_uri="http://localhost:4200/callback",
+        )
         self.assertIsInstance(state, str)
 
         data = verify_oauth_state(state)
@@ -48,14 +58,18 @@ class GoogleOAuthUserCreationTests(TestCase):
             "name": "Sarah Connor",
             "picture": "https://lh3.googleusercontent.com/avatar.jpg",
         }
-        user, created, block = await get_or_create_google_user(user_info, requested_role=Role.RENTER)
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=Role.RENTER
+        )
 
         self.assertTrue(created)
         self.assertIsNone(block)
         self.assertEqual(user.email, "sarah.connor@example.com")
         self.assertEqual(user.full_name, "Sarah Connor")
         self.assertEqual(user.google_id, "google-uid-12345")
-        self.assertEqual(user.avatar_url, "https://lh3.googleusercontent.com/avatar.jpg")
+        self.assertEqual(
+            user.avatar_url, "https://lh3.googleusercontent.com/avatar.jpg"
+        )
         self.assertEqual(user.role, Role.RENTER)
         self.assertTrue(user.is_active)
         self.assertEqual(user.approval_status, ApprovalStatus.APPROVED)
@@ -72,7 +86,9 @@ class GoogleOAuthUserCreationTests(TestCase):
             "name": "Owner Smith",
             "picture": "",
         }
-        user, created, block = await get_or_create_google_user(user_info, requested_role=Role.OWNER)
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=Role.OWNER
+        )
 
         self.assertTrue(created)
         self.assertEqual(block, "approval_pending")
@@ -96,13 +112,17 @@ class GoogleOAuthUserCreationTests(TestCase):
             "name": "Existing User",
             "picture": "https://lh3.googleusercontent.com/avatar2.jpg",
         }
-        user, created, block = await get_or_create_google_user(user_info, requested_role=Role.RENTER)
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=Role.RENTER
+        )
 
         self.assertFalse(created)
         self.assertIsNone(block)
         self.assertEqual(user.pk, existing.pk)
         self.assertEqual(user.google_id, "google-uid-777")
-        self.assertEqual(user.avatar_url, "https://lh3.googleusercontent.com/avatar2.jpg")
+        self.assertEqual(
+            user.avatar_url, "https://lh3.googleusercontent.com/avatar2.jpg"
+        )
 
     async def test_link_existing_user_replaces_placeholder_profile(self):
         existing = await User.objects.acreate(
@@ -134,7 +154,7 @@ class GoogleOAuthUserCreationTests(TestCase):
         )
 
     async def test_link_existing_user_preserves_custom_profile(self):
-        existing = await User.objects.acreate(
+        await User.objects.acreate(
             email="custom@example.com",
             username="customuser",
             full_name="My Custom Name",
@@ -222,7 +242,10 @@ class GoogleOAuthConfigurationTests(TestCase):
         url = get_authorization_url(role=Role.RENTER, next_url="/rent")
         self.assertIn("accounts.google.com", url)
         self.assertIn("client_id=mock-client-id", url)
-        self.assertIn("redirect_uri=http%3A%2F%2Flocalhost%3A4200%2Fapi%2Fauth%2Fgoogle%2Fcallback%2F", url)
+        self.assertIn(
+            "redirect_uri=http%3A%2F%2Flocalhost%3A4200%2Fapi%2Fauth%2Fgoogle%2Fcallback%2F",
+            url,
+        )
         self.assertIn("state=", url)
 
 
@@ -245,6 +268,7 @@ class GoogleOAuthHandlerTests(TestCase):
     )
     async def test_config_view(self):
         from accounts.api import google_oauth_config_view
+
         req = MockBoltRequest()
         res = await google_oauth_config_view(req)
         self.assertTrue(res["enabled"])
@@ -256,6 +280,7 @@ class GoogleOAuthHandlerTests(TestCase):
     )
     async def test_url_view(self):
         from accounts.api import google_oauth_url_view
+
         req = MockBoltRequest(query={"role": "owner", "next": "/owner"})
         res = await google_oauth_url_view(req)
         self.assertTrue(res["enabled"])
@@ -268,6 +293,7 @@ class GoogleOAuthHandlerTests(TestCase):
     )
     async def test_login_view_redirects_to_google(self):
         from accounts.api import google_oauth_login_view
+
         req = MockBoltRequest(query={"role": "renter"})
         res = await google_oauth_login_view(req)
         self.assertEqual(res.status_code, 303)
@@ -294,7 +320,9 @@ class GoogleOAuthHandlerTests(TestCase):
             "picture": "",
         }
 
-        with patch("accounts.api.exchange_code_for_user_info", return_value=fake_user_info):
+        with patch(
+            "accounts.api.exchange_code_for_user_info", return_value=fake_user_info
+        ):
             res = await google_oauth_callback_post(req)
             self.assertTrue(res["ok"])
             self.assertEqual(res["status"], "active")
@@ -319,7 +347,9 @@ class GoogleOAuthHandlerTests(TestCase):
             "picture": "",
         }
 
-        with patch("accounts.api.exchange_code_for_user_info", return_value=fake_user_info):
+        with patch(
+            "accounts.api.exchange_code_for_user_info", return_value=fake_user_info
+        ):
             res = await google_oauth_callback_get(req)
             self.assertEqual(res.status_code, 303)
             self.assertEqual(res.url, "http://localhost:4200/rent")
@@ -373,14 +403,16 @@ class EmailVerificationTests(TestCase):
         from accounts.models import EmailVerification
 
         req = MockBoltRequest(
-            body=json.dumps({
-                "full_name": "Test Real User",
-                "username": "testrealuser",
-                "email": "testrealuser@gmail.com",
-                "password": "mypassword123",
-                "password_confirm": "mypassword123",
-                "role": "renter",
-            }).encode("utf-8")
+            body=json.dumps(
+                {
+                    "full_name": "Test Real User",
+                    "username": "testrealuser",
+                    "email": "testrealuser@gmail.com",
+                    "password": "mypassword123",
+                    "password_confirm": "mypassword123",
+                    "role": "renter",
+                }
+            ).encode("utf-8")
         )
 
         res = await register_view(req)
@@ -409,10 +441,12 @@ class EmailVerificationTests(TestCase):
         )
 
         req = MockBoltRequest(
-            body=json.dumps({
-                "email": "verifiedtenant@gmail.com",
-                "code": record.code,
-            }).encode("utf-8")
+            body=json.dumps(
+                {
+                    "email": "verifiedtenant@gmail.com",
+                    "code": record.code,
+                }
+            ).encode("utf-8")
         )
 
         res = await register_verify_otp_view(req)
@@ -443,10 +477,12 @@ class EmailVerificationTests(TestCase):
         )
 
         req = MockBoltRequest(
-            body=json.dumps({
-                "email": "wrongcode@gmail.com",
-                "code": "000000",
-            }).encode("utf-8")
+            body=json.dumps(
+                {
+                    "email": "wrongcode@gmail.com",
+                    "code": "000000",
+                }
+            ).encode("utf-8")
         )
 
         with self.assertRaises(HTTPException) as ctx:
@@ -489,14 +525,16 @@ class EmailVerificationTests(TestCase):
         from accounts.api import register_view
 
         req = MockBoltRequest(
-            body=json.dumps({
-                "full_name": "Disposable User",
-                "username": "disposableuser",
-                "email": "trash@mailinator.com",
-                "password": "mypassword123",
-                "password_confirm": "mypassword123",
-                "role": "renter",
-            }).encode("utf-8")
+            body=json.dumps(
+                {
+                    "full_name": "Disposable User",
+                    "username": "disposableuser",
+                    "email": "trash@mailinator.com",
+                    "password": "mypassword123",
+                    "password_confirm": "mypassword123",
+                    "role": "renter",
+                }
+            ).encode("utf-8")
         )
 
         with self.assertRaises(HTTPException) as ctx:
@@ -522,7 +560,9 @@ class EmailVerificationTests(TestCase):
                 "role": Role.RENTER,
             },
         )
-        req1 = MockBoltRequest(body=json.dumps({"email": email, "code": record1.code}).encode("utf-8"))
+        req1 = MockBoltRequest(
+            body=json.dumps({"email": email, "code": record1.code}).encode("utf-8")
+        )
         res1 = await register_verify_otp_view(req1)
         self.assertEqual(res1["status"], "active")
 
@@ -536,23 +576,29 @@ class EmailVerificationTests(TestCase):
 
         # 3. User re-registers with the same email and username
         req_reg = MockBoltRequest(
-            body=json.dumps({
-                "full_name": "Second User Re-registered",
-                "username": username,
-                "email": email,
-                "password": "NewPassword123!",
-                "password_confirm": "NewPassword123!",
-                "role": "renter",
-            }).encode("utf-8")
+            body=json.dumps(
+                {
+                    "full_name": "Second User Re-registered",
+                    "username": username,
+                    "email": email,
+                    "password": "NewPassword123!",
+                    "password_confirm": "NewPassword123!",
+                    "role": "renter",
+                }
+            ).encode("utf-8")
         )
         res_reg = await register_view(req_reg)
         self.assertEqual(res_reg["status"], "otp_required")
 
-        record2 = await EmailVerification.objects.filter(email=email, is_verified=False).afirst()
+        record2 = await EmailVerification.objects.filter(
+            email=email, is_verified=False
+        ).afirst()
         self.assertIsNotNone(record2)
 
         # 4. Verify OTP for re-registered account
-        req2 = MockBoltRequest(body=json.dumps({"email": email, "code": record2.code}).encode("utf-8"))
+        req2 = MockBoltRequest(
+            body=json.dumps({"email": email, "code": record2.code}).encode("utf-8")
+        )
         res2 = await register_verify_otp_view(req2)
         self.assertEqual(res2["status"], "active")
 
@@ -572,17 +618,23 @@ class EmailVerificationTests(TestCase):
         }
 
         # 1. Initial Google sign in creates user
-        user, created, block = await get_or_create_google_user(user_info, requested_role=Role.RENTER)
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=Role.RENTER
+        )
         self.assertTrue(created)
         self.assertIsNone(block)
         user_id = user.id
 
         # 2. Account is deleted
         await user.adelete()
-        self.assertFalse(await User.objects.filter(email="google_recreate@gmail.com").aexists())
+        self.assertFalse(
+            await User.objects.filter(email="google_recreate@gmail.com").aexists()
+        )
 
         # 3. User signs in with Google again using the same email
-        user2, created2, block2 = await get_or_create_google_user(user_info, requested_role=Role.RENTER)
+        user2, created2, block2 = await get_or_create_google_user(
+            user_info, requested_role=Role.RENTER
+        )
         self.assertTrue(created2)
         self.assertIsNone(block2)
         self.assertNotEqual(user2.id, user_id)
@@ -626,16 +678,12 @@ class EmailVerificationTests(TestCase):
         self.assertEqual(res_role["role"], "renter")
         self.assertEqual(res_role["home_url"], "/rent")
 
-        updated_user = await User.objects.filter(email="fresh_google@gmail.com").afirst()
+        updated_user = await User.objects.filter(
+            email="fresh_google@gmail.com"
+        ).afirst()
         self.assertEqual(updated_user.role, Role.RENTER)
         self.assertTrue(updated_user.is_active)
         self.assertEqual(updated_user.approval_status, ApprovalStatus.APPROVED)
-
-
-
-
-
-
 
 
 class TelegramLoginTests(TestCase):
@@ -654,9 +702,7 @@ class TelegramLoginTests(TestCase):
             "auth_date": str(int(time.time())),
         }
         payload.update({key: str(value) for key, value in overrides.items()})
-        check_string = "\n".join(
-            f"{key}={payload[key]}" for key in sorted(payload)
-        )
+        check_string = "\n".join(f"{key}={payload[key]}" for key in sorted(payload))
         secret_key = hashlib.sha256(token.encode("utf-8")).digest()
         payload["hash"] = hmac.new(
             secret_key, check_string.encode("utf-8"), hashlib.sha256

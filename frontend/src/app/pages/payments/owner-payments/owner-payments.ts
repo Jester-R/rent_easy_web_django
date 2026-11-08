@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PaymentService, OwnerPaymentsResponse } from '../../../services/payment.service';
-import { Payment } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
 import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import { LanguageService } from '../../../services/language.service';
