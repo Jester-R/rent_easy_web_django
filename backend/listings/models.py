@@ -54,8 +54,14 @@ class Property(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     title = models.CharField(max_length=160)
     title_km = models.CharField(max_length=160, blank=True, default="")
+    province = models.CharField(max_length=160, blank=True, default="", db_index=True)
+    province_km = models.CharField(max_length=160, blank=True, default="")
     location = models.CharField(max_length=160, db_index=True)
     location_km = models.CharField(max_length=160, blank=True, default="")
+    commune = models.CharField(max_length=160, blank=True, default="", db_index=True)
+    commune_km = models.CharField(max_length=160, blank=True, default="")
+    village = models.CharField(max_length=160, blank=True, default="", db_index=True)
+    village_km = models.CharField(max_length=160, blank=True, default="")
     price_per_month = models.DecimalField(
         max_digits=10,
         decimal_places=2,

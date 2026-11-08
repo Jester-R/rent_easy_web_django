@@ -115,8 +115,14 @@ class PropertySerializer(Serializer):
     is_active: bool
     title: str
     title_km: str = ""
+    province: str = ""
+    province_km: str = ""
     location: str
     location_km: str = ""
+    commune: str = ""
+    commune_km: str = ""
+    village: str = ""
+    village_km: str = ""
     price_per_month: float
     price_display: str
     location_label: str

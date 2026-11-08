@@ -75,6 +75,28 @@ def _counts(queryset):
     )
 
 
+async def _distinct_location_names(*fields: str) -> list[str]:
+    values: set[str] = set()
+    for field in fields:
+        values |= {
+            value
+            async for value in Property.objects.exclude(**{field: ""})
+            .values_list(field, flat=True)
+            .distinct()
+            if value
+        }
+    return sorted(values)
+
+
+def _apply_location_filter(queryset, request, field: str, field_km: str, token: str):
+    value = q(request, token)
+    if value and value != ALL_LOCATIONS:
+        queryset = queryset.filter(
+            Q(**{f"{field}__iexact": value}) | Q(**{f"{field_km}__iexact": value})
+        )
+    return queryset, value
+
+
 async def _get_property(pk: int) -> Property:
     prop = (
         await Property.objects.select_related("owner")
@@ -130,8 +152,14 @@ def _clean_coordinate(value, limit: float) -> float | None:
 def _validate_property_payload(data: dict) -> dict:
     title = body_str(data, "title")
     title_km = body_str(data, "title_km")
+    province = body_str(data, "province")
+    province_km = body_str(data, "province_km")
     location = body_str(data, "location")
     location_km = body_str(data, "location_km")
+    commune = body_str(data, "commune")
+    commune_km = body_str(data, "commune_km")
+    village = body_str(data, "village")
+    village_km = body_str(data, "village_km")
     price = body_float(data, "price_per_month", 0)
     if not title and not title_km:
         raise HTTPException(status_code=422, detail="title_required")
@@ -144,8 +172,14 @@ def _validate_property_payload(data: dict) -> dict:
     # non-localised clients, so mirror whichever side was supplied.
     if not title:
         title = title_km
+    if not province:
+        province = province_km
     if not location:
         location = location_km
+    if not commune:
+        commune = commune_km
+    if not village:
+        village = village_km
 
     category = body_str(data, "category")
     if len(category) > 24 or (category and not re.fullmatch(r"[a-z0-9_-]+", category)):
@@ -159,8 +193,14 @@ def _validate_property_payload(data: dict) -> dict:
     return {
         "title": title,
         "title_km": title_km,
+        "province": province,
+        "province_km": province_km,
         "location": location,
         "location_km": location_km,
+        "commune": commune,
+        "commune_km": commune_km,
+        "village": village,
+        "village_km": village_km,
         "price_per_month": Decimal(str(price)),
         "bedrooms": max(0, body_int(data, "bedrooms", 0)),
         "bathrooms": max(0, body_int(data, "bathrooms", 0)),
@@ -199,17 +239,30 @@ async def renter_browse(request):
         queryset = queryset.filter(
             Q(title__icontains=search)
             | Q(title_km__icontains=search)
+            | Q(province__icontains=search)
+            | Q(province_km__icontains=search)
             | Q(location__icontains=search)
             | Q(location_km__icontains=search)
+            | Q(commune__icontains=search)
+            | Q(commune_km__icontains=search)
+            | Q(village__icontains=search)
+            | Q(village_km__icontains=search)
             | Q(description__icontains=search)
             | Q(description_km__icontains=search)
         )
 
-    location = q(request, "location")
-    if location and location != ALL_LOCATIONS:
-        queryset = queryset.filter(
-            Q(location__iexact=location) | Q(location_km__iexact=location)
-        )
+    queryset, province = _apply_location_filter(
+        queryset, request, "province", "province_km", "province"
+    )
+    queryset, location = _apply_location_filter(
+        queryset, request, "location", "location_km", "location"
+    )
+    queryset, commune = _apply_location_filter(
+        queryset, request, "commune", "commune_km", "commune"
+    )
+    queryset, village = _apply_location_filter(
+        queryset, request, "village", "village_km", "village"
+    )
 
     category = q(request, "category")
     if category and category != ALL_CATEGORIES:
@@ -276,20 +329,10 @@ async def renter_browse(request):
             for p in properties
         ],
         "meta": {
-            "locations": sorted(
-                {
-                    loc
-                    async for loc in Property.objects.exclude(location="")
-                    .values_list("location", flat=True)
-                    .distinct()
-                }
-                | {
-                    loc
-                    async for loc in Property.objects.exclude(location_km="")
-                    .values_list("location_km", flat=True)
-                    .distinct()
-                }
-            ),
+            "provinces": await _distinct_location_names("province", "province_km"),
+            "locations": await _distinct_location_names("location", "location_km"),
+            "communes": await _distinct_location_names("commune", "commune_km"),
+            "villages": await _distinct_location_names("village", "village_km"),
             "avg_price": avg_price,
             "price_floor": float(bounds["lo"] or MIN_PRICE_FLOOR),
             "price_ceiling": float(bounds["hi"] or MAX_PRICE_CEILING),
@@ -302,7 +345,10 @@ async def renter_browse(request):
         },
         "filters": {
             "q": search,
+            "province": province,
             "location": location,
+            "commune": commune,
+            "village": village,
             "category": category,
             "min_bedrooms": min_bedrooms,
             "max_price": raw_max,

@@ -1,12 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
+import { Observable, forkJoin, map, of, shareReplay, switchMap } from 'rxjs';
 import { Property, LandingData, PropertyCategorySetting } from '../models';
 
 export interface PropertyBrowseResponse {
   properties: Property[];
   meta: {
+    provinces: string[];
     locations: string[];
+    communes: string[];
+    villages: string[];
     avg_price: number;
     price_floor: number;
     price_ceiling: number;
@@ -19,7 +22,10 @@ export interface PropertyBrowseResponse {
   };
   filters: {
     q: string;
+    province: string;
     location: string;
+    commune: string;
+    village: string;
     category: string;
     min_bedrooms: number;
     max_price: string;
@@ -27,8 +33,32 @@ export interface PropertyBrowseResponse {
   };
 }
 
+export interface CambodiaProvince {
+  code: string;
+  name_en: string;
+  name_km: string;
+}
+
 export interface CambodiaDistrict {
   code: string;
+  province_code: string;
+  name_en: string;
+  name_km: string;
+}
+
+export interface CambodiaCommune {
+  code: string;
+  district_code: string;
+  province_code: string;
+  name_en: string;
+  name_km: string;
+}
+
+export interface CambodiaVillage {
+  code: string;
+  commune_code: string;
+  district_code: string;
+  province_code: string;
   name_en: string;
   name_km: string;
 }
@@ -39,6 +69,9 @@ export interface CambodiaDistrict {
 export class PropertyService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api';
+  private readonly csvCache = new Map<string, Observable<string[][]>>();
+  private readonly datasetBaseUrl =
+    'https://data.mef.gov.kh/api/v1/public-datasets';
 
   getCambodiaDistricts(): Observable<CambodiaDistrict[]> {
     const pageSize = 200;
@@ -47,7 +80,7 @@ export class PropertyService {
         .set('page', String(page))
         .set('page_size', String(pageSize));
       return this.http.get<unknown>(
-        'https://data.mef.gov.kh/api/v1/public-datasets/pd_66a8603800604c000123e145/json',
+        `${this.datasetBaseUrl}/pd_66a8603800604c000123e145/json`,
         { params },
       );
     };
@@ -67,6 +100,120 @@ export class PropertyService {
       map((districts) => districts.filter(
         (district, index, all) => all.findIndex((candidate) => candidate.code === district.code) === index,
       ).sort((a, b) => a.name_en.localeCompare(b.name_en))),
+    );
+  }
+
+  getCambodiaProvinces(): Observable<CambodiaProvince[]> {
+    return this.fetchLocationCsv('pd_66a8603700604c000123e144').pipe(
+      map((rows) =>
+        this.csvRecords(rows)
+          .map((record) => ({
+            code: record['province_code'] || '',
+            name_en: record['province_en'] || '',
+            name_km: record['province_kh'] || '',
+          }))
+          .filter((item) => item.code && item.name_en && item.name_km),
+      ),
+    );
+  }
+
+  getCambodiaCommunes(): Observable<CambodiaCommune[]> {
+    return this.fetchLocationCsv('pd_66a8603900604c000123e146').pipe(
+      map((rows) =>
+        this.csvRecords(rows)
+          .map((record) => ({
+            code: record['commune_code'] || '',
+            district_code: record['district_code'] || '',
+            province_code: record['province_code'] || '',
+            name_en: record['commune_en'] || '',
+            name_km: record['commune_kh'] || '',
+          }))
+          .filter((item) => item.code && item.name_en && item.name_km),
+      ),
+    );
+  }
+
+  getCambodiaVillages(): Observable<CambodiaVillage[]> {
+    return this.fetchLocationCsv('pd_66a8603a00604c000123e147').pipe(
+      map((rows) =>
+        this.csvRecords(rows)
+          .map((record) => ({
+            code: record['village_code'] || '',
+            commune_code: this.normalizeCommuneCode(record['commune_code'] || ''),
+            district_code: record['district_code'] || '',
+            province_code: record['province_code'] || '',
+            name_en: record['village_en'] || '',
+            name_km: record['village_kh'] || '',
+          }))
+          .filter((item) => item.code && item.name_en && item.name_km),
+      ),
+    );
+  }
+
+  private normalizeCommuneCode(code: string): string {
+    return code === '120913' ? '120912' : code;
+  }
+
+  private fetchLocationCsv(datasetId: string): Observable<string[][]> {
+    const cached = this.csvCache.get(datasetId);
+    if (cached) return cached;
+    const request = this.http
+      .get(`${this.datasetBaseUrl}/${datasetId}/file`, { responseType: 'text' })
+      .pipe(
+        map((csv) => this.parseCsv(csv as string)),
+        shareReplay(1),
+      );
+    this.csvCache.set(datasetId, request);
+    return request;
+  }
+
+  private parseCsv(text: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let quoted = false;
+    for (let index = 0; index < text.length; index++) {
+      const char = text[index];
+      if (quoted) {
+        if (char === '"') {
+          if (text[index + 1] === '"') {
+            field += '"';
+            index++;
+          } else {
+            quoted = false;
+          }
+        } else {
+          field += char;
+        }
+      } else if (char === '"') {
+        quoted = true;
+      } else if (char === ',') {
+        row.push(field);
+        field = '';
+      } else if (char === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else if (char !== '\r') {
+        field += char;
+      }
+    }
+    if (field.length || row.length) {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  private csvRecords(rows: string[][]): Record<string, string>[] {
+    if (!rows.length) return [];
+    const headers = rows[0].map((header) => header.trim());
+    return rows.slice(1).map((values) =>
+      headers.reduce<Record<string, string>>((record, header, index) => {
+        record[header] = (values[index] || '').trim();
+        return record;
+      }, {}),
     );
   }
 
@@ -100,6 +247,7 @@ export class PropertyService {
       .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
       .map((item) => ({
         code: String(item['district_code'] || '').trim(),
+        province_code: String(item['province_code'] || '').trim(),
         name_en: String(item['district_en'] || '').trim(),
         name_km: String(item['district_kh'] || '').trim(),
       }))
@@ -122,7 +270,10 @@ export class PropertyService {
 
   browse(filters?: {
     q?: string;
+    province?: string;
     location?: string;
+    commune?: string;
+    village?: string;
     category?: string;
     min_bedrooms?: number;
     max_price?: number;
@@ -132,8 +283,14 @@ export class PropertyService {
   }): Observable<PropertyBrowseResponse> {
     let params = new HttpParams();
     if (filters?.q) params = params.set('q', filters.q);
+    if (filters?.province && filters.province !== '__all__')
+      params = params.set('province', filters.province);
     if (filters?.location && filters.location !== '__all__')
       params = params.set('location', filters.location);
+    if (filters?.commune && filters.commune !== '__all__')
+      params = params.set('commune', filters.commune);
+    if (filters?.village && filters.village !== '__all__')
+      params = params.set('village', filters.village);
     if (filters?.category && filters.category !== '__all__')
       params = params.set('category', filters.category);
     if (filters?.min_bedrooms)
@@ -218,8 +375,8 @@ export class PropertyService {
     bedrooms?: number;
     bathrooms?: number;
     notes?: string;
-  }): Observable<{ title?: string; title_km?: string; location?: string; price_per_month?: number | null; category?: string; bedrooms?: number | null; bathrooms?: number | null; description: string; description_km: string; model?: string; provider?: string }> {
-    return this.http.post<{ title?: string; title_km?: string; location?: string; price_per_month?: number | null; category?: string; bedrooms?: number | null; bathrooms?: number | null; description: string; description_km: string; model?: string; provider?: string }>(
+  }): Observable<{ title?: string; title_km?: string; location?: string; province?: string; commune?: string; village?: string; price_per_month?: number | null; category?: string; bedrooms?: number | null; bathrooms?: number | null; description: string; description_km: string; model?: string; provider?: string }> {
+    return this.http.post<{ title?: string; title_km?: string; location?: string; province?: string; commune?: string; village?: string; price_per_month?: number | null; category?: string; bedrooms?: number | null; bathrooms?: number | null; description: string; description_km: string; model?: string; provider?: string }>(
       `${this.baseUrl}/ai/property-description/`,
       data,
       { withCredentials: true }

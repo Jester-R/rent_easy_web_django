@@ -26,7 +26,10 @@ export class BrowsePropertiesComponent implements OnInit {
   total = signal(0);
   page = signal(1);
   readonly pageSize = 24;
+  provinces = signal<string[]>([]);
   locations = signal<string[]>([]);
+  communes = signal<string[]>([]);
+  villages = signal<string[]>([]);
   isLoading = signal(true);
   loadError = signal(false);
 
@@ -34,15 +37,33 @@ export class BrowsePropertiesComponent implements OnInit {
 
   // Filters
   searchTerm = '';
+  selectedProvince = '__all__';
   selectedLocation = '__all__';
+  selectedCommune = '__all__';
+  selectedVillage = '__all__';
   selectedCategory = '__all__';
   minBedrooms = 0;
   maxPrice: number | undefined;
   sort = 'recommended';
 
+  readonly provinceOptions = computed<SelectOption[]>(() => [
+    { value: '__all__', label: this.language.t('browse.allProvinces') },
+    ...this.provinces().map((province) => ({ value: province, label: province })),
+  ]);
+
   readonly locationOptions = computed<SelectOption[]>(() => [
     { value: '__all__', label: this.language.t('browse.allLocations') },
     ...this.locations().map((loc) => ({ value: loc, label: loc })),
+  ]);
+
+  readonly communeOptions = computed<SelectOption[]>(() => [
+    { value: '__all__', label: this.language.t('browse.allCommunes') },
+    ...this.communes().map((commune) => ({ value: commune, label: commune })),
+  ]);
+
+  readonly villageOptions = computed<SelectOption[]>(() => [
+    { value: '__all__', label: this.language.t('browse.allVillages') },
+    ...this.villages().map((village) => ({ value: village, label: village })),
   ]);
 
   readonly categoryOptions = computed<SelectOption[]>(() => [
@@ -82,7 +103,10 @@ export class BrowsePropertiesComponent implements OnInit {
     this.propertyService
       .browse({
         q: this.searchTerm,
+        province: this.selectedProvince,
         location: this.selectedLocation,
+        commune: this.selectedCommune,
+        village: this.selectedVillage,
         category: this.selectedCategory,
         min_bedrooms: this.minBedrooms,
         max_price: this.maxPrice,
@@ -95,7 +119,10 @@ export class BrowsePropertiesComponent implements OnInit {
           this.properties.set(res.properties);
           this.total.set(res.meta.total);
           this.page.set(res.meta.page);
+          this.provinces.set(res.meta.provinces || []);
           this.locations.set(res.meta.locations);
+          this.communes.set(res.meta.communes || []);
+          this.villages.set(res.meta.villages || []);
           this.categories.set(res.meta.categories || []);
           this.isLoading.set(false);
         },
@@ -119,7 +146,10 @@ export class BrowsePropertiesComponent implements OnInit {
 
   resetFilters(): void {
     this.searchTerm = '';
+    this.selectedProvince = '__all__';
     this.selectedLocation = '__all__';
+    this.selectedCommune = '__all__';
+    this.selectedVillage = '__all__';
     this.selectedCategory = '__all__';
     this.minBedrooms = 0;
     this.maxPrice = undefined;

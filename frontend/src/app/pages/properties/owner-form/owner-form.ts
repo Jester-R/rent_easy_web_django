@@ -1,16 +1,22 @@
 import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { CambodiaDistrict, PropertyService } from '../../../services/property.service';
+import {
+  CambodiaCommune,
+  CambodiaDistrict,
+  CambodiaProvince,
+  CambodiaVillage,
+  PropertyService,
+} from '../../../services/property.service';
 import { LanguageService } from '../../../services/language.service';
 import { LeafletMapComponent } from '../../../components/leaflet-map/leaflet-map';
 import {
   SearchableSelectComponent,
   SelectOption,
 } from '../../../components/searchable-select/searchable-select';
-import { PropertyCategorySetting } from '../../../models';
+import { Property, PropertyCategorySetting } from '../../../models';
 import { formatCoordinates, parseCoordinates } from '../../../shared/coords';
 import { compressImageToFile } from '../../../shared/image';
 
@@ -18,6 +24,7 @@ import { compressImageToFile } from '../../../shared/image';
   selector: 'app-owner-property-form',
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     LeafletMapComponent,
@@ -52,8 +59,31 @@ export class OwnerPropertyFormComponent implements OnInit {
   ]);
 
   private readonly additionalLocations = signal<SelectOption[]>([]);
+  private readonly cambodiaProvinces = signal<CambodiaProvince[]>([]);
   private readonly cambodiaDistricts = signal<CambodiaDistrict[]>([]);
+  private readonly cambodiaCommunes = signal<CambodiaCommune[]>([]);
+  private readonly cambodiaVillages = signal<CambodiaVillage[]>([]);
+  provinceCode = signal('');
+  communeCode = signal('');
+  villageCode = signal('');
+  private districtCode = signal('');
   districtLoadError = signal(false);
+  locationLoadError = signal(false);
+  private villagesRequested = false;
+  private pendingAiLocation: {
+    location?: string;
+    province?: string;
+    commune?: string;
+    village?: string;
+  } | null = null;
+
+  readonly provinceOptions = computed<SelectOption[]>(() =>
+    this.cambodiaProvinces().map((province) => ({
+      value: province.code,
+      label: this.locationLabel(province.name_en, province.name_km),
+    })),
+  );
+
   readonly locationOptions = computed<SelectOption[]>(() => {
     const fallbackLocations: [string, string][] = [
       ['Phnom Penh - BKK1', 'ភ្នំពេញ - បឹងកេងកង ១'],
@@ -63,15 +93,18 @@ export class OwnerPropertyFormComponent implements OnInit {
       ['Phnom Penh - Daun Penh', 'ភ្នំពេញ - ដូនពេញ'],
       ['Siem Reap - Wat Bo', 'សៀមរាប - វត្តបូព៌'],
     ];
-    const districts = this.cambodiaDistricts();
+    const province = this.provinceCode();
+    const districts = this.cambodiaDistricts().filter(
+      (district) => !province || district.province_code === province,
+    );
     const options = districts.length
       ? districts.map((district) => {
-          const bilingualName = `${district.name_en} / ${district.name_km}`;
+          const bilingualName = this.locationLabel(district.name_en, district.name_km);
           return { value: bilingualName, label: bilingualName };
         })
       : fallbackLocations.map(([value, khmer]) => ({
           value,
-          label: `${value} / ${khmer}`,
+          label: this.locationLabel(value, khmer),
         }));
     for (const location of this.additionalLocations()) {
       if (!options.some((option) => option.value === location.value)) {
@@ -83,6 +116,57 @@ export class OwnerPropertyFormComponent implements OnInit {
     }
     return options;
   });
+
+  readonly communeOptions = computed<SelectOption[]>(() => {
+    const province = this.provinceCode();
+    const district = this.districtCode();
+    return this.cambodiaCommunes()
+      .filter(
+        (commune) =>
+          (!province || commune.province_code === province) &&
+          (!district || commune.district_code === district),
+      )
+      .map((commune) => ({
+        value: commune.code,
+        label: this.locationLabel(commune.name_en, commune.name_km),
+      }));
+  });
+
+  readonly villageOptions = computed<SelectOption[]>(() => {
+    const commune = this.communeCode();
+    if (!commune) return [];
+    return this.cambodiaVillages()
+      .filter((village) => village.commune_code === commune)
+      .map((village) => ({
+        value: this.villageKey(village),
+        label: this.locationLabel(village.name_en, village.name_km),
+      }));
+  });
+
+  private villageKey(village: CambodiaVillage): string {
+    return `${village.code}|${village.name_en}|${village.name_km}`;
+  }
+
+  private locationLabel(nameEn: string, nameKm: string): string {
+    return nameEn && nameKm ? `${nameEn} / ${nameKm}` : nameEn || nameKm;
+  }
+
+  private normalizeLocationName(value: string): string {
+    return value.trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  private findLocationByName<T extends { name_en: string; name_km: string }>(
+    items: T[],
+    value: string,
+  ): T | undefined {
+    const query = this.normalizeLocationName(value);
+    if (!query) return undefined;
+    return items.find(
+      (item) =>
+        this.normalizeLocationName(item.name_en) === query ||
+        this.normalizeLocationName(item.name_km) === query,
+    );
+  }
 
   private readonly fb = inject(FormBuilder);
   private readonly propertyService = inject(PropertyService);
@@ -101,6 +185,7 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   latitude = signal<number | null>(null);
   longitude = signal<number | null>(null);
+  private loadedProperty: Property | null = null;
   coordError = signal(false);
   isResolvingCoordinates = signal(false);
   private coordinateResolveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -120,9 +205,14 @@ export class OwnerPropertyFormComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.form.controls.location.valueChanges.subscribe((value) =>
+      this.onDistrictChange(value || ''),
+    );
     if (isPlatformBrowser(this.platformId)) {
       this.loadCategorySettings();
       this.loadDistricts();
+      this.loadProvinces();
+      this.loadCommunes();
     }
     const editId = this.id();
     if (editId) {
@@ -147,9 +237,115 @@ export class OwnerPropertyFormComponent implements OnInit {
       next: (districts) => {
         this.cambodiaDistricts.set(districts);
         this.districtLoadError.set(districts.length === 0);
+        this.applyLoadedPropertyLocation();
       },
       error: () => this.districtLoadError.set(true),
     });
+  }
+
+  loadProvinces(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.propertyService.getCambodiaProvinces().subscribe({
+      next: (provinces) => {
+        this.cambodiaProvinces.set(provinces);
+        this.locationLoadError.set(provinces.length === 0);
+        this.applyLoadedPropertyLocation();
+      },
+      error: () => this.locationLoadError.set(true),
+    });
+  }
+
+  loadCommunes(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.propertyService.getCambodiaCommunes().subscribe({
+      next: (communes) => {
+        this.cambodiaCommunes.set(communes);
+        this.applyLoadedPropertyLocation();
+      },
+      error: () => this.locationLoadError.set(true),
+    });
+  }
+
+  loadVillages(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    this.villagesRequested = true;
+    this.propertyService.getCambodiaVillages().subscribe({
+      next: (villages) => {
+        this.cambodiaVillages.set(villages);
+        this.applyLoadedPropertyLocation();
+        if (this.pendingAiLocation) {
+          this.applyAiLocation(this.pendingAiLocation);
+        }
+      },
+      error: () => {
+        this.villagesRequested = false;
+        this.locationLoadError.set(true);
+      },
+    });
+  }
+
+  onProvinceChange(code: string): void {
+    this.provinceCode.set(code);
+    this.districtCode.set('');
+    this.communeCode.set('');
+    this.villageCode.set('');
+    this.form.patchValue({ location: '' });
+  }
+
+  onDistrictChange(value: string): void {
+    const district = this.findDistrictByName(value);
+    this.districtCode.set(district?.code || '');
+    if (district) this.provinceCode.set(district.province_code);
+    this.communeCode.set('');
+    this.villageCode.set('');
+  }
+
+  onCommuneChange(code: string): void {
+    this.communeCode.set(code);
+    this.villageCode.set('');
+    if (code) this.ensureVillagesLoaded();
+  }
+
+  private ensureVillagesLoaded(): void {
+    if (this.villagesRequested) return;
+    this.loadVillages();
+  }
+
+  private findDistrictByName(value: string): CambodiaDistrict | undefined {
+    if (!value) return undefined;
+    return this.cambodiaDistricts().find(
+      (district) => this.locationLabel(district.name_en, district.name_km) === value,
+    );
+  }
+
+  private applyLoadedPropertyLocation(): void {
+    const property = this.loadedProperty;
+    if (!property) return;
+    const district = this.findDistrictByName(
+      property.location || property.location_km || '',
+    );
+    const province = this.cambodiaProvinces().find(
+      (item) =>
+        (property.province && item.name_en === property.province) ||
+        (property.province_km && item.name_km === property.province_km),
+    );
+    const commune = this.cambodiaCommunes().find(
+      (item) =>
+        ((property.commune && item.name_en === property.commune) ||
+          (property.commune_km && item.name_km === property.commune_km)) &&
+        (!district || item.district_code === district.code),
+    );
+    const village = this.cambodiaVillages().find(
+      (item) =>
+        ((property.village && item.name_en === property.village) ||
+          (property.village_km && item.name_km === property.village_km)) &&
+        (!commune || item.commune_code === commune.code),
+    );
+    this.districtCode.set(district?.code || '');
+    this.provinceCode.set(province?.code || district?.province_code || '');
+    this.communeCode.set(commune?.code || '');
+    this.villageCode.set(village ? this.villageKey(village) : '');
+    if (commune) this.ensureVillagesLoaded();
   }
 
   loadProperty(id: number): void {
@@ -158,6 +354,7 @@ export class OwnerPropertyFormComponent implements OnInit {
       next: (res) => {
         this.isLoading.set(false);
         const p = res.property;
+        this.loadedProperty = p;
         const location = p.location || p.location_km || '';
         if (location && !this.locationOptions().some((option) => option.value === location)) {
           this.additionalLocations.update((items) => [
@@ -180,6 +377,7 @@ export class OwnerPropertyFormComponent implements OnInit {
           description_km: p.description_km || '',
           coordinates: formatCoordinates(p.latitude, p.longitude),
         });
+        this.applyLoadedPropertyLocation();
         this.existingImages.set(p.images || []);
         this.latitude.set(p.latitude ?? null);
         this.longitude.set(p.longitude ?? null);
@@ -342,7 +540,6 @@ export class OwnerPropertyFormComponent implements OnInit {
           this.form.patchValue({
             ...(res.title ? { title: res.title } : {}),
             ...(res.title_km ? { title_km: res.title_km } : {}),
-            location: res.location && this.locationOptions().some((option) => option.value === res.location) ? res.location : '',
             ...(res.price_per_month != null ? { price_per_month: res.price_per_month } : {}),
             ...(res.category && this.categorySettings().some((category) => category.value === res.category) ? { category: res.category } : {}),
             ...(res.bedrooms != null ? { bedrooms: res.bedrooms } : {}),
@@ -350,6 +547,7 @@ export class OwnerPropertyFormComponent implements OnInit {
             ...(res.description ? { description: res.description } : {}),
             ...(res.description_km ? { description_km: res.description_km } : {}),
           });
+          this.applyAiLocation(res);
         },
         error: (err) => {
           this.isGeneratingDescription.set(false);
@@ -361,6 +559,87 @@ export class OwnerPropertyFormComponent implements OnInit {
           }
         },
       });
+  }
+
+  private applyAiLocation(draft: {
+    location?: string;
+    province?: string;
+    commune?: string;
+    village?: string;
+  }): void {
+    const locationValue = (draft.location || '').trim();
+    const provinceValue = (draft.province || '').trim();
+    const communeValue = (draft.commune || '').trim();
+    const villageValue = (draft.village || '').trim();
+
+    if (!locationValue && !provinceValue && !communeValue && !villageValue) {
+      this.pendingAiLocation = null;
+      return;
+    }
+
+    let district = this.cambodiaDistricts().find(
+      (item) =>
+        locationValue !== '' &&
+        this.locationLabel(item.name_en, item.name_km) === locationValue,
+    );
+    if (!district && locationValue) {
+      district = this.findLocationByName(this.cambodiaDistricts(), locationValue);
+    }
+    let province = provinceValue
+      ? this.findLocationByName(this.cambodiaProvinces(), provinceValue)
+      : undefined;
+    let commune = communeValue
+      ? this.findLocationByName(
+          this.cambodiaCommunes().filter(
+            (item) =>
+              (!district || item.district_code === district.code) &&
+              (!province || item.province_code === province.code),
+          ),
+          communeValue,
+        )
+      : undefined;
+    let village =
+      villageValue && this.cambodiaVillages().length
+        ? this.findLocationByName(
+            this.cambodiaVillages().filter(
+              (item) => !commune || item.commune_code === commune.code,
+            ),
+            villageValue,
+          )
+        : undefined;
+
+    if (!commune && village) {
+      const communeCode = village.commune_code;
+      commune = this.cambodiaCommunes().find((item) => item.code === communeCode);
+    }
+    if (!district && commune) {
+      const districtCode = commune.district_code;
+      district = this.cambodiaDistricts().find((item) => item.code === districtCode);
+    }
+    if (!province && commune) {
+      const provinceCode = commune.province_code;
+      province = this.cambodiaProvinces().find((item) => item.code === provinceCode);
+    }
+    if (!province && district) {
+      const provinceCode = district.province_code;
+      province = this.cambodiaProvinces().find((item) => item.code === provinceCode);
+    }
+
+    const districtLabel = district
+      ? this.locationLabel(district.name_en, district.name_km)
+      : '';
+    this.form.patchValue({ location: districtLabel });
+
+    this.provinceCode.set(province?.code || '');
+    this.districtCode.set(district?.code || '');
+    this.communeCode.set(commune?.code || '');
+    this.villageCode.set(village ? this.villageKey(village) : '');
+
+    if (commune || (villageValue && !this.cambodiaVillages().length)) {
+      this.ensureVillagesLoaded();
+    }
+    this.pendingAiLocation =
+      villageValue && !this.cambodiaVillages().length ? draft : null;
   }
 
   onSubmit(): void {
@@ -382,11 +661,27 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
+    const province = this.cambodiaProvinces().find(
+      (item) => item.code === this.provinceCode(),
+    );
+    const commune = this.cambodiaCommunes().find(
+      (item) => item.code === this.communeCode(),
+    );
+    const village = this.cambodiaVillages().find(
+      (item) => this.villageKey(item) === this.villageCode(),
+    );
+
     const payload = {
       title: val.title || '',
       title_km: val.title_km || '',
+      province: province?.name_en || '',
+      province_km: province?.name_km || '',
       location: val.location || '',
       location_km: '',
+      commune: commune?.name_en || '',
+      commune_km: commune?.name_km || '',
+      village: village?.name_en || '',
+      village_km: village?.name_km || '',
       price_per_month: Number(val.price_per_month) || 0,
       category: val.category || '',
       bedrooms: Number(val.bedrooms) || 0,
