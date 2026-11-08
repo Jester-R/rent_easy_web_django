@@ -28,7 +28,19 @@
       </div>
 
 
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div class="min-w-0">
+          <label class="form-label">{{ language.t('browse.province') }}</label>
+          <app-searchable-select
+            [options]="provinceOptions()"
+            [ngModel]="selectedProvince"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="selectedProvince = $event; onFilterChange()"
+            [placeholder]="language.t('browse.allProvinces')"
+            [searchPlaceholder]="language.t('browse.search2')"
+          />
+        </div>
+
         <div class="min-w-0">
           <label class="form-label">{{ language.t('browse.location') }}</label>
           <app-searchable-select
@@ -37,6 +49,30 @@
             [ngModelOptions]="{ standalone: true }"
             (ngModelChange)="selectedLocation = $event; onFilterChange()"
             [placeholder]="language.t('browse.allLocations')"
+            [searchPlaceholder]="language.t('browse.search2')"
+          />
+        </div>
+
+        <div class="min-w-0">
+          <label class="form-label">{{ language.t('browse.commune') }}</label>
+          <app-searchable-select
+            [options]="communeOptions()"
+            [ngModel]="selectedCommune"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="selectedCommune = $event; onFilterChange()"
+            [placeholder]="language.t('browse.allCommunes')"
+            [searchPlaceholder]="language.t('browse.search2')"
+          />
+        </div>
+
+        <div class="min-w-0">
+          <label class="form-label">{{ language.t('browse.village') }}</label>
+          <app-searchable-select
+            [options]="villageOptions()"
+            [ngModel]="selectedVillage"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="selectedVillage = $event; onFilterChange()"
+            [placeholder]="language.t('browse.allVillages')"
             [searchPlaceholder]="language.t('browse.search2')"
           />
         </div>
@@ -88,8 +124,8 @@
           />
         </div>
 
-        @if (searchTerm || selectedLocation !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
-          <div class="col-span-2 flex sm:col-span-3 sm:justify-end lg:col-span-5">
+        @if (searchTerm || selectedProvince !== '__all__' || selectedLocation !== '__all__' || selectedCommune !== '__all__' || selectedVillage !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
+          <div class="col-span-2 flex sm:col-span-3 sm:justify-end lg:col-span-4">
             <button type="button" (click)="resetFilters()" class="btn btn-ghost flex-1 sm:flex-none">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 6 12 12M18 6 6 18"/></svg>
               <span>{{ language.t('browse.reset') }}</span>

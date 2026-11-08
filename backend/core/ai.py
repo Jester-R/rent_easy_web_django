@@ -35,6 +35,9 @@ PROPERTY_DRAFT_SCHEMA = {
         "title": {"type": "STRING"},
         "title_km": {"type": "STRING"},
         "location": {"type": "STRING"},
+        "province": {"type": "STRING"},
+        "commune": {"type": "STRING"},
+        "village": {"type": "STRING"},
         "price_per_month": {"type": "NUMBER", "nullable": True},
         "category": {"type": "STRING"},
         "bedrooms": {"type": "INTEGER", "nullable": True},
@@ -46,6 +49,9 @@ PROPERTY_DRAFT_SCHEMA = {
         "title",
         "title_km",
         "location",
+        "province",
+        "commune",
+        "village",
         "price_per_month",
         "category",
         "bedrooms",
@@ -239,23 +245,28 @@ def build_property_draft_prompt(details: dict[str, Any]) -> list[dict[str, str]]
         "Choose a district only when its English or Khmer name is explicitly present "
         "in the owner's request. Return that option's exact value. Do not infer a "
         "district from a city, province, or vague area; if no supplied district name "
-        "matches the request, return an empty location. For unknown numeric facts return null. "
-        "Always create a clear title and a short listing description from the "
-        "available facts; include rental duration or terms if stated. If the request "
+        "matches the request, return an empty location. Extract province, commune, and "
+        "village names only when they are explicitly present in the request, using the "
+        "exact English or Khmer name written by the owner; otherwise return empty "
+        "strings. Do not infer those names from the district. For unknown numeric facts "
+        "return null. Always create a clear title and a short listing description from "
+        "the available facts; include rental duration or terms if stated. If the request "
         "states a rent or price, always extract its numeric monthly USD amount into "
         "price_per_month, including amounts written with $, USD, commas, or 'per month'. "
         "If no price is stated, return null. Do not require "
         "the owner to provide every field. Return ONLY JSON with "
-        "exactly these keys: title, title_km, location, price_per_month, category, "
-        "bedrooms, bathrooms, description, description_km. Text values must be "
-        "strings; price and room counts must be numbers or null."
+        "exactly these keys: title, title_km, location, province, commune, village, "
+        "price_per_month, category, bedrooms, bathrooms, description, description_km. "
+        "Text values must be strings; price and room counts must be numbers or null."
     )
     instruction = (
         "Create a property form draft from the owner's request and options below. "
         "Do not include photos or map coordinates.\n"
         f"{json.dumps({'request': _clean(details.get('prompt'), 3000), 'locations': details.get('locations', []), 'categories': details.get('categories', [])}, ensure_ascii=False, indent=2)}\n"
         "Use the exact option value for location/category. Match location against "
-        "the supplied district names in either language. Treat a trailing dollar "
+        "the supplied district names in either language. For province, commune, and "
+        "village, copy the exact name from the request and leave them empty when not "
+        "stated. Treat a trailing dollar "
         "sign as currency too: '50$' means a monthly rent of 50 USD. A request such as "
         "'mini house for $1,200 a month, 12-month rental' should produce a house "
         "category, rent 1200, a mini-house title, and descriptions mentioning the "
@@ -315,6 +326,9 @@ async def generate_property_draft(details: dict[str, Any]) -> dict[str, Any]:
         "title",
         "title_km",
         "location",
+        "province",
+        "commune",
+        "village",
         "category",
         "description",
         "description_km",

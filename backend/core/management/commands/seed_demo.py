@@ -103,6 +103,21 @@ CITY_CENTERS = {
     "Siem Reap": (13.3622, 103.8597),
 }
 
+CITY_TRANSLATIONS = {
+    "Phnom Penh": "ភ្នំពេញ",
+    "Siem Reap": "សៀមរាប",
+}
+
+
+def _location_fields(location: str) -> dict:
+    province, _, area = location.partition(" - ")
+    return {
+        "province": province,
+        "province_km": CITY_TRANSLATIONS.get(province, ""),
+        "commune": area,
+        "commune_km": "",
+    }
+
 
 def _coords_for(location: str, rng) -> tuple[float, float]:
     for city, (lat, lng) in CITY_CENTERS.items():
@@ -248,6 +263,7 @@ class Command(BaseCommand):
                 Property.objects.create(
                     title=TITLES[index % len(TITLES)],
                     location=location,
+                    **_location_fields(location),
                     price_per_month=Decimal(rng.randrange(low, high, 10)),
                     bedrooms=rng.choice([0, 1, 1, 2, 2, 3]),
                     bathrooms=rng.choice([1, 1, 2]),
@@ -275,6 +291,12 @@ class Command(BaseCommand):
             if not prop.images:
                 prop.images = _images_for(index)
                 fields.append("images")
+            if not prop.province:
+                details = _location_fields(prop.location)
+                prop.province = details["province"]
+                prop.province_km = details["province_km"]
+                prop.commune = details["commune"]
+                fields.extend(["province", "province_km", "commune"])
             if fields:
                 prop.save(update_fields=fields)
                 updated += 1

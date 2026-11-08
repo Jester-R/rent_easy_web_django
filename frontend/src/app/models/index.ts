@@ -53,8 +53,14 @@ export interface Property {
   is_active: boolean;
   title: string;
   title_km?: string;
+  province?: string;
+  province_km?: string;
   location: string;
   location_km?: string;
+  commune?: string;
+  commune_km?: string;
+  village?: string;
+  village_km?: string;
   price_per_month: number;
   price_display: string;
   location_label: string;
