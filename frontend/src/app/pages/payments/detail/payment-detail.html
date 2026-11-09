@@ -96,10 +96,17 @@
             <app-icon name="clock" [size]="17" />
             <span>Waiting for payment</span>
           </h3>
-          <p class="text-[13px] text-ink-3">
-            Complete the payment on the ABA PayWay page. This receipt updates automatically once
-            PayWay confirms the transaction.
-          </p>
+          @if (p.provider === 'stripe') {
+            <p class="text-[13px] text-ink-3">
+              Complete the card payment in the Stripe checkout window. This receipt updates
+              automatically once Stripe confirms the transaction.
+            </p>
+          } @else {
+            <p class="text-[13px] text-ink-3">
+              Complete the payment on the ABA PayWay page. This receipt updates automatically once
+              PayWay confirms the transaction.
+            </p>
+          }
           @if (refreshError()) {
             <div class="toast toast-error mt-3" role="alert">{{ refreshError() }}</div>
           }

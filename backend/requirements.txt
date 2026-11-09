@@ -168,3 +168,5 @@ uvloop==0.23.0 ; sys_platform != 'win32' \
     --hash=sha256:f673d835bdb1a60229cc3609a113fd2c9ce3f4a3c75ad4eaed111180c00199d2 \
     --hash=sha256:fa8ed556fcc87a4091cf61587ef172fa104323dc89ecc085a618ba7ff8629a8f
     # via django-bolt
+stripe==16.1.0 \
+    # via backend

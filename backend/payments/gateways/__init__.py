@@ -1,5 +1,5 @@
-"""Payment gateway integrations (currently ABA PayWay)."""
+"""Payment gateway integrations (ABA PayWay, Stripe)."""
 
 from __future__ import annotations
 
-__all__ = ["aba"]
+__all__ = ["aba", "stripe"]

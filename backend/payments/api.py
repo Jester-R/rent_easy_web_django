@@ -30,15 +30,17 @@ from core.bolt_serializers import payment as serialize_payment
 from core.bolt_serializers import payout as serialize_payout
 from core.bolt_serializers import refund as serialize_refund
 from payments.gateways import aba as aba_gateway
+from payments.gateways import stripe as stripe_gateway
 from payments.models import Payment, Payout, Refund
 from payments.services import (
     RefundRequiresGateway,
     RefundRequestError,
     apply_aba_callback,
+    apply_stripe_event,
     backfill_missing_payouts,
     process_refund,
-    request_refund,
     reconcile_aba_payment,
+    reconcile_stripe_payment,
     release_due_payouts,
 )
 
@@ -90,13 +92,29 @@ def _payway_signature(request) -> str:
     return ""
 
 
+def _header(request, name: str) -> str:
+    """Read a request header case-insensitively (e.g. ``Stripe-Signature``)."""
+    lowered = name.lower()
+    headers = getattr(request, "headers", {}) or {}
+    for key, value in headers.items():
+        if str(key).lower() == lowered:
+            return str(value)
+    return ""
+
+
 async def _refresh_pending_payment(payment: Payment) -> Payment:
-    """Ask PayWay to reconcile a pending ABA payment, then reload the row."""
-    if (
-        payment.provider == Payment.Provider.ABA_PAYWAY
-        and payment.is_pending
-        and aba_gateway.is_configured()
-    ):
+    """Reconcile a pending gateway payment, then reload the row."""
+    if not payment.is_pending:
+        return payment
+
+    async def reload() -> Payment:
+        return (
+            await Payment.objects.select_related("property", "booking", "user")
+            .filter(pk=payment.pk)
+            .afirst()
+        ) or payment
+
+    if payment.provider == Payment.Provider.ABA_PAYWAY and aba_gateway.is_configured():
         try:
             await in_thread(reconcile_aba_payment, payment)
         except aba_gateway.PayWayError as exc:
@@ -112,11 +130,17 @@ async def _refresh_pending_payment(payment: Payment) -> Payment:
             raise HTTPException(
                 status_code=502, detail="aba_payway_unavailable"
             ) from exc
-        payment = (
-            await Payment.objects.select_related("property", "booking", "user")
-            .filter(pk=payment.pk)
-            .afirst()
-        ) or payment
+        return await reload()
+
+    if payment.provider == Payment.Provider.STRIPE and stripe_gateway.is_configured():
+        try:
+            await in_thread(reconcile_stripe_payment, payment)
+        except Exception as exc:  # network failure: keep the pending row
+            raise HTTPException(
+                status_code=502, detail="stripe_unavailable"
+            ) from exc
+        return await reload()
+
     return payment
 
 
@@ -148,6 +172,47 @@ async def aba_callback(request):
 
     applied = await in_thread(apply_aba_callback, payload)
     return {"ok": True, "applied": applied}
+
+
+@api.post("/payments/stripe/webhook/")
+async def stripe_webhook(request):
+    """Server-to-server Stripe webhook (``checkout.session.*`` events).
+
+    The ``Stripe-Signature`` header is verified against
+    ``STRIPE_WEBHOOK_SECRET`` before the payload is applied.
+    """
+    raw_body = getattr(request, "body", b"") or b""
+    signature = _header(request, "stripe-signature")
+    event = await in_thread(stripe_gateway.construct_webhook_event, raw_body, signature)
+    if event is None:
+        raise HTTPException(status_code=401, detail="invalid_signature")
+    applied = await in_thread(apply_stripe_event, event)
+    return {"ok": True, "applied": applied}
+
+
+@api.get("/payments/stripe/return/")
+async def stripe_return(request):
+    """Browser return after hosted checkout: reconcile, then land on the receipt."""
+    raw_id = q(request, "payment")
+    payment_id = None
+    try:
+        payment_id = int(raw_id)
+    except (TypeError, ValueError):
+        payment_id = None
+
+    if payment_id:
+        payment = await (
+            Payment.objects.select_related("property", "booking", "user")
+            .filter(pk=payment_id)
+            .afirst()
+        )
+        if payment is not None:
+            try:
+                await _refresh_pending_payment(payment)
+            except HTTPException:
+                pass
+
+    return Redirect(_frontend_payment_url(payment_id), status_code=303)
 
 
 @api.get("/payments/aba/return/")

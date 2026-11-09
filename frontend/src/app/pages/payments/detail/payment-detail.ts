@@ -87,7 +87,7 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
         this.audience.set(res.audience === 'owner' ? 'owner' : 'renter');
         this.isLoading.set(false);
         this.refund.set(res.refund ?? null);
-        if (res.payment.status === 'Pending' && res.payment.provider === 'aba_payway') {
+        if (res.payment.status === 'Pending' && (res.payment.provider === 'aba_payway' || res.payment.provider === 'stripe')) {
           this.startPolling();
         }
       },
@@ -98,7 +98,7 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Check PayWay for a pending transaction and keep polling for a short while. */
+  /** Check the payment provider for a pending transaction and keep polling for a short while. */
   refreshPayment(silent = false): void {
     const p = this.payment();
     if (!p || p.status !== 'Pending' || this.isRefreshing()) return;
@@ -122,7 +122,7 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.isRefreshing.set(false);
-        this.refreshError.set('Could not reach ABA PayWay. Try again shortly.');
+        this.refreshError.set('Could not reach the payment provider. Try again shortly.');
         this.schedulePoll();
       },
     });

@@ -17,9 +17,16 @@ from bookings.models import Booking, BookingStatus
 from notifications.models import Notification
 from notifications.services import notify
 from payments.gateways import aba as aba_gateway
+from payments.gateways import stripe as stripe_gateway
 from payments.models import Payment, Payout, Refund
 
 logger = logging.getLogger(__name__)
+
+
+class UnsupportedPaymentMethod(RuntimeError):
+    """Raised when a client asks for a payment method nobody provides."""
+
+    code = "unsupported_method"
 
 
 class RefundRequiresGateway(RuntimeError):
@@ -61,6 +68,9 @@ _METHOD_ALIASES: dict[str, str] = {
     "card": Payment.Method.CARD,
     "credit card": Payment.Method.CARD,
     "credit card (mock)": Payment.Method.CARD,
+    "stripe": Payment.Method.STRIPE,
+    "stripe card": Payment.Method.STRIPE,
+    "stripe checkout": Payment.Method.STRIPE,
 }
 
 
@@ -70,8 +80,9 @@ def normalize_method(value: str | None, default: str = Payment.Method.ABA) -> st
         return default
     normalized = _METHOD_ALIASES.get(str(value).strip().lower())
     if normalized is None:
-        raise aba_gateway.PayWayError(
-            "unsupported_method", "Only ABA PayWay is available"
+        raise UnsupportedPaymentMethod(
+            f"Unsupported payment method: {value!r}. "
+            "ABA PayWay and Stripe Card are available."
         )
     return normalized
 
@@ -267,11 +278,18 @@ def transition_booking(
 
 @transaction.atomic
 def pay_booking(*, booking: Booking, method: str, simulate: str = "") -> PaymentResult:
-    """Start a booking payment through the configured ABA PayWay gateway."""
+    """Start a booking payment through the gateway matching the method."""
     canonical = normalize_method(method)
+    if canonical == Payment.Method.STRIPE:
+        if not stripe_gateway.is_configured():
+            raise stripe_gateway.StripeGatewayError(
+                "not_configured", "Stripe is not configured"
+            )
+        return _start_stripe_payment(booking)
     if canonical != Payment.Method.ABA:
-        raise aba_gateway.PayWayError(
-            "unsupported_method", "Only ABA PayWay is available"
+        raise UnsupportedPaymentMethod(
+            f"Unsupported payment method: {method!r}. "
+            "ABA PayWay and Stripe Card are available."
         )
     if not aba_gateway.is_configured():
         raise aba_gateway.PayWayError("not_configured", "ABA PayWay is not configured")
@@ -359,6 +377,72 @@ def _payway_name_parts(display_name: str) -> tuple[str, str]:
     return firstname[:100], lastname[:100]
 
 
+@transaction.atomic
+def _start_stripe_payment(booking: Booking) -> PaymentResult:
+    """Create a pending payment and its hosted Stripe Checkout session."""
+    rent = Decimal(booking.monthly_rent).quantize(Decimal("0.01"))
+    platform_settings = PlatformSettings.objects.filter(pk=1).first()
+    rates = (platform_settings.commission_rates if platform_settings else {}) or {}
+    try:
+        commission_rate = Decimal(str(rates.get(Payment.Method.STRIPE, 0)))
+    except (AttributeError, TypeError, ValueError):
+        commission_rate = Decimal("0")
+    commission_rate = min(Decimal("100"), max(Decimal("0"), commission_rate))
+    fee = (rent * commission_rate / Decimal("100")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    total = rent + fee
+    payment = Payment.objects.create(
+        property=booking.property,
+        user=booking.renter,
+        booking=booking,
+        amount=total,
+        method=Payment.Method.STRIPE,
+        status=Payment.Status.PENDING,
+        provider=Payment.Provider.STRIPE,
+    )
+
+    renter = booking.renter
+    try:
+        session = stripe_gateway.create_checkout_session(
+            client_reference_id=payment.reference,
+            amount=payment.amount,
+            description=booking.property_title,
+            email=renter.email,
+            payment_id=payment.pk,
+        )
+    except Exception as exc:
+        payment.status = Payment.Status.FAILED
+        payment.gateway_payload = {
+            "error": str(exc),
+            "code": getattr(exc, "code", ""),
+        }
+        payment.save(update_fields=["status", "gateway_payload"])
+        raise
+
+    # The checkout session id is the reconciliation handle used by the webhook
+    # and the refresh endpoints; the reference stays the human-facing id.
+    payment.provider_ref = session["id"]
+    payment.gateway_payload = {
+        "request": {
+            "amount": str(total),
+            "session_id": session["id"],
+            "currency": session.get("currency") or settings.STRIPE_CURRENCY,
+        },
+        "commission": {
+            "base_amount": str(rent),
+            "rate": str(commission_rate),
+            "amount": str(fee),
+        },
+        "stripe": {
+            "session_id": session["id"],
+            "payment_intent": "",
+        },
+    }
+    payment.save(update_fields=["provider_ref", "gateway_payload"])
+    return PaymentResult(payment, checkout={"provider": "stripe", "url": session["url"]})
+
+
 def _attach_successful_payment(booking: Booking, payment: Payment) -> None:
     """Link a successful payment to its booking and alert the owner."""
     booking.payment = payment
@@ -432,7 +516,11 @@ def create_payout_for_payment(payment: Payment) -> Payout | None:
     ):
         commission_rate = Decimal("0")
     commission_snapshot = (payment.gateway_payload or {}).get("commission") or {}
-    if payment.provider == Payment.Provider.ABA_PAYWAY and commission_snapshot:
+    if (
+        payment.provider
+        in (Payment.Provider.ABA_PAYWAY, Payment.Provider.STRIPE)
+        and commission_snapshot
+    ):
         commission_rate = Decimal(str(commission_snapshot.get("rate", commission_rate)))
         commission_amount = Decimal(
             str(commission_snapshot.get("amount", "0"))
@@ -544,6 +632,55 @@ def backfill_missing_payouts(owner=None) -> int:
     return count
 
 
+def _booking_conflict_or_attach(payment: Payment, payload: dict) -> bool:
+    """Finalize a successful gateway payment against its booking.
+
+    Shared by the ABA PayWay and Stripe confirm paths. Returns ``False`` when
+    the payment row must stay unlinked: a missing booking, or a duplicate
+    charge for a booking that another transaction already paid. The duplicate
+    case queues a refund because the money has really moved.
+    """
+    booking = (
+        Booking.objects.select_for_update()
+        .select_related("property", "renter", "owner")
+        .filter(pk=payment.booking_id)
+        .first()
+    )
+    if booking is None:
+        return False
+    if booking.payment_id and booking.payment_id != payment.pk:
+        payment.status = Payment.Status.FAILED
+        needs_refund = not payment.is_refunded
+        if needs_refund:
+            payment.refund_status = Payment.RefundStatus.PENDING
+        payment.gateway_payload = {
+            **payment.gateway_payload,
+            **payload,
+            "error": "booking_already_paid",
+        }
+        payment.save(update_fields=["status", "refund_status", "gateway_payload"])
+        if needs_refund:
+            if not Refund.objects.filter(
+                payment=payment, status=Refund.Status.PENDING
+            ).exists():
+                Refund.objects.create(
+                    payment=payment,
+                    booking=booking,
+                    amount=payment.amount,
+                    reason=Refund.Reason.OTHER,
+                    note="Duplicate payment for an already-paid booking.",
+                )
+        return False
+
+    payment.status = Payment.Status.SUCCESS
+    payment.paid_at = payment.paid_at or timezone.now()
+    payment.gateway_payload = {**payment.gateway_payload, **payload}
+    payment.save(update_fields=["status", "paid_at", "gateway_payload"])
+    if not booking.payment_id:
+        _attach_successful_payment(booking, payment)
+    return True
+
+
 @transaction.atomic
 def confirm_aba_payment(
     payment_id: int,
@@ -598,48 +735,7 @@ def confirm_aba_payment(
             payment.save(update_fields=["status", "gateway_payload"])
             return False
 
-    booking = (
-        Booking.objects.select_for_update()
-        .select_related("property", "renter", "owner")
-        .filter(pk=payment.booking_id)
-        .first()
-    )
-    if booking is None:
-        return False
-    if booking.payment_id and booking.payment_id != payment.pk:
-        # The renter was charged for a booking that another transaction has
-        # already paid. The money is real, so flag a refund instead of silently
-        # treating it as a failed attempt.
-        payment.status = Payment.Status.FAILED
-        needs_refund = not payment.is_refunded
-        if needs_refund:
-            payment.refund_status = Payment.RefundStatus.PENDING
-        payment.gateway_payload = {
-            **payment.gateway_payload,
-            **payload,
-            "error": "booking_already_paid",
-        }
-        payment.save(update_fields=["status", "refund_status", "gateway_payload"])
-        if needs_refund:
-            if not Refund.objects.filter(
-                payment=payment, status=Refund.Status.PENDING
-            ).exists():
-                Refund.objects.create(
-                    payment=payment,
-                    booking=booking,
-                    amount=payment.amount,
-                    reason=Refund.Reason.OTHER,
-                    note="Duplicate payment for an already-paid booking.",
-                )
-        return False
-
-    payment.status = Payment.Status.SUCCESS
-    payment.paid_at = payment.paid_at or timezone.now()
-    payment.gateway_payload = {**payment.gateway_payload, **payload}
-    payment.save(update_fields=["status", "paid_at", "gateway_payload"])
-    if not booking.payment_id:
-        _attach_successful_payment(booking, payment)
-    return True
+    return _booking_conflict_or_attach(payment, payload)
 
 
 def reconcile_aba_payment(payment: Payment) -> bool:
@@ -670,6 +766,163 @@ def reconcile_aba_payment(payment: Payment) -> bool:
             or data.get("payment_amount")
         ),
         payload={"check_transaction": data},
+    )
+
+
+@transaction.atomic
+def confirm_stripe_payment(
+    payment_id: int, *, session: dict, payload: dict | None = None
+) -> bool:
+    """Reconcile a Stripe Checkout session with a pending payment row.
+
+    Idempotent: a second webhook or refresh returns ``True`` without creating
+    another notification. An amount mismatch or a booking that already has a
+    different payment marks this payment failed instead of double-paying.
+    """
+    payment = (
+        Payment.objects.select_for_update()
+        .select_related("booking", "booking__renter", "booking__owner", "property")
+        .filter(pk=payment_id)
+        .first()
+    )
+    if payment is None or payment.provider != Payment.Provider.STRIPE:
+        return False
+    if payment.is_successful:
+        return True
+
+    payload = payload or {}
+    payment_status = str(session.get("payment_status") or "")
+    session_status = str(session.get("status") or "")
+
+    # A session that expired without payment can never complete.
+    if stripe_gateway.session_is_expired(session_status):
+        payment.status = Payment.Status.FAILED
+        payment.gateway_payload = {
+            **payment.gateway_payload,
+            **payload,
+            "session": session,
+            "error": "session_expired",
+        }
+        payment.save(update_fields=["status", "gateway_payload"])
+        return False
+
+    if not stripe_gateway.session_is_paid(payment_status):
+        # Still open and unpaid: leave the row pending for the next poll.
+        return False
+
+    amount_total = session.get("amount_total")
+    if amount_total is not None:
+        try:
+            paid_minor = Decimal(str(amount_total))
+        except Exception:
+            paid_minor = None
+        expected_minor = Decimal(
+            stripe_gateway.amount_to_minor_units(payment.amount)
+        )
+        if paid_minor is None or paid_minor != expected_minor:
+            payment.status = Payment.Status.FAILED
+            payment.gateway_payload = {
+                **payment.gateway_payload,
+                **payload,
+                "session": session,
+                "error": "amount_mismatch",
+                "paid_amount": str(amount_total),
+            }
+            payment.save(update_fields=["status", "gateway_payload"])
+            return False
+
+    stripe_info = {
+        "session_id": session.get("id") or payment.provider_ref,
+        "payment_intent": str(session.get("payment_intent") or ""),
+    }
+    return _booking_conflict_or_attach(payment, {**payload, "stripe": stripe_info})
+
+
+def reconcile_stripe_payment(payment: Payment) -> bool:
+    """Ask Stripe for the authoritative session status and apply it."""
+    if payment.provider != Payment.Provider.STRIPE or not payment.provider_ref:
+        return False
+    session = stripe_gateway.retrieve_checkout_session(payment.provider_ref)
+    return confirm_stripe_payment(
+        payment.pk, session=session, payload={"checkout_session": session}
+    )
+
+
+def _session_from_event_object(obj) -> dict:
+    """Project a Stripe SDK session object onto the plain session dict shape."""
+    payment_intent = getattr(obj, "payment_intent", "")
+    if payment_intent is not None and not isinstance(payment_intent, str):
+        payment_intent = getattr(payment_intent, "id", "") or ""
+    return {
+        "id": getattr(obj, "id", "") or "",
+        "status": getattr(obj, "status", "") or "",
+        "payment_status": getattr(obj, "payment_status", "") or "",
+        "amount_total": getattr(obj, "amount_total", None),
+        "currency": getattr(obj, "currency", "") or "",
+        "payment_intent": payment_intent or "",
+        "client_reference_id": getattr(obj, "client_reference_id", "") or "",
+        "metadata": stripe_gateway.plain_dict(getattr(obj, "metadata", None)),
+    }
+
+
+@transaction.atomic
+def apply_stripe_event(event) -> bool:
+    """Apply a signature-verified Stripe webhook event to its payment.
+
+    ``checkout.session.completed`` (and the async success variant) confirm the
+    payment; ``async_payment_failed``/``expired`` mark it failed. The session id
+    stored in ``provider_ref`` is the lookup key, with the ``payment_id``
+    metadata kept as a cross-check so an event for another session cannot
+    retarget this row.
+    """
+    event_type = str(getattr(event, "type", "") or "")
+    if event_type not in (
+        stripe_gateway.COMPLETED_EVENTS | stripe_gateway.FAILED_EVENTS
+    ):
+        return False
+    data = getattr(event, "data", None)
+    obj = getattr(data, "object", None) if data is not None else None
+    if obj is None:
+        return False
+    session = _session_from_event_object(obj)
+    session_id = session["id"]
+    if not session_id:
+        return False
+
+    payment = (
+        Payment.objects.select_related("booking")
+        .filter(provider=Payment.Provider.STRIPE, provider_ref=session_id)
+        .first()
+    )
+    if payment is None:
+        meta = session.get("metadata") or {}
+        try:
+            payment_id = int(meta.get("payment_id", ""))
+        except (TypeError, ValueError):
+            return False
+        payment = (
+            Payment.objects.select_related("booking")
+            .filter(pk=payment_id, provider=Payment.Provider.STRIPE)
+            .first()
+        )
+        if payment is None or payment.provider_ref != session_id:
+            # The event does not belong to the row it claims: ignore it.
+            return False
+
+    if event_type in stripe_gateway.FAILED_EVENTS:
+        if payment.is_pending:
+            payment.status = Payment.Status.FAILED
+            payment.gateway_payload = {
+                **payment.gateway_payload,
+                "event": event_type,
+                "session": session,
+                "error": "session_failed",
+            }
+            payment.save(update_fields=["status", "gateway_payload"])
+        return False
+
+    return confirm_stripe_payment(
+        payment.pk, session=session, payload={"event": event_type}
     )
 
 
@@ -934,13 +1187,32 @@ def process_refund(
 
     # Marking a real PayWay payment refunded without calling PayWay would
     # misrepresent the merchant's balance. The owner must first refund in the
-    # PayWay portal, then explicitly record that external refund here.
+    # PayWay portal, then explicitly record that external refund here. Stripe
+    # payments are refunded through the Stripe Refund API automatically.
     if not payment.can_refund_locally:
         if not external:
             raise RefundRequiresGateway(
                 "Refunds for ABA PayWay payments must be issued in the PayWay merchant portal."
             )
         note = note or "Refunded via ABA PayWay merchant portal"
+    elif payment.provider == Payment.Provider.STRIPE:
+        gateway_payload = (
+            payment.gateway_payload if isinstance(payment.gateway_payload, dict) else {}
+        )
+        stripe_info = (
+            gateway_payload.get("stripe")
+            if isinstance(gateway_payload.get("stripe"), dict)
+            else {}
+        )
+        payment_intent = str(stripe_info.get("payment_intent") or "")
+        if not payment_intent:
+            raise RefundRequiresGateway(
+                "The Stripe payment intent is unknown, so the refund must be issued in the Stripe dashboard."
+            )
+        result = stripe_gateway.create_refund(
+            payment_intent=payment_intent, amount=refund.amount
+        )
+        note = note or f"Refunded via Stripe ({result.get('status', 'succeeded')})"
     if not refund.process(note=note):
         return False
     cancel_payout_for_payment(payment)

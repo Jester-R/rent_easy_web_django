@@ -77,6 +77,7 @@ export function refundReasonLabel(reason: string): string {
 export function methodIcon(method: string): string {
   if (method.startsWith('Wing')) return 'send';
   if (method.startsWith('Credit')) return 'card';
+  if (method.startsWith('Stripe')) return 'card';
   return 'layers';
 }
 
@@ -154,9 +155,14 @@ export function initials(name?: string | null): string {
 }
 
 /** Canonical payment methods (shared by every payment modal). */
-export const PAYMENT_METHODS: readonly string[] = [
-  'ABA Pay',
+export const PAYMENT_METHOD_OPTIONS: readonly CategoryOption[] = [
+  { value: 'ABA Pay', label: 'ABA PayWay' },
+  { value: 'Stripe Card', label: 'Stripe Card' },
 ];
+
+export const PAYMENT_METHODS: readonly string[] = PAYMENT_METHOD_OPTIONS.map(
+  (option) => option.value
+);
 
 /**
  * Submit a signed ABA PayWay hosted-checkout form.

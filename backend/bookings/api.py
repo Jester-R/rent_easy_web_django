@@ -30,8 +30,9 @@ from core.bolt import (
 from core.bolt_serializers import booking as serialize_booking
 from core.bolt_serializers import payment as serialize_payment
 from payments.gateways.aba import PayWayError
+from payments.gateways.stripe import StripeGatewayError
 from payments.models import Payment
-from payments.services import pay_booking, transition_booking
+from payments.services import UnsupportedPaymentMethod, pay_booking, transition_booking
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -158,9 +159,17 @@ async def renter_pay(request):
             booking=booking,
             method=method,
         )
+    except UnsupportedPaymentMethod as exc:
+        raise HTTPException(
+            status_code=400, detail="unsupported_payment_method"
+        ) from exc
     except PayWayError as exc:
         raise HTTPException(
             status_code=502, detail=f"aba_payway_error:{exc.code or 'unavailable'}"
+        ) from exc
+    except StripeGatewayError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"stripe_error:{exc.code or 'unavailable'}"
         ) from exc
     payment = result.payment
     if payment.is_pending:

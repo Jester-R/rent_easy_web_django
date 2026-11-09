@@ -123,7 +123,7 @@ export interface Payment {
   refunded_display: string;
   method: string;
   status: 'Pending' | 'Success' | 'Failed' | 'Refunded' | string;
-  provider?: 'mock' | 'aba_payway' | string;
+  provider?: 'mock' | 'aba_payway' | 'stripe' | string;
   provider_ref?: string;
   paid_at?: string | null;
   refund_status: 'None' | 'Pending' | 'Processed' | string;
@@ -146,6 +146,12 @@ export interface HostedCheckout {
   action_url: string;
   method: string;
   fields: Record<string, string>;
+}
+
+/** Redirect URL returned by the API for Stripe hosted checkout. */
+export interface StripeCheckout {
+  provider: 'stripe';
+  url: string;
 }
 
 export interface Refund {

@@ -10,7 +10,7 @@ RentEasy Web is a browser based rental platform built with an Angular frontend a
 - **Public browsing:** visitors can explore listings without signing in. Sign in to use renter account features such as favorites and booking requests.
 - **Language and theme preferences:** English and Khmer, with light and dark themes.
 - **Notifications:** in-app notifications with unread counts and optional Telegram delivery.
-- **Payments:** real ABA PayWay hosted checkout (sandbox or production), with automatic mock fallback, plus demo Wing/card flows and refunds.
+- **Payments:** real ABA PayWay hosted checkout (sandbox or production), Stripe hosted card checkout (test mode or production), with automatic mock fallback, plus demo Wing/card flows and refunds.
 - **Rent hold and owner payouts:** rent is held by the platform for 7 days, cancellations/refunds are allowed during the hold, and admins record manual transfers to owner payout accounts.
 
 ## Stack
@@ -116,6 +116,50 @@ keeps the demo flow: `ABA Pay` is recorded as `ABA Pay (Mock)` using the existin
 configured, a client cannot request a simulated ABA success; disable the gateway
 to use demo outcomes.
 
+## Payments (Stripe)
+
+Stripe payments use **hosted Checkout**. When a renter pays with *Stripe Card*,
+the backend creates a `Pending` payment and a Checkout session, and the browser
+is redirected to `checkout.stripe.com`. Stripe then either delivers the
+`checkout.session.*` webhook to `/payments/stripe/webhook/` or redirects the
+browser back to `/payments/stripe/return/`; both reconcile the authoritative
+session status from Stripe's API before showing the receipt. The payment detail
+page also polls the refresh endpoint while the transaction is pending. Refunds
+for Stripe payments are processed in-app through Stripe's Refund API.
+
+### Configuration
+
+Add the Stripe variables to the same `.env` file:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `STRIPE_SECRET_KEY` | empty | Secret API key (`sk_test_...` in test mode). Stripe checkout is disabled while empty. |
+| `STRIPE_PUBLISHABLE_KEY` | empty | Publishable key (`pk_test_...`); informational, kept for future client-side use. |
+| `STRIPE_WEBHOOK_SECRET` | empty | Signing secret (`whsec_...`) for verifying webhook payloads. |
+| `STRIPE_ENABLED` | `true` when `STRIPE_SECRET_KEY` is set | Set to `false` to disable Stripe checkout. |
+| `STRIPE_CURRENCY` | `usd` | Three-letter currency code for Checkout sessions. |
+| `STRIPE_SESSION_MINUTES` | `30` | Hosted checkout session lifetime. |
+| `STRIPE_TIMEOUT_SECONDS` | `15` | Timeout for backend Stripe API calls. |
+| `STRIPE_RETURN_URL` | `{BACKEND_PUBLIC_URL}/payments/stripe/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. |
+| `STRIPE_CANCEL_URL` | `{FRONTEND_BASE_URL}/bookings` | Where the browser goes when the payer cancels. |
+
+### Test mode (sandbox) setup
+
+1. Create a Stripe account and toggle **Test mode** in the dashboard.
+2. Copy the secret key from **Developers → API keys** into `STRIPE_SECRET_KEY`.
+3. Register the webhook endpoint under **Developers → Webhooks**:
+   `https://<your-backend>/payments/stripe/webhook/` with the events
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+   `checkout.session.async_payment_failed`, and `checkout.session.expired`.
+   Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+   For local development the browser-return reconciliation works without a
+   tunnel; only the webhook needs a public URL (e.g. ngrok or cloudflared).
+4. Pay with the documented test card, e.g. `4242 4242 4242 4242`, any future
+   expiry and any CVC. No real money moves in test mode.
+
+Platform commission for Stripe payments follows the *Stripe Card* rate on the
+admin **Payment Commissions** page, mirroring the PayWay commission flow.
+
 ### Telegram login and notifications
 
 The Telegram integration is free and uses the same bot for sign-in and notification
@@ -196,9 +240,10 @@ mean PayWay rejected the payer name or email.
 
 ### Refunds
 
-Refunds for demo (`mock`) payments can be processed in-app. Real ABA PayWay
-payments are deliberately **not** refunded by RentEasy: issue the refund in the
-PayWay merchant portal (or via PayWay's Refund API), then use **Mark refunded in
+Refunds for demo (`mock`) and Stripe payments can be processed in-app: Stripe
+refunds call the Stripe Refund API directly. Real ABA PayWay payments are
+deliberately **not** refunded by RentEasy: issue the refund in the PayWay
+merchant portal (or via PayWay's Refund API), then use **Mark refunded in
 PayWay** to record it. That action only updates RentEasy's records and never moves
 money.
 

@@ -126,7 +126,7 @@ async def payment_method_details(request):
     )
     raw = raw if isinstance(raw, dict) else {}
     result = {}
-    for method in (Payment.Method.ABA,):
+    for method in (Payment.Method.ABA, Payment.Method.STRIPE):
         item = raw.get(method) or {}
         if not isinstance(item, dict):
             item = {}

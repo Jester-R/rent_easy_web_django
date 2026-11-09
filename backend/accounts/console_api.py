@@ -278,7 +278,7 @@ def _clean_property_categories(raw):
 
 
 def _commission_rate_methods():
-    return [Payment.Method.ABA]
+    return [Payment.Method.ABA, Payment.Method.STRIPE]
 
 
 def _commission_rates_response(raw):
@@ -306,7 +306,7 @@ def _clean_commission_rates(raw):
 
 
 def _payment_method_detail_methods():
-    return [Payment.Method.ABA]
+    return [Payment.Method.ABA, Payment.Method.STRIPE]
 
 
 def _payment_method_details_response(raw):

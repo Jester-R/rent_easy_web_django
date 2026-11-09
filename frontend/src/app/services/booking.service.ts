@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Booking, HostedCheckout, Payment } from '../models';
+import { Booking, HostedCheckout, Payment, StripeCheckout } from '../models';
 
 export interface PayBookingResponse {
   payment: Payment;
   already_paid: boolean;
-  checkout?: HostedCheckout | null;
+  checkout?: HostedCheckout | StripeCheckout | null;
   qr?: { image: string; deeplink?: string; qr_string?: string; amount: number | string; currency: string; expires_in: number } | null;
 }
 
