@@ -72,6 +72,10 @@ def _frontend_payment_url(payment_id: int | None) -> str:
     return f"{settings.FRONTEND_BASE_URL}/payments"
 
 
+def _frontend_booking_url(booking_id: int) -> str:
+    return f"{settings.FRONTEND_BASE_URL}/bookings/{booking_id}"
+
+
 def _payway_signature(request) -> str:
     headers = getattr(request, "headers", {}) or {}
     for key in (
@@ -192,7 +196,7 @@ async def stripe_webhook(request):
 
 @api.get("/payments/stripe/return/")
 async def stripe_return(request):
-    """Browser return after hosted checkout: reconcile, then land on the receipt."""
+    """Browser return after hosted checkout: reconcile, then land on the booking."""
     raw_id = q(request, "payment")
     payment_id = None
     try:
@@ -200,6 +204,7 @@ async def stripe_return(request):
     except (TypeError, ValueError):
         payment_id = None
 
+    target_url = _frontend_payment_url(payment_id)
     if payment_id:
         payment = await (
             Payment.objects.select_related("property", "booking", "user")
@@ -211,8 +216,10 @@ async def stripe_return(request):
                 await _refresh_pending_payment(payment)
             except HTTPException:
                 pass
+            if payment.booking_id:
+                target_url = _frontend_booking_url(payment.booking_id)
 
-    return Redirect(_frontend_payment_url(payment_id), status_code=303)
+    return Redirect(target_url, status_code=303)
 
 
 @api.get("/payments/aba/return/")

@@ -140,7 +140,7 @@ Add the Stripe variables to the same `.env` file:
 | `STRIPE_CURRENCY` | `usd` | Three-letter currency code for Checkout sessions. |
 | `STRIPE_SESSION_MINUTES` | `30` | Hosted checkout session lifetime. |
 | `STRIPE_TIMEOUT_SECONDS` | `15` | Timeout for backend Stripe API calls. |
-| `STRIPE_RETURN_URL` | `{BACKEND_PUBLIC_URL}/payments/stripe/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. |
+| `STRIPE_RETURN_URL` | `{FRONTEND_BASE_URL}/api/payments/stripe/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. The default assumes the API is proxied under `/api`; override it when the backend has its own public origin. |
 | `STRIPE_CANCEL_URL` | `{FRONTEND_BASE_URL}/bookings` | Where the browser goes when the payer cancels. |
 
 ### Test mode (sandbox) setup

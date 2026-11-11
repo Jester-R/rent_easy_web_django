@@ -208,9 +208,12 @@ STRIPE_TIMEOUT_SECONDS = float(
 STRIPE_SESSION_MINUTES = int(
     os.environ.get("STRIPE_SESSION_MINUTES", "30") or "30"
 )
+# The browser return URL must be reachable publicly. Deployments that serve the
+# API behind the frontend's ``/api`` proxy should keep the default below;
+# override this when the backend has its own public origin.
 STRIPE_RETURN_URL = os.environ.get(
     "STRIPE_RETURN_URL",
-    f"{BACKEND_PUBLIC_URL}/payments/stripe/return/?payment={{payment_id}}",
+    f"{FRONTEND_BASE_URL}/api/payments/stripe/return/?payment={{payment_id}}",
 )
 STRIPE_CANCEL_URL = os.environ.get(
     "STRIPE_CANCEL_URL", f"{FRONTEND_BASE_URL}/bookings"
