@@ -14,6 +14,7 @@ from chat.models import Conversation, Message
 from core.bolt import (
     body_int,
     body_str,
+    in_thread,
     json_body,
     login_required,
     mark_full_request,
@@ -25,6 +26,8 @@ from core.bolt_serializers import conversation as serialize_conversation
 from core.bolt_serializers import message_item as serialize_message
 from core.bolt_serializers import user_brief as serialize_user_brief
 from listings.models import Property
+from notifications.models import Notification
+from notifications.services import notify
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -43,6 +46,23 @@ async def _load_conversation(pk: int, user) -> Conversation:
     if conv is None or user.pk not in (conv.renter_id, conv.owner_id):
         raise HTTPException(status_code=404, detail="conversation_not_found")
     return conv
+
+
+async def _notify_new_message(conv: Conversation, sender) -> None:
+    recipient = conv.other_party(sender)
+    await in_thread(
+        notify,
+        recipient,
+        Notification.Kind.CHAT_MESSAGE,
+        "notif_chat_message",
+        "notif_chat_message_body",
+        params={
+            "sender": sender.display_name,
+            "title": conv.property_title or "your property",
+        },
+        link=f"/messages/{conv.pk}",
+        action="chat_message",
+    )
 
 
 async def _summary(conv: Conversation, user) -> dict:
@@ -113,6 +133,7 @@ async def start_conversation(request):
         )
         conv.updated_at = timezone.now()
         await conv.asave(update_fields=["updated_at"])
+        await _notify_new_message(conv, user)
     return {"conversation": await _summary(conv, user)}
 
 
@@ -158,6 +179,7 @@ async def send_message(request):
     )
     conv.updated_at = timezone.now()
     await conv.asave(update_fields=["updated_at"])
+    await _notify_new_message(conv, user)
     return {"message": await serialize_message(msg)}
 
 

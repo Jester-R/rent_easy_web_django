@@ -94,6 +94,8 @@ export function notificationIcon(kind: string): string {
       return 'clipboard';
     case 'payment_received':
       return 'dollar';
+    case 'payment_success':
+      return 'check-circle';
     case 'refund_processed':
     case 'refund_requested':
     case 'refund_rejected':
@@ -110,6 +112,8 @@ export function notificationIcon(kind: string): string {
       return 'login';
     case 'telegram_registration':
       return 'send';
+    case 'chat_message':
+      return 'inbox';
     case 'announcement':
       return 'info';
     default:

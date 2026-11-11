@@ -13,6 +13,8 @@ class Notification(models.Model):
         BOOKING_UPDATE = "booking_update", "Booking update"
         BOOKING_APPROVED = "booking_approved", "Booking approved"
         PAYMENT_RECEIVED = "payment_received", "Payment received"
+        PAYMENT_SUCCESS = "payment_success", "Payment successful"
+        CHAT_MESSAGE = "chat_message", "Chat message"
         REFUND_REQUESTED = "refund_requested", "Refund requested"
         REFUND_PROCESSED = "refund_processed", "Refund processed"
         REFUND_REJECTED = "refund_rejected", "Refund request rejected"

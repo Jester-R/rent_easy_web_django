@@ -444,9 +444,21 @@ def _start_stripe_payment(booking: Booking) -> PaymentResult:
 
 
 def _attach_successful_payment(booking: Booking, payment: Payment) -> None:
-    """Link a successful payment to its booking and alert the owner."""
+    """Link a successful payment to its booking and alert both parties."""
     booking.payment = payment
     booking.save(update_fields=["payment"])
+    notify(
+        booking.renter,
+        Notification.Kind.PAYMENT_SUCCESS,
+        "notif_payment_success",
+        "notif_payment_success_body",
+        params={
+            "amount": payment.amount_display,
+            "method": payment.method,
+            "title": booking.property_title,
+        },
+        link=booking.get_absolute_url(),
+    )
     payout = create_payout_for_payment(payment)
     if payout is None:
         return

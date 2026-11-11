@@ -15,6 +15,16 @@ export const NOTIFICATION_TEXT: Readonly<Record<string, Template>> = {
     '{renter} paid {amount} for {title}',
     '{renter} បានបង់ {amount} សម្រាប់ {title}',
   ],
+  notif_payment_success: ['Payment successful', 'ការទូទាត់បានជោគជ័យ'],
+  notif_payment_success_body: [
+    'Your payment of {amount} for {title} was successful.',
+    'ការទូទាត់ចំនួន {amount} សម្រាប់ {title} របស់អ្នកបានជោគជ័យ។',
+  ],
+  notif_chat_message: ['New message', 'សារថ្មី'],
+  notif_chat_message_body: [
+    '{sender} sent you a message about {title}.',
+    '{sender} បានផ្ញើសារមកអ្នកអំពី {title}។',
+  ],
   notif_booking_approved: ['Booking approved', 'ការកក់ត្រូវបានអនុម័ត'],
   notif_booking_approved_body: [
     'Your booking for {title} was approved. Complete payment now.',

@@ -242,6 +242,11 @@ class AbaPaymentFlowTests(TestCase):
         self.assertIsNotNone(payment.paid_at)
         self.assertEqual(self.booking.payment_id, payment.pk)
         self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 1)
+        renter_notification = Notification.objects.get(
+            recipient=self.renter, kind=Notification.Kind.PAYMENT_SUCCESS
+        )
+        self.assertEqual(renter_notification.title_key, "notif_payment_success")
+        self.assertEqual(renter_notification.params["amount"], payment.amount_display)
 
         # Idempotent: a duplicate callback must not notify again.
         self.assertTrue(
@@ -250,6 +255,12 @@ class AbaPaymentFlowTests(TestCase):
             )
         )
         self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.renter, kind=Notification.Kind.PAYMENT_SUCCESS
+            ).count(),
+            1,
+        )
 
     @override_settings(**ABA_SETTINGS)
     def test_amount_mismatch_does_not_confirm(self):
