@@ -68,7 +68,7 @@ DEFAULT_NOTIFICATION_MESSAGES = [
         "label_km": "គណនីម្ចាស់ត្រូវបានអនុម័ត",
         "title_en": "Owner account approved",
         "title_km": "គណនីម្ចាស់ត្រូវបានអនុម័ត",
-        "body_en": "Your property owner account was approved. You can now log in.",
+        "body_en": "Your property owner account was approved. You can now Sign in.",
         "body_km": "គណនីម្ចាស់អចលនទ្រព្យរបស់អ្នកត្រូវបានអនុម័ត។ អ្នកអាចចូលគណនីបានហើយ។",
     },
     {

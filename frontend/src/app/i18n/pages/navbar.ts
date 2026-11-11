@@ -12,7 +12,7 @@ export const navbar: PageCatalog = {
   profile: ['Profile', 'ប្រវត្តិរូប'],
   settings: ['Settings', 'ការកំណត់'],
   logOut: ['Log out', 'ចាកចេញ'],
-  logIn: ['Log in', 'ចូលគណនី'],
+  logIn: ['Sign in', 'ចូលគណនី'],
   createAccount: ['Create Account', 'បង្កើតគណនី'],
   switchToKhmer: ['Switch to Khmer', 'ប្តូរទៅភាសាខ្មែរ'],
   switchToEnglish: ['Switch to English', 'ប្តូរទៅភាសាអង់គ្លេស'],

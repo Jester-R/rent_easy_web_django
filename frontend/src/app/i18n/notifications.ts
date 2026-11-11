@@ -46,7 +46,7 @@ export const NOTIFICATION_TEXT: Readonly<Record<string, Template>> = {
   ],
   notif_owner_approved: ['Owner account approved', 'គណនីម្ចាស់ត្រូវបានអនុម័ត'],
   notif_owner_approved_body: [
-    'Your property owner account was approved. You can now log in.',
+    'Your property owner account was approved. You can now Sign in.',
     'គណនីម្ចាស់អចលនទ្រព្យរបស់អ្នកត្រូវបានអនុម័ត។ អ្នកអាចចូលគណនីបានហើយ។',
   ],
   notif_owner_rejected: ['Owner request declined', 'សំណើម្ចាស់ត្រូវបានបដិសេធ'],

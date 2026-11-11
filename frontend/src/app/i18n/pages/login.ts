@@ -22,7 +22,7 @@ export const login: PageCatalog = {
   telegramNotConfigured: ['Telegram sign-in is not configured yet. Set TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME in your .env.', 'មិនទាន់បានកំណត់ការចូលគណនីតាម Telegram នៅឡើយទេ។ សូមកំណត់ TELEGRAM_BOT_TOKEN និង TELEGRAM_BOT_USERNAME ក្នុង .env។'],
   telegramLoginFailed: ['Telegram authentication failed. Please try again.', 'ការផ្ទៀងផ្ទាត់តាម Telegram បានបរាជ័យ។ សូមព្យាយាមម្ដងទៀត។'],
   telegramSignIn: ['Sign in with Telegram', 'ចូលគណនីជាមួយ Telegram'],
-  telegramLoginTitle: ['Log in with Telegram', 'ចូលគណនីជាមួយ Telegram'],
+  telegramLoginTitle: ['Sign in with Telegram', 'ចូលគណនីជាមួយ Telegram'],
   telegramStepOpen: ['Open the Telegram bot and press Start.', 'បើក bot Telegram ហើយចុច Start។'],
   telegramStepCode: ['Enter the 6-digit code the bot sends you.', 'បញ្ចូលលេខកូដ ៦ ខ្ទង់ដែល bot ផ្ញើមកអ្នក។'],
   telegramCode: ['Telegram code', 'លេខកូដ Telegram'],

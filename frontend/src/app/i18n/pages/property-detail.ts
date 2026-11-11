@@ -24,7 +24,7 @@ export const propertyDetail: PageCatalog = {
   submittingRequest: ['Submitting Request...', 'កំពុងផ្ញើសំណើ...'],
   submitLeaseRequest: ['Submit Lease Request', 'ផ្ញើសំណើជួល'],
   interestedInThisProperty: ['Interested in this property?', 'ចាប់អារម្មណ៍លើអចលនទ្រព្យនេះមែនទេ?'],
-  logInAsARenterToSendBookingRequestsAndChatWithThe: ['Log in as a renter to send booking requests and chat with the landlord.', 'ចូលគណនីជាអ្នកជួល ដើម្បីផ្ញើសំណើកក់ និងជជែកជាមួយម្ចាស់ផ្ទះ។'],
+  logInAsARenterToSendBookingRequestsAndChatWithThe: ['Sign in as a renter to send booking requests and chat with the landlord.', 'ចូលគណនីជាអ្នកជួល ដើម្បីផ្ញើសំណើកក់ និងជជែកជាមួយម្ចាស់ផ្ទះ។'],
   youAreLoggedInAsAnOwner: ['You are logged in as an Owner', 'អ្នកបានចូលគណនីជាម្ចាស់ផ្ទះ'],
   switchToARenterAccountToRequestBookingsOnOther: ['Switch to a renter account to request bookings on other listings.', 'ប្តូរទៅគណនីអ្នកជួល ដើម្បីស្នើសុំកក់អចលនទ្រព្យផ្សេងៗ។'],
 };

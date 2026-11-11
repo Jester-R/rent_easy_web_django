@@ -3,7 +3,7 @@ import type { PageCatalog } from '../types';
 export const register: PageCatalog = {
   easyRentHappyLiving: ['Easy Rent, Happy Living', 'ជួលងាយស្រួល រស់នៅសុខសាន្ត'],
   registrationSubmitted: ['Registration submitted', 'បានដាក់ពាក្យចុះឈ្មោះ'],
-  yourPropertyOwnerAccountIsAwaitingApprovalByA: ['Your property owner account is awaiting approval by a system administrator. You can log in once it has been approved.', 'គណនីម្ចាស់អចលនទ្រព្យរបស់អ្នកកំពុងរង់ចាំការអនុម័តពីអ្នកគ្រប់គ្រងប្រព័ន្ធ។ អ្នកអាចចូលគណនីបាន បន្ទាប់ពីវាត្រូវបានអនុម័ត។'],
+  yourPropertyOwnerAccountIsAwaitingApprovalByA: ['Your property owner account is awaiting approval by a system administrator. You can Sign in once it has been approved.', 'គណនីម្ចាស់អចលនទ្រព្យរបស់អ្នកកំពុងរង់ចាំការអនុម័តពីអ្នកគ្រប់គ្រងប្រព័ន្ធ។ អ្នកអាចចូលគណនីបាន បន្ទាប់ពីវាត្រូវបានអនុម័ត។'],
   backToLogin: ['Back to login', 'ត្រឡប់ទៅចូលគណនី'],
   createYourAccount: ['Create your account', 'បង្កើតគណនីរបស់អ្នក'],
   selectHowYouWantToUseRentEasy: ['Select how you want to use RentEasy', 'ជ្រើសរើសរបៀបដែលអ្នកចង់ប្រើ RentEasy'],
@@ -21,7 +21,7 @@ export const register: PageCatalog = {
   creatingAccount: ['Creating account...', 'កំពុងបង្កើតគណនី...'],
   register: ['Register', 'ចុះឈ្មោះ'],
   alreadyHaveAnAccount: ['Already have an account?', 'មានគណនីរួចហើយមែនទេ?'],
-  logIn: ['Log in', 'ចូលគណនី'],
+  logIn: ['Sign in', 'ចូលគណនី'],
   passwordsDoNotMatch: ['Passwords do not match.', 'ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ។'],
   thisEmailAddressIsAlreadyRegistered: ['This email address is already registered.', 'អាសយដ្ឋានអ៊ីមែលនេះបានចុះឈ្មោះរួចហើយ។'],
   thisUsernameIsAlreadyTaken: ['This username is already taken.', 'ឈ្មោះអ្នកប្រើនេះត្រូវបានប្រើរួចហើយ។'],
