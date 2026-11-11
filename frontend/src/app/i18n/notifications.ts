@@ -62,6 +62,21 @@ export const NOTIFICATION_TEXT: Readonly<Record<string, Template>> = {
     '{amount} for {title} was sent to your payout account.',
     '{amount} សម្រាប់ {title} ត្រូវបានផ្ទេរទៅគណនីទទួលប្រាក់របស់អ្នក។',
   ],
+  notif_account_created: ['Welcome to RentEasy', 'សូមស្វាគមន៍មកកាន់ RentEasy'],
+  notif_account_created_body: [
+    'Your account was created with {provider}.',
+    'គណនីរបស់អ្នកត្រូវបានបង្កើតដោយ {provider}។',
+  ],
+  notif_account_signed_in: ['New sign-in', 'ការចូលថ្មី'],
+  notif_account_signed_in_body: [
+    'You signed in with {provider} at {time}.',
+    'អ្នកបានចូលដោយ {provider} នៅ {time}។',
+  ],
+  notif_telegram_registration: ['New Telegram registration', 'ការចុះឈ្មោះតាម Telegram ថ្មី'],
+  notif_telegram_registration_body: [
+    '{name} ({email}) created an account using Telegram.',
+    '{name} ({email}) បានបង្កើតគណនីដោយប្រើ Telegram។',
+  ],
 };
 
 function interpolate(template: string, params?: Record<string, unknown>): string {

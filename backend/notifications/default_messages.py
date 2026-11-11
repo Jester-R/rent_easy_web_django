@@ -141,4 +141,54 @@ DEFAULT_NOTIFICATION_MESSAGES = [
         "body_en": "{amount} for {title} was sent to your payout account.",
         "body_km": "{amount} សម្រាប់ {title} ត្រូវបានផ្ទេរទៅគណនីទទួលប្រាក់របស់អ្នក។",
     },
+    {
+        "key": "notif_account_created",
+        "body_key": "notif_account_created_body",
+        "label_en": "Account created",
+        "label_km": "គណនីត្រូវបានបង្កើត",
+        "title_en": "Welcome to RentEasy",
+        "title_km": "សូមស្វាគមន៍មកកាន់ RentEasy",
+        "body_en": "Your account was created with {provider}.",
+        "body_km": "គណនីរបស់អ្នកត្រូវបានបង្កើតដោយ {provider}។",
+    },
+    {
+        "key": "notif_account_signed_in",
+        "body_key": "notif_account_signed_in_body",
+        "label_en": "New sign-in",
+        "label_km": "ការចូលថ្មី",
+        "title_en": "New sign-in",
+        "title_km": "ការចូលថ្មី",
+        "body_en": "You signed in with {provider} at {time}.",
+        "body_km": "អ្នកបានចូលដោយ {provider} នៅ {time}។",
+    },
+    {
+        "key": "notif_telegram_registration",
+        "body_key": "notif_telegram_registration_body",
+        "label_en": "New Telegram registration",
+        "label_km": "ការចុះឈ្មោះតាម Telegram ថ្មី",
+        "title_en": "New Telegram registration",
+        "title_km": "ការចុះឈ្មោះតាម Telegram ថ្មី",
+        "body_en": "{name} ({email}) created an account using Telegram.",
+        "body_km": "{name} ({email}) បានបង្កើតគណនីដោយប្រើ Telegram។",
+    },
 ]
+
+
+def merged_notification_messages(configured) -> list[dict]:
+    """Keep saved copy while exposing newly added default message keys."""
+    if not isinstance(configured, list) or not configured:
+        return list(DEFAULT_NOTIFICATION_MESSAGES)
+
+    defaults = {item["key"]: item for item in DEFAULT_NOTIFICATION_MESSAGES}
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for item in configured:
+        key = item.get("key") if isinstance(item, dict) else None
+        if key not in defaults or key in seen:
+            continue
+        seen.add(key)
+        merged.append({**defaults[key], **item})
+    merged.extend(
+        item for item in DEFAULT_NOTIFICATION_MESSAGES if item["key"] not in seen
+    )
+    return merged

@@ -898,3 +898,54 @@ class TelegramLoginTests(TestCase):
         stored = await TelegramLoginRequest.objects.aget(token=login_request.token)
         self.assertEqual(stored.telegram_id, "444555668")
         self.assertIn(stored.code, send.call_args.args[1])
+
+
+class AccountNotificationTests(TestCase):
+    async def test_google_registration_creates_bell_notification(self):
+        from notifications.models import Notification
+
+        user_info = {
+            "sub": "google-notify-1",
+            "email": "notify.google@real-domain.com",
+            "name": "Notify Google",
+            "picture": "",
+        }
+        user, created, block = await get_or_create_google_user(
+            user_info, requested_role=Role.RENTER
+        )
+
+        self.assertTrue(created)
+        self.assertIsNone(block)
+        notification = await Notification.objects.filter(
+            recipient=user, kind=Notification.Kind.ACCOUNT_CREATED
+        ).afirst()
+        self.assertIsNotNone(notification)
+        self.assertEqual(notification.title_key, "notif_account_created")
+
+    async def test_telegram_registration_notifies_user_and_admins(self):
+        from notifications.models import Notification
+
+        admin = await User.objects.acreate(
+            email="telegram.admin@real-domain.com",
+            username="telegram_admin",
+            full_name="Telegram Admin",
+            role=Role.SUPERADMIN,
+            is_staff=True,
+            is_superuser=True,
+        )
+        user, created, block = await get_or_create_telegram_user(
+            {"id": "777000111", "first_name": "Telegram", "last_name": "User"},
+            requested_role=Role.RENTER,
+        )
+
+        self.assertTrue(created)
+        self.assertIsNone(block)
+        user_notice = await Notification.objects.filter(
+            recipient=user, kind=Notification.Kind.ACCOUNT_CREATED
+        ).afirst()
+        self.assertIsNotNone(user_notice)
+        admin_notice = await Notification.objects.filter(
+            recipient=admin, kind=Notification.Kind.TELEGRAM_REGISTRATION
+        ).afirst()
+        self.assertIsNotNone(admin_notice)
+        self.assertEqual(admin_notice.params.get("email"), user.email)

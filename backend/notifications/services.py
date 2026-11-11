@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Notification, NotificationSeen
-from .default_messages import DEFAULT_NOTIFICATION_MESSAGES
+from .default_messages import merged_notification_messages
 
 
 def notify(
@@ -49,10 +49,17 @@ def notify(
         link=link,
         action=action,
     )
+    transaction.on_commit(lambda: deliver_notification(notification.pk))
+    return notification
+
+
+def deliver_notification(notification_id: int) -> None:
+    """Push a stored notification through every available user channel."""
+    from .email import send_email_notification
     from .telegram import send_telegram_notification
 
-    transaction.on_commit(lambda: send_telegram_notification(notification.pk))
-    return notification
+    send_telegram_notification(notification_id)
+    send_email_notification(notification_id)
 
 
 def _notification_messages():
@@ -63,11 +70,7 @@ def _notification_messages():
         .values_list("notification_messages", flat=True)
         .first()
     )
-    return (
-        configured
-        if isinstance(configured, list) and configured
-        else DEFAULT_NOTIFICATION_MESSAGES
-    )
+    return merged_notification_messages(configured)
 
 
 def mark_all_seen(user) -> None:

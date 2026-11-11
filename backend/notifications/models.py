@@ -20,6 +20,9 @@ class Notification(models.Model):
         OWNER_APPROVAL_REQUEST = "owner_approval_request", "Owner approval request"
         OWNER_APPROVED = "owner_approved", "Owner approved"
         OWNER_REJECTED = "owner_rejected", "Owner rejected"
+        ACCOUNT_CREATED = "account_created", "Account created"
+        ACCOUNT_SIGN_IN = "account_sign_in", "Account sign-in"
+        TELEGRAM_REGISTRATION = "telegram_registration", "Telegram registration"
         ANNOUNCEMENT = "announcement", "Announcement"
 
     recipient = models.ForeignKey(

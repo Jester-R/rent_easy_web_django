@@ -104,6 +104,12 @@ export function notificationIcon(kind: string): string {
     case 'owner_approved':
     case 'owner_rejected':
       return 'user-check';
+    case 'account_created':
+      return 'user-plus';
+    case 'account_sign_in':
+      return 'login';
+    case 'telegram_registration':
+      return 'send';
     case 'announcement':
       return 'info';
     default:

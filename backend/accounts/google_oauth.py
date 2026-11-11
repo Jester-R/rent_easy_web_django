@@ -300,6 +300,10 @@ async def get_or_create_google_user(
         approval_status=approval_status,
     )
 
+    from accounts.account_notifications import notify_account_created
+
+    await in_thread(notify_account_created, user, "Google")
+
     if needs_role:
         return user, True, "select_role"
 

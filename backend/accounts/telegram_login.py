@@ -347,6 +347,14 @@ async def get_or_create_telegram_user(
         approval_status=approval_status,
     )
 
+    from accounts.account_notifications import (
+        notify_account_created,
+        notify_admins_of_telegram_registration,
+    )
+
+    await in_thread(notify_account_created, user, "Telegram")
+    await in_thread(notify_admins_of_telegram_registration, user)
+
     if needs_role:
         return user, True, "select_role"
 

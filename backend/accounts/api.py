@@ -21,6 +21,10 @@ from django_bolt.exceptions import HTTPException
 from django_bolt.params import File
 from django_bolt.responses import Redirect
 
+from accounts.account_notifications import (
+    notify_account_created,
+    notify_account_signed_in,
+)
 from accounts.email_verification import (
     RESEND_COOLDOWN_SECONDS,
     create_and_send_verification_otp,
@@ -89,6 +93,7 @@ api = BoltAPI(
 )
 
 PENDING_ROLE_KEY = "renteasy_pending_role_user"
+PENDING_ROLE_PROVIDER_KEY = "renteasy_pending_role_provider"
 FLASH_KEY = "renteasy_flash"
 
 
@@ -193,6 +198,7 @@ async def login_view(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(notify_account_signed_in, user, "email")
 
     destination = body_str(data, "next") or user.home_url
     if not destination.startswith("/"):
@@ -321,6 +327,7 @@ async def register_verify_otp_view(request):
             approval_status=ApprovalStatus.PENDING,
             is_email_verified=True,
         )
+        await in_thread(notify_account_created, user, "email")
         await in_thread(_notify_admins_of_owner_request, user)
         return {
             "status": "pending_approval",
@@ -338,6 +345,7 @@ async def register_verify_otp_view(request):
         role=role,
         is_email_verified=True,
     )
+    await in_thread(notify_account_created, user, "email")
     await in_thread(login, request, user)
     return {
         "status": "active",
@@ -388,8 +396,10 @@ async def role_select_view(request):
         raise HTTPException(status_code=409, detail="no_pending_registration")
 
     user = await User.objects.filter(pk=pending_id).afirst()
+    provider = await session_get(request, PENDING_ROLE_PROVIDER_KEY) or "RentEasy"
     if user is None:
         await session_pop(request, PENDING_ROLE_KEY, None)
+        await session_pop(request, PENDING_ROLE_PROVIDER_KEY, None)
         raise HTTPException(status_code=404, detail="pending_user_missing")
 
     role = body_str(data, "role")
@@ -411,6 +421,7 @@ async def role_select_view(request):
             summary="owner registration pending approval",
         )
         await session_pop(request, PENDING_ROLE_KEY, None)
+        await session_pop(request, PENDING_ROLE_PROVIDER_KEY, None)
         return {
             "ok": True,
             "status": "pending_approval",
@@ -422,6 +433,7 @@ async def role_select_view(request):
     await user.asave(update_fields=["role", "is_active", "approval_status"])
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(notify_account_signed_in, user, provider)
     await AuditLog.objects.acreate(
         actor=user,
         action=AuditLog.Action.UPDATE,
@@ -430,6 +442,7 @@ async def role_select_view(request):
         summary=f"role set to {user.role}",
     )
     await session_pop(request, PENDING_ROLE_KEY, None)
+    await session_pop(request, PENDING_ROLE_PROVIDER_KEY, None)
     await _flash(request, "registration_complete")
     return {
         "ok": True,
@@ -560,6 +573,7 @@ async def google_oauth_callback_get(request):
     if block:
         if block == "select_role":
             await session_set(request, PENDING_ROLE_KEY, user.pk)
+            await session_set(request, PENDING_ROLE_PROVIDER_KEY, "Google")
             return Redirect(f"{frontend_base}/role-select", status_code=303)
         if block == "approval_pending":
             return Redirect(f"{frontend_base}/register?pending=1", status_code=303)
@@ -567,6 +581,8 @@ async def google_oauth_callback_get(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    if not created:
+        await in_thread(notify_account_signed_in, user, "Google")
 
     destination = next_url if (next_url and next_url.startswith("/")) else user.home_url
     return Redirect(f"{frontend_base}{destination}", status_code=303)
@@ -610,6 +626,7 @@ async def google_oauth_callback_post(request):
     if block:
         if block == "select_role":
             await session_set(request, PENDING_ROLE_KEY, user.pk)
+            await session_set(request, PENDING_ROLE_PROVIDER_KEY, "Google")
             return {
                 "ok": True,
                 "status": "select_role",
@@ -626,6 +643,8 @@ async def google_oauth_callback_post(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    if not created:
+        await in_thread(notify_account_signed_in, user, "Google")
 
     destination = next_url if (next_url and next_url.startswith("/")) else user.home_url
     return {
@@ -681,13 +700,14 @@ async def telegram_login_verify(request):
         raise HTTPException(status_code=422, detail="code_required")
 
     try:
-        user, _created, block = await verify_telegram_login_code(token, code)
+        user, created, block = await verify_telegram_login_code(token, code)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if block:
         if block == "select_role":
             await session_set(request, PENDING_ROLE_KEY, user.pk)
+            await session_set(request, PENDING_ROLE_PROVIDER_KEY, "Telegram")
             return {
                 "ok": True,
                 "status": "select_role",
@@ -703,6 +723,8 @@ async def telegram_login_verify(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    if not created:
+        await in_thread(notify_account_signed_in, user, "Telegram")
     return {
         "ok": True,
         "status": "active",
@@ -746,7 +768,7 @@ async def telegram_login_callback(request):
     next_url = q(request, "next", "")
 
     try:
-        user, _created, block = await get_or_create_telegram_user(
+        user, created, block = await get_or_create_telegram_user(
             verified, requested_role=role
         )
     except Exception as exc:
@@ -758,6 +780,7 @@ async def telegram_login_callback(request):
     if block:
         if block == "select_role":
             await session_set(request, PENDING_ROLE_KEY, user.pk)
+            await session_set(request, PENDING_ROLE_PROVIDER_KEY, "Telegram")
             return Redirect(f"{frontend_base}/role-select", status_code=303)
         if block == "approval_pending":
             return Redirect(f"{frontend_base}/register?pending=1", status_code=303)
@@ -765,6 +788,8 @@ async def telegram_login_callback(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    if not created:
+        await in_thread(notify_account_signed_in, user, "Telegram")
 
     destination = next_url if (next_url and next_url.startswith("/")) else user.home_url
     return Redirect(f"{frontend_base}{destination}", status_code=303)

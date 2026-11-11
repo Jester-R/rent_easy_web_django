@@ -14,6 +14,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -53,8 +54,11 @@ from core.bolt_serializers import user as serialize_user
 from listings.models import Favorite, Property
 from listings.category_config import DEFAULT_PROPERTY_CATEGORIES
 from notifications.models import Notification
-from notifications.default_messages import DEFAULT_NOTIFICATION_MESSAGES
-from notifications.services import notify
+from notifications.default_messages import (
+    DEFAULT_NOTIFICATION_MESSAGES,
+    merged_notification_messages,
+)
+from notifications.services import deliver_notification, notify
 from payments.models import Payment, Payout, Refund
 from payments.services import (
     PayoutBlocked,
@@ -242,8 +246,9 @@ async def settings_get(request):
             or settings.ABA_PAYWAY_MERCHANT_ID,
             "property_categories": platform.property_categories
             or DEFAULT_PROPERTY_CATEGORIES,
-            "notification_messages": platform.notification_messages
-            or DEFAULT_NOTIFICATION_MESSAGES,
+            "notification_messages": merged_notification_messages(
+                platform.notification_messages
+            ),
             "home_promotion": {
                 **DEFAULT_HOME_PROMOTION,
                 **(platform.home_promotion or {}),
@@ -472,8 +477,9 @@ async def settings_update(request):
             or settings.ABA_PAYWAY_MERCHANT_ID,
             "property_categories": platform.property_categories
             or DEFAULT_PROPERTY_CATEGORIES,
-            "notification_messages": platform.notification_messages
-            or DEFAULT_NOTIFICATION_MESSAGES,
+            "notification_messages": merged_notification_messages(
+                platform.notification_messages
+            ),
             "home_promotion": {
                 **DEFAULT_HOME_PROMOTION,
                 **(platform.home_promotion or {}),
@@ -508,6 +514,11 @@ def _create_broadcast(target, title_en, title_km, body_en, body_km):
         for user_id in ids
     ]
     Notification.objects.bulk_create(notifications, batch_size=1000)
+    for notification in notifications:
+        if notification.pk:
+            transaction.on_commit(
+                lambda pk=notification.pk: deliver_notification(pk)
+            )
     return len(notifications)
 
 

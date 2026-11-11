@@ -4,58 +4,28 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
 
 import httpx
 from django.conf import settings
 
 from .models import Notification
+from .rendering import notification_copy, render
 
 logger = logging.getLogger(__name__)
 
 
-class _SafeFormat(dict):
-    def __missing__(self, key: str) -> str:
-        return "{" + key + "}"
-
-
-def _render(template: str, params: dict[str, Any]) -> str:
-    try:
-        return template.format_map(_SafeFormat(params))
-    except KeyError, ValueError:
-        return template
-
-
 def _message_text(notification: Notification) -> str:
-    params = notification.params if isinstance(notification.params, dict) else {}
-    overrides = params.get("message_overrides", {})
-    overrides = overrides if isinstance(overrides, dict) else {}
-    from .services import _notification_messages
-
-    configured = next(
-        (
-            item
-            for item in _notification_messages()
-            if item.get("key") == notification.title_key
-        ),
-        {},
-    )
-    title_en = (
-        overrides.get("title_en")
-        or configured.get("title_en")
-        or notification.get_kind_display()
-    )
-    body_en = (
-        overrides.get("body_en") or configured.get("body_en") or notification.body_key
-    )
-    title_km = overrides.get("title_km") or configured.get("title_km") or ""
-    body_km = overrides.get("body_km") or configured.get("body_km") or ""
+    copy = notification_copy(notification)
+    params = copy.get("params") or {}
     text = (
         "RentEasy notification\n"
-        f"{_render(str(title_en), params)}\n{_render(str(body_en), params)}"
+        f"{render(copy['title_en'], params)}\n{render(copy['body_en'], params)}"
     )
-    if title_km or body_km:
-        text += f"\n\n{_render(str(title_km), params)}\n{_render(str(body_km), params)}"
+    if copy["title_km"] or copy["body_km"]:
+        text += (
+            f"\n\n{render(copy['title_km'], params)}"
+            f"\n{render(copy['body_km'], params)}"
+        )
     return text[:4096]
 
 
