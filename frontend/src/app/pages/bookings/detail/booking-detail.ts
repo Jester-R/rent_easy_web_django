@@ -16,7 +16,7 @@ import type { Property } from '../../../models';
 import { Booking, UserBrief } from '../../../models';
 import type { PaymentMethodDetail } from '../../../models';
 import {
-  PAYMENT_METHODS,
+  PAYMENT_METHOD_OPTIONS,
   bookingPill,
   initials,
   prettyDate,
@@ -61,11 +61,11 @@ export class BookingDetailComponent implements OnInit {
   readonly isPaying = signal(false);
   readonly payError = signal<string | null>(null);
   readonly payQr = signal<{ image: string; deeplink?: string; amount: number | string; currency: string } | null>(null);
-  selectedMethod = PAYMENT_METHODS[0];
+  selectedMethod = PAYMENT_METHOD_OPTIONS[0].value;
   paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
-  readonly methods = PAYMENT_METHODS;
+  readonly methods = PAYMENT_METHOD_OPTIONS.map((m) => m.value);
 
-  readonly methodOptions: SelectOption[] = this.methods.map((m) => ({ value: m, label: 'ABA PayWay' }));
+  readonly methodOptions: SelectOption[] = [...PAYMENT_METHOD_OPTIONS];
 
   readonly usd = usd;
   readonly prettyDate = prettyDate;
@@ -265,6 +265,12 @@ export class BookingDetailComponent implements OnInit {
             this.isPaying.set(false);
             return;
           }
+          const checkout = res.checkout;
+          if (checkout && 'url' in checkout && checkout.url) {
+            // Stripe's hosted checkout must be opened as a full navigation.
+            window.location.href = checkout.url;
+            return;
+          }
           this.isPaying.set(false);
           this.payOpen.set(false);
           this.load();
@@ -279,7 +285,20 @@ export class BookingDetailComponent implements OnInit {
             this.payError.set('Payment failed. Please try again.');
             return;
           }
-          if (String(err.error?.detail || '').startsWith('aba_payway_error')) {
+          const detail = String(err.error?.detail || '');
+          if (detail.startsWith('stripe_error')) {
+            if (detail.includes('not_configured')) {
+              this.payError.set('Stripe is not configured. Add STRIPE_SECRET_KEY to the backend .env and restart.');
+            } else {
+              this.payError.set('Stripe is unavailable. Please try again.');
+            }
+            return;
+          }
+          if (detail === 'unsupported_payment_method') {
+            this.payError.set('Choose a supported payment method.');
+            return;
+          }
+          if (detail.startsWith('aba_payway_error')) {
             this.payError.set('ABA PayWay is unavailable. Please try again.');
             return;
           }

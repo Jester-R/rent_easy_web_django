@@ -184,6 +184,38 @@ ABA_PAYWAY_CANCEL_URL = os.environ.get(
     "ABA_PAYWAY_CANCEL_URL", f"{FRONTEND_BASE_URL}/bookings"
 )
 
+# -- Stripe --------------------------------------------------------------------
+# Test-mode ("sandbox") keys look like ``sk_test_...`` / ``pk_test_...`` and are
+# created in the Stripe Dashboard under Developers > API keys. Demo payments can
+# then be completed with the standard test card 4242 4242 4242 4242. Checkout is
+# unavailable until STRIPE_SECRET_KEY is set.
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "").strip()
+# Signing secret of the ``checkout.session.*`` webhook endpoint created in the
+# Stripe Dashboard (Developers > Webhooks), e.g. ``whsec_...``. The webhook URL
+# must point at {BACKEND_PUBLIC_URL}/payments/stripe/webhook/.
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
+_stripe_enabled_env = os.environ.get("STRIPE_ENABLED")
+STRIPE_ENABLED = (
+    bool(STRIPE_SECRET_KEY)
+    if _stripe_enabled_env is None
+    else _stripe_enabled_env.strip().lower() in {"1", "true", "yes", "on"}
+)
+STRIPE_CURRENCY = os.environ.get("STRIPE_CURRENCY", "USD").strip().lower()
+STRIPE_TIMEOUT_SECONDS = float(
+    os.environ.get("STRIPE_TIMEOUT_SECONDS", "15") or "15"
+)
+STRIPE_SESSION_MINUTES = int(
+    os.environ.get("STRIPE_SESSION_MINUTES", "30") or "30"
+)
+STRIPE_RETURN_URL = os.environ.get(
+    "STRIPE_RETURN_URL",
+    f"{BACKEND_PUBLIC_URL}/payments/stripe/return/?payment={{payment_id}}",
+)
+STRIPE_CANCEL_URL = os.environ.get(
+    "STRIPE_CANCEL_URL", f"{FRONTEND_BASE_URL}/bookings"
+)
+
 # -- Google OAuth2 ------------------------------------------------------------
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()

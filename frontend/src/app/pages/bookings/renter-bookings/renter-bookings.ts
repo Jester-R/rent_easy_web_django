@@ -15,7 +15,7 @@ import { LanguageService } from '../../../services/language.service';
 import { propertyLocation, propertyTitle } from '../../../shared/property-text';
 import type { Property } from '../../../models';
 import type { PaymentMethodDetail } from '../../../models';
-import { PAYMENT_METHODS } from '../../../shared/ui';
+import { PAYMENT_METHOD_OPTIONS } from '../../../shared/ui';
 
 @Component({
   selector: 'app-renter-bookings',
@@ -48,11 +48,11 @@ export class RenterBookingsComponent implements OnInit {
   }
 
   // Pay modal state
-  readonly methods = PAYMENT_METHODS;
+  readonly methods = PAYMENT_METHOD_OPTIONS.map((m) => m.value);
 
-  readonly methodOptions: SelectOption[] = PAYMENT_METHODS.map((m) => ({ value: m, label: 'ABA PayWay' }));
+  readonly methodOptions: SelectOption[] = [...PAYMENT_METHOD_OPTIONS];
   selectedBookingForPay = signal<Booking | null>(null);
-  selectedPaymentMethod = PAYMENT_METHODS[0];
+  selectedPaymentMethod = PAYMENT_METHOD_OPTIONS[0].value;
   paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
   isPaying = signal(false);
   paySuccessMessage = signal<string | null>(null);
@@ -134,6 +134,12 @@ export class RenterBookingsComponent implements OnInit {
             this.isPaying.set(false);
             return;
           }
+          const checkout = res.checkout;
+          if (checkout && 'url' in checkout && checkout.url) {
+            // Stripe's hosted checkout must be opened as a full navigation.
+            window.location.href = checkout.url;
+            return;
+          }
           this.isPaying.set(false);
           this.paySuccessMessage.set(`Payment processed successfully! Ref: ${res.payment.reference}`);
           setTimeout(() => {
@@ -143,7 +149,19 @@ export class RenterBookingsComponent implements OnInit {
         },
         error: (err) => {
           this.isPaying.set(false);
-          const detail = err.error?.detail || '';
+          const detail = String(err.error?.detail || '');
+          if (detail.startsWith('stripe_error')) {
+            this.payErrorMessage.set(
+              detail.includes('not_configured')
+                ? 'Stripe is not configured. Add STRIPE_SECRET_KEY to the backend .env and restart.'
+                : 'Stripe is unavailable. Please try again.'
+            );
+            return;
+          }
+          if (detail === 'unsupported_payment_method') {
+            this.payErrorMessage.set('Choose a supported payment method.');
+            return;
+          }
           this.payErrorMessage.set(`Payment failed: ${detail || 'Unknown error'}`);
         },
       });

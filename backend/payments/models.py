@@ -27,10 +27,12 @@ class Payment(models.Model):
         ABA_MOCK = "ABA Pay (Mock)", "ABA Pay (Mock)"
         WING = "Wing (Mock)", "Wing (Mock)"
         CARD = "Credit Card (Mock)", "Credit Card (Mock)"
+        STRIPE = "Stripe Card", "Stripe Card"
 
     class Provider(models.TextChoices):
         MOCK = "mock", "Mock gateway"
         ABA_PAYWAY = "aba_payway", "ABA PayWay"
+        STRIPE = "stripe", "Stripe"
 
     reference = models.CharField(max_length=24, unique=True, editable=False)
     property = models.ForeignKey(
@@ -125,8 +127,9 @@ class Payment(models.Model):
 
     @builtins.property
     def can_refund_locally(self) -> bool:
-        """Mock payments can be refunded in-app; real PayWay money must be
-        refunded through the PayWay merchant portal (or its Refund API)."""
+        """Mock and Stripe payments can be refunded in-app (Stripe through its
+        Refund API); real PayWay money must be refunded through the PayWay
+        merchant portal (or its Refund API)."""
         return self.provider != self.Provider.ABA_PAYWAY
 
     def get_absolute_url(self) -> str:
