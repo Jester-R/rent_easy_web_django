@@ -42,10 +42,10 @@
           </div>
         } @else {
           <div class="mt-3 flex flex-wrap gap-2">
-            <button type="button" class="btn btn-primary" [disabled]="isTelegramLoading()" (click)="connectTelegram()">{{ isTelegramLoading() ? language.t('profile.pleaseWait') : language.t('profile.connectTelegram') }}</button>
             @if (telegramLink()) {
-              <a class="btn btn-secondary" [href]="telegramLink()" target="_blank" rel="noopener">{{ language.t('profile.openTelegramBot') }}</a>
-              <button type="button" class="btn btn-ghost" [disabled]="isTelegramLoading()" (click)="refreshTelegramStatus()">{{ language.t('profile.refreshTelegramStatus') }}</button>
+              <a class="btn btn-primary" [href]="telegramLink()" target="_blank" rel="noopener">{{ language.t('profile.connectTelegram') }}</a>
+            } @else {
+              <button type="button" class="btn btn-primary" [disabled]="isTelegramLoading()" (click)="connectTelegram()">{{ isTelegramLoading() ? language.t('profile.pleaseWait') : language.t('profile.connectTelegram') }}</button>
             }
           </div>
         }
@@ -168,40 +168,6 @@
           </button>
         </div>
       </form>
-
-      @if (auth.isAdmin()) {
-        <section class="mt-8 max-w-xl border-t border-hairline pt-6">
-          <h2 class="text-base font-bold">{{ language.t('consoleSettings.paymentMethodDetails') }}</h2>
-          <p class="mt-1 text-xs text-ink-3">{{ language.t('consoleSettings.paymentMethodDetailsHelp') }}</p>
-          @if (paymentMethodError(); as message) {
-            <div class="toast toast-error mt-3" role="alert">{{ message }}</div>
-          }
-          <div class="mt-4 space-y-3 rounded-xl border border-hairline p-4">
-            <h3 class="text-sm font-bold">ABA PayWay</h3>
-            <label class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayMerchantId') }}
-              <input class="form-input mt-1" [value]="abaPaywayMerchantId()" (input)="abaPaywayMerchantId.set($any($event.target).value)" maxlength="30" autocomplete="off" />
-            </label>
-            <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayMerchantIdHelp') }}</p>
-            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.accountName') }}
-              <input class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_name || ''" (input)="updatePaymentMethodDetail('account_name', $any($event.target).value)" maxlength="120" />
-            </label>
-            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.accountNumber') }}
-              <input class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_number || ''" (input)="updatePaymentMethodDetail('account_number', $any($event.target).value)" maxlength="64" />
-            </label>
-            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.instructionsEnglish') }}
-              <textarea class="form-input mt-1" rows="2" [value]="paymentMethodDetails()['ABA Pay']?.instructions_en || ''" (input)="updatePaymentMethodDetail('instructions_en', $any($event.target).value)" maxlength="255"></textarea>
-            </label>
-            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.instructionsKhmer') }}
-              <textarea class="form-input mt-1" rows="2" [value]="paymentMethodDetails()['ABA Pay']?.instructions_km || ''" (input)="updatePaymentMethodDetail('instructions_km', $any($event.target).value)" maxlength="255"></textarea>
-            </label>
-          </div>
-          <div class="mt-3 flex justify-end">
-            <button type="button" class="btn btn-primary btn-sm" [disabled]="isPaymentMethodSaving()" (click)="savePaymentMethodDetails()">
-              {{ isPaymentMethodSaving() ? language.t('profile.savingChanges') : language.t('consoleSettings.savePaymentMethodDetails') }}
-            </button>
-          </div>
-        </section>
-      }
 
       <section class="mt-8 border-t border-hairline pt-6">
         <h2 class="text-base font-bold">{{ language.t('profile.language') }}</h2>

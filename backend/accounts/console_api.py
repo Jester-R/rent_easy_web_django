@@ -11,8 +11,10 @@ payment/notification services and manager helpers hop through
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal, InvalidOperation
 
+import httpx
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
@@ -31,6 +33,11 @@ from accounts.models import (
     normalize_identity,
 )
 from accounts.default_promotion import DEFAULT_HOME_PROMOTION
+from accounts.integration_config import (
+    telegram_bot_token,
+    telegram_webhook_secret,
+    telegram_webhook_url,
+)
 from accounts.payouts import apply_payout_fields
 from bookings.models import Booking
 from core.bolt import (
@@ -242,8 +249,7 @@ async def settings_get(request):
             "payment_method_details": _payment_method_details_response(
                 platform.payment_method_details
             ),
-            "aba_payway_merchant_id": platform.aba_payway_merchant_id
-            or settings.ABA_PAYWAY_MERCHANT_ID,
+            **_integration_settings_response(platform),
             "property_categories": platform.property_categories
             or DEFAULT_PROPERTY_CATEGORIES,
             "notification_messages": merged_notification_messages(
@@ -308,6 +314,69 @@ def _clean_commission_rates(raw):
                 status_code=422, detail="invalid_commission_rate"
             ) from exc
     return result
+
+
+_SECRET_CONFIG_FIELDS = (
+    ("stripe_secret_key", "STRIPE_SECRET_KEY"),
+    ("stripe_webhook_secret", "STRIPE_WEBHOOK_SECRET"),
+    ("aba_payway_api_key", "ABA_PAYWAY_API_KEY"),
+    ("google_oauth_client_secret", "GOOGLE_OAUTH_CLIENT_SECRET"),
+    ("telegram_bot_token", "TELEGRAM_BOT_TOKEN"),
+    ("telegram_webhook_secret", "TELEGRAM_WEBHOOK_SECRET"),
+)
+
+
+def _secret_settings_response(platform):
+    result = {}
+    for field, setting_name in _SECRET_CONFIG_FIELDS:
+        stored = str(getattr(platform, field, "") or "").strip()
+        environment = str(getattr(settings, setting_name, "") or "").strip()
+        result[f"{field}_configured"] = bool(stored)
+        result[f"{field}_from_env"] = bool(not stored and environment)
+    return result
+
+
+def _integration_settings_response(platform):
+    return {
+        "aba_payway_merchant_id": platform.aba_payway_merchant_id
+        or settings.ABA_PAYWAY_MERCHANT_ID,
+        "stripe_publishable_key": platform.stripe_publishable_key
+        or settings.STRIPE_PUBLISHABLE_KEY,
+        "google_oauth_client_id": platform.google_oauth_client_id
+        or settings.GOOGLE_OAUTH_CLIENT_ID,
+        "google_oauth_redirect_uri": platform.google_oauth_redirect_uri
+        or settings.GOOGLE_OAUTH_REDIRECT_URI,
+        "telegram_bot_username": platform.telegram_bot_username
+        or settings.TELEGRAM_BOT_USERNAME,
+        "telegram_webhook_url": platform.telegram_webhook_url
+        or settings.TELEGRAM_WEBHOOK_URL,
+        "telegram_chat_id": platform.telegram_chat_id or settings.TELEGRAM_CHAT_ID,
+        "telegram_login_auth_url": platform.telegram_login_auth_url
+        or settings.TELEGRAM_LOGIN_AUTH_URL,
+        **_secret_settings_response(platform),
+    }
+
+
+def _clean_secret_value(data, field, max_length=255):
+    value = body_str(data, field).strip()
+    if not value:
+        return ""
+    if len(value) > max_length or any(char.isspace() for char in value):
+        raise HTTPException(status_code=422, detail=f"invalid_{field}")
+    return value
+
+
+def _clean_config_value(data, field, max_length=255, *, url=False):
+    value = body_str(data, field).strip()
+    if len(value) > max_length:
+        raise HTTPException(status_code=422, detail=f"invalid_{field}")
+    if url and value:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise HTTPException(status_code=422, detail=f"invalid_{field}")
+    return value
 
 
 def _payment_method_detail_methods():
@@ -413,6 +482,58 @@ def _clean_home_promotion(raw):
     return result
 
 
+@console_api.post("/settings/telegram/webhook/")
+async def telegram_webhook_register(request):
+    actor = await admin_required(request)
+    token = await in_thread(telegram_bot_token)
+    secret = await in_thread(telegram_webhook_secret)
+    if not token:
+        raise HTTPException(status_code=422, detail="telegram_bot_token_required")
+    if not secret:
+        raise HTTPException(
+            status_code=422, detail="telegram_webhook_secret_required"
+        )
+    url = await in_thread(telegram_webhook_url) or (
+        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/api/telegram/webhook/"
+    )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{token}/setWebhook",
+                data={
+                    "url": url,
+                    "secret_token": secret,
+                    "allowed_updates": '["message"]',
+                },
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502, detail="telegram_webhook_unreachable"
+        ) from exc
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    if not response.is_success or not payload.get("ok"):
+        detail = str(
+            payload.get("description") or "telegram_webhook_registration_failed"
+        )
+        raise HTTPException(status_code=502, detail=detail)
+    await audit(
+        actor,
+        AuditLog.Action.UPDATE,
+        "settings",
+        1,
+        "registered Telegram webhook",
+    )
+    return {
+        "ok": True,
+        "url": url,
+        "description": str(payload.get("description") or ""),
+    }
+
+
 @console_api.post("/settings/")
 async def settings_update(request):
     actor = await admin_required(request)
@@ -436,6 +557,41 @@ async def settings_update(request):
                 status_code=422, detail="invalid_aba_payway_merchant_id"
             )
         platform.aba_payway_merchant_id = merchant_id
+    for field, _setting_name in _SECRET_CONFIG_FIELDS:
+        if body_bool(data, f"clear_{field}", False):
+            setattr(platform, field, "")
+        if field in data:
+            value = _clean_secret_value(data, field)
+            if value:
+                setattr(platform, field, value)
+    if "stripe_publishable_key" in data:
+        platform.stripe_publishable_key = _clean_secret_value(
+            data, "stripe_publishable_key"
+        )
+    if "google_oauth_client_id" in data:
+        platform.google_oauth_client_id = _clean_secret_value(
+            data, "google_oauth_client_id"
+        )
+    if "google_oauth_redirect_uri" in data:
+        platform.google_oauth_redirect_uri = _clean_config_value(
+            data, "google_oauth_redirect_uri", max_length=500, url=True
+        )
+    if "telegram_bot_username" in data:
+        platform.telegram_bot_username = _clean_secret_value(
+            data, "telegram_bot_username", max_length=64
+        ).lstrip("@")
+    if "telegram_webhook_url" in data:
+        platform.telegram_webhook_url = _clean_config_value(
+            data, "telegram_webhook_url", max_length=500, url=True
+        )
+    if "telegram_chat_id" in data:
+        platform.telegram_chat_id = _clean_secret_value(
+            data, "telegram_chat_id", max_length=64
+        )
+    if "telegram_login_auth_url" in data:
+        platform.telegram_login_auth_url = _clean_config_value(
+            data, "telegram_login_auth_url", max_length=500, url=True
+        )
     if "property_categories" in data:
         platform.property_categories = _clean_property_categories(
             data["property_categories"]
@@ -473,8 +629,7 @@ async def settings_update(request):
             "payment_method_details": _payment_method_details_response(
                 platform.payment_method_details
             ),
-            "aba_payway_merchant_id": platform.aba_payway_merchant_id
-            or settings.ABA_PAYWAY_MERCHANT_ID,
+            **_integration_settings_response(platform),
             "property_categories": platform.property_categories
             or DEFAULT_PROPERTY_CATEGORIES,
             "notification_messages": merged_notification_messages(

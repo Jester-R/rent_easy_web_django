@@ -40,7 +40,7 @@
         </div>
 
         @if (landingData(); as data) {
-          <div class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div class="app-card px-3.5 py-3">
               <svg class="w-4 h-4 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 21h18"/><path d="M5 21V5.5A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.5V21"/><path d="M15 10h3.5A1.5 1.5 0 0 1 20 11.5V21"/></svg>
               <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.properties }}</p>
@@ -56,11 +56,6 @@
               <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.bookings }}</p>
               <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('landing.bookings') }}</p>
             </div>
-            <div class="app-card px-3.5 py-3">
-              <svg class="w-4 h-4 text-ink-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.75"/></svg>
-              <p class="mt-1.5 text-[20px] font-extrabold leading-none">{{ data.stats.cities }}</p>
-              <p class="mt-1 text-[11px] font-semibold text-ink-3">{{ language.t('landing.districts') }}</p>
-            </div>
           </div>
         }
       </div>
@@ -74,10 +69,6 @@
         <div class="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"></div>
         <div class="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-accent/20 blur-3xl"></div>
         <div class="relative">
-          <span class="mb-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white/90">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></svg>
-            {{ promotionText('eyebrow') }}
-          </span>
           <h2 class="max-w-md text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{{ promotionText('title') }}</h2>
           <p class="mt-3 max-w-md text-sm leading-relaxed text-white/80">{{ promotionText('body') }}</p>
         </div>

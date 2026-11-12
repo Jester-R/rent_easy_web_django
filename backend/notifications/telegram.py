@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-import os
 
 import httpx
-from django.conf import settings
+
+from accounts.integration_config import telegram_bot_token, telegram_chat_id
 
 from .models import Notification
 from .rendering import notification_copy, render
@@ -31,10 +31,7 @@ def _message_text(notification: Notification) -> str:
 
 def send_telegram_notification(notification_id: int) -> None:
     """Mirror an in-app notification to its linked Telegram account."""
-    token = (
-        getattr(settings, "TELEGRAM_BOT_TOKEN", "")
-        or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    )
+    token = telegram_bot_token()
     if not token:
         return
 
@@ -51,10 +48,7 @@ def send_telegram_notification(notification_id: int) -> None:
     if not chat_id and (
         notification.recipient.is_staff or notification.recipient.is_superuser
     ):
-        chat_id = (
-            getattr(settings, "TELEGRAM_CHAT_ID", "")
-            or os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-        )
+        chat_id = telegram_chat_id()
     if not chat_id:
         return
 
@@ -62,10 +56,7 @@ def send_telegram_notification(notification_id: int) -> None:
 
 
 def send_telegram_message(chat_id: str, text: str) -> bool:
-    token = (
-        getattr(settings, "TELEGRAM_BOT_TOKEN", "")
-        or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    )
+    token = telegram_bot_token()
     if not token or not chat_id:
         return False
 

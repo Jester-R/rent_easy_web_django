@@ -30,7 +30,8 @@ from typing import Any
 
 import httpx
 from django.conf import settings
-from django.db.utils import OperationalError, ProgrammingError
+
+from accounts.integration_config import aba_payway_api_key, platform_value
 
 PURCHASE_HASH_FIELDS: tuple[str, ...] = (
     "req_time",
@@ -102,26 +103,15 @@ class PayWayError(RuntimeError):
 
 def merchant_id() -> str:
     """Return the admin-configured merchant ID, falling back to environment config."""
-    try:
-        from accounts.models import PlatformSettings
-
-        configured = (
-            PlatformSettings.objects.filter(pk=1)
-            .values_list("aba_payway_merchant_id", flat=True)
-            .first()
-        )
-    except OperationalError, ProgrammingError:  # migration/setup not complete yet
-        configured = ""
+    configured = platform_value("aba_payway_merchant_id")
     return str(configured or settings.ABA_PAYWAY_MERCHANT_ID or "").strip()
 
 
 def is_configured() -> bool:
-    """Whether real PayWay calls are enabled for this environment."""
-    return bool(
-        getattr(settings, "ABA_PAYWAY_ENABLED", False)
-        and merchant_id()
-        and getattr(settings, "ABA_PAYWAY_API_KEY", "")
-    )
+    """Whether real PayWay calls are enabled via admin settings or env."""
+    admin_key = platform_value("aba_payway_api_key")
+    enabled = bool(getattr(settings, "ABA_PAYWAY_ENABLED", False))
+    return bool(merchant_id() and aba_payway_api_key()) and (enabled or bool(admin_key))
 
 
 def amount_to_string(value: Decimal | int | float | str) -> str:
@@ -146,7 +136,7 @@ def _b64_json(value: Any) -> str:
 
 def hash_fields(fields: dict[str, Any], *, api_key: str | None = None) -> str:
     """Return the base64 HMAC-SHA512 of ``fields`` in the documented order."""
-    key = api_key if api_key is not None else settings.ABA_PAYWAY_API_KEY
+    key = api_key if api_key is not None else aba_payway_api_key()
     before_hash = "".join(
         str(fields.get(name, "") or "") for name in PURCHASE_HASH_FIELDS
     )
@@ -154,7 +144,7 @@ def hash_fields(fields: dict[str, Any], *, api_key: str | None = None) -> str:
 
 
 def _hash_check_fields(fields: dict[str, Any], *, api_key: str | None = None) -> str:
-    key = api_key if api_key is not None else settings.ABA_PAYWAY_API_KEY
+    key = api_key if api_key is not None else aba_payway_api_key()
     before_hash = "".join(str(fields.get(name, "") or "") for name in CHECK_HASH_FIELDS)
     return _sign(before_hash, key)
 
@@ -225,7 +215,7 @@ def create_qr_payment(
         "qr_image_template": "template3_color",
     }
     before_hash = "".join(str(fields.get(name, "") or "") for name in QR_HASH_FIELDS)
-    fields["hash"] = _sign(before_hash, settings.ABA_PAYWAY_API_KEY)
+    fields["hash"] = _sign(before_hash, aba_payway_api_key())
     try:
         response = httpx.post(
             f"{settings.ABA_PAYWAY_BASE_URL}{QR_PATH}",
@@ -382,7 +372,7 @@ def verify_callback_signature(raw_body: bytes, signature: str) -> bool:
         return False
 
     before_hash = "".join(_callback_value(payload[key]) for key in sorted(payload))
-    expected = _sign(before_hash, settings.ABA_PAYWAY_API_KEY)
+    expected = _sign(before_hash, aba_payway_api_key())
     return hmac.compare_digest(expected, signature)
 
 

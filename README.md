@@ -32,7 +32,7 @@ just setup
 just run
 ```
 
-Open [http://localhost:4200](http://localhost:4200). Angular runs on port `4200` and proxies API requests to Django Bolt on port `8000`. `just run` starts the backend and frontend; press `Ctrl+C` to stop the frontend, and stop the backend process if it remains running.
+Open [http://localhost:4200](http://localhost:4200). In development, Angular runs on port `4200` and proxies API requests to Django Bolt on port `8000`. `just run` starts the backend and frontend; press `Ctrl+C` to stop the frontend, and stop the backend process if it remains running.
 
 ### Without Nix
 
@@ -99,6 +99,8 @@ directly, export the same variables first.
 | `ABA_PAYWAY_TIMEOUT_SECONDS` | `15` | Timeout for backend PayWay API calls. |
 | `RENT_HOLD_DAYS` | `7` | Days the platform holds rent before the owner payout is due. |
 | `FRONTEND_BASE_URL` | `http://localhost:4200` | Used for return/cancel redirects into Angular. |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1,0.0.0.0,[::1]` | Comma-separated hostnames accepted by Django. `just` and `run.sh` also pass this list to Angular SSR and the dev server. Add your tunnel or production domains. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | local origins | Comma-separated full origins (scheme and port) allowed to send unsafe requests. Add your public frontend/backend URLs. |
 | `BACKEND_PUBLIC_URL` | `http://127.0.0.1:8000` | Public backend origin used to build the callback and return URLs. |
 | `ABA_PAYWAY_CALLBACK_URL` | `{BACKEND_PUBLIC_URL}/payments/aba/callback/` | Server-to-server notification URL. |
 | `ABA_PAYWAY_RETURN_URL` | `{BACKEND_PUBLIC_URL}/payments/aba/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. |
@@ -109,6 +111,10 @@ directly, export the same variables first.
 | `TELEGRAM_WEBHOOK_URL` | `{FRONTEND_BASE_URL}/api/telegram/webhook/` | Public webhook URL registered with Telegram. |
 | `TELEGRAM_CHAT_ID` | empty | Optional fallback destination for staff notifications only. |
 | `TELEGRAM_LOGIN_AUTH_URL` | `{FRONTEND_BASE_URL}/api/auth/telegram/callback/` | Legacy Login Widget callback (the app UI uses the bot code flow). |
+
+Admins can also set the ABA PayWay merchant ID and API key from **Profile →
+ABA PayWay**. Saved values override `.env`; leave the API key blank to keep the
+current key, or use the remove checkbox to fall back to `ABA_PAYWAY_API_KEY`.
 
 Leaving the merchant ID or API key empty, or setting `ABA_PAYWAY_ENABLED=false`,
 keeps the demo flow: `ABA Pay` is recorded as `ABA Pay (Mock)` using the existing
@@ -143,6 +149,12 @@ Add the Stripe variables to the same `.env` file:
 | `STRIPE_RETURN_URL` | `{FRONTEND_BASE_URL}/api/payments/stripe/return/?payment={payment_id}` | Browser return URL after checkout. Keep the `{payment_id}` placeholder. The default assumes the API is proxied under `/api`; override it when the backend has its own public origin. |
 | `STRIPE_CANCEL_URL` | `{FRONTEND_BASE_URL}/bookings` | Where the browser goes when the payer cancels. |
 
+Admins can also enter the publishable key, secret key, and webhook signing
+secret from **Profile → Stripe Card** in the app. Values saved there override
+the corresponding environment variables, so keys can be rotated without
+restarting the backend. The webhook URL and other non-secret settings still
+come from the environment.
+
 ### Test mode (sandbox) setup
 
 1. Create a Stripe account and toggle **Test mode** in the dashboard.
@@ -162,10 +174,21 @@ admin **Payment Commissions** page, mirroring the PayWay commission flow.
 
 ### Telegram login and notifications
 
+### Google sign-in
+
+Admins can configure Google OAuth from **Profile → Google Sign-In**: client ID,
+client secret, and redirect URI. Saved values override `GOOGLE_OAUTH_CLIENT_ID`,
+`GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI`. The redirect URI
+must match the authorized redirect URI registered in Google Cloud Console. Use
+the **remove** checkbox to clear a stored secret and fall back to `.env`.
+
+### Telegram login and notifications
+
 The Telegram integration is free and uses the same bot for sign-in and notification
-delivery. Create a bot with [@BotFather](https://t.me/BotFather), then set
+delivery. Create a bot with [@BotFather](https://t.me/BotFather), then either set
 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and a random
-`TELEGRAM_WEBHOOK_SECRET` in `.env`.
+`TELEGRAM_WEBHOOK_SECRET` in `.env`, or enter them from **Profile → Telegram**.
+Admin-saved values override `.env`.
 
 Sign-in uses a bot deep link, so the **Sign in with Telegram** icon works without
 registering a widget domain:
@@ -200,8 +223,8 @@ Each renter or owner can also connect notifications from their profile page; the
 must open the bot link and press **Start**. Booking and payment alerts then go to that
 user's private bot chat. `TELEGRAM_CHAT_ID` is an optional fallback for staff
 notifications. Delivery is best-effort and does not block the in-app notification.
-Keep the bot token and webhook secret private, and restart the backend after changing
-these settings.
+Keep the bot token and webhook secret private. Admin changes saved from the
+profile take effect immediately; `.env` changes require a backend restart.
 
 ### Sandbox testing
 
@@ -292,9 +315,30 @@ Run these at the repository root:
 | `just run` | Start the backend and Angular development server. |
 | `just backend` | Start only Django Bolt on `127.0.0.1:8000`. |
 | `just frontend` | Start only Angular on `localhost:4200`. |
-| `just build` | Build the Angular frontend for production. |
+| `just build-frontend` | Build the Angular frontend for production. |
+| `just pack` | Run `just setup`, build the frontend, and create the archives in `package/`. |
+| `just deploy [dest]` | Copy both archives from `package/` to a local path or remote host (prompts when `dest` is omitted). |
 
 To run the services separately, use two terminals and run `just backend` in one and `just frontend` in the other.
+
+### Packaging and deployment
+
+Run `just pack` (which runs `just setup` first) to produce `package/backend.tar.gz` and
+`package/frontend.tar.gz`. The backend archive contains the Django project, its installed
+`.venv`, and `.env` when present, so the server does not need to install Python packages
+separately. The frontend archive only contains the built static files. Then run
+`just deploy <dest>` to copy both archives to a local directory or an SSH destination
+such as `user@host:/srv/renteasy`. Both commands work on Unix and Windows; the Windows
+recipes use PowerShell and `tar` instead of Bash. Extract them on the target:
+
+```bash
+tar -xzf backend.tar.gz
+tar -xzf frontend.tar.gz
+```
+
+On the server, serve the built frontend with nginx and forward `/api` and `/media` to
+Django. The Angular dev-server proxy (`frontend/proxy.conf.json`) is only used by
+`ng serve`; it is not part of the production build.
 
 ## Project layout
 

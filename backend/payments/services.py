@@ -446,7 +446,11 @@ def _start_stripe_payment(booking: Booking) -> PaymentResult:
 def _attach_successful_payment(booking: Booking, payment: Payment) -> None:
     """Link a successful payment to its booking and alert both parties."""
     booking.payment = payment
-    booking.save(update_fields=["payment"])
+    update_fields = ["payment"]
+    if booking.status == BookingStatus.APPROVED:
+        booking.status = BookingStatus.CONFIRMED
+        update_fields.append("status")
+    booking.save(update_fields=update_fields)
     notify(
         booking.renter,
         Notification.Kind.PAYMENT_SUCCESS,
@@ -1354,6 +1358,10 @@ def ensure_demo_payment(
         paid_at=booking.approved_at or timezone.now(),
     )
     booking.payment = payment
-    booking.save(update_fields=["payment"])
+    update_fields = ["payment"]
+    if booking.status == BookingStatus.APPROVED:
+        booking.status = BookingStatus.CONFIRMED
+        update_fields.append("status")
+    booking.save(update_fields=update_fields)
     create_payout_for_payment(payment)
     return payment
