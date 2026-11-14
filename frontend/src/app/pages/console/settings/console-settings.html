@@ -109,5 +109,195 @@
     </section>
     }
 
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.paymentMethodDetails') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.paymentMethodDetailsHelp') }}</p>
+      </div>
+      @if (paymentMethodError(); as message) {
+        <div class="toast toast-error" role="alert">{{ message }}</div>
+      }
+      <div class="space-y-3 rounded-xl border border-hairline p-4">
+        <h3 class="text-sm font-bold">ABA PayWay</h3>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayMerchantId') }}
+          <input class="form-input mt-1" [value]="abaPaywayMerchantId()" (input)="abaPaywayMerchantId.set($any($event.target).value)" maxlength="30" autocomplete="off" />
+        </label>
+        <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayMerchantIdHelp') }}</p>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayApiKey') }}
+          <input type="password" class="form-input mt-1" [value]="abaPaywayApiKey()" (input)="abaPaywayApiKey.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
+        </label>
+        @if (abaPaywayApiKeyConfigured()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayApiKeyConfigured') }}</p>
+          <label class="flex items-center gap-2 text-[11px] text-ink-3">
+            <input type="checkbox" [checked]="clearAbaPaywayApiKey()" (change)="clearAbaPaywayApiKey.set($any($event.target).checked)" />
+            {{ language.t('profile.clearAbaPaywayApiKey') }}
+          </label>
+        } @else if (abaPaywayApiKeyFromEnv()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayApiKeyFromEnv') }}</p>
+        }
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.accountName') }}
+          <input class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_name || ''" (input)="updatePaymentMethodDetail('account_name', $any($event.target).value)" maxlength="120" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.accountNumber') }}
+          <input class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_number || ''" (input)="updatePaymentMethodDetail('account_number', $any($event.target).value)" maxlength="64" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.instructionsEnglish') }}
+          <textarea class="form-input mt-1" rows="2" [value]="paymentMethodDetails()['ABA Pay']?.instructions_en || ''" (input)="updatePaymentMethodDetail('instructions_en', $any($event.target).value)" maxlength="255"></textarea>
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.instructionsKhmer') }}
+          <textarea class="form-input mt-1" rows="2" [value]="paymentMethodDetails()['ABA Pay']?.instructions_km || ''" (input)="updatePaymentMethodDetail('instructions_km', $any($event.target).value)" maxlength="255"></textarea>
+        </label>
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isPaymentMethodSaving()" (click)="savePaymentMethodDetails()">
+          {{ isPaymentMethodSaving() ? language.t('profile.savingChanges') : language.t('consoleSettings.savePaymentMethodDetails') }}
+        </button>
+      </div>
+    </section>
+
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('profile.stripeCard') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('profile.stripeSettingsHelp') }}</p>
+      </div>
+      @if (stripeError(); as message) {
+        <div class="toast toast-error" role="alert">{{ message }}</div>
+      }
+      <div class="space-y-3 rounded-xl border border-hairline p-4">
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.stripePublishableKey') }}
+          <input class="form-input mt-1" [value]="stripePublishableKey()" (input)="stripePublishableKey.set($any($event.target).value)" maxlength="255" autocomplete="off" placeholder="pk_live_..." />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.stripeSecretKey') }}
+          <input type="password" class="form-input mt-1" [value]="stripeSecretKey()" (input)="stripeSecretKey.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="sk_live_..." />
+        </label>
+        @if (stripeSecretConfigured()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeSecretConfigured') }}</p>
+          <label class="flex items-center gap-2 text-[11px] text-ink-3">
+            <input type="checkbox" [checked]="clearStripeSecret()" (change)="clearStripeSecret.set($any($event.target).checked)" />
+            {{ language.t('profile.clearStripeSecret') }}
+          </label>
+        } @else if (stripeSecretFromEnv()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeSecretFromEnv') }}</p>
+        }
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.stripeWebhookSecret') }}
+          <input type="password" class="form-input mt-1" [value]="stripeWebhookSecret()" (input)="stripeWebhookSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="whsec_..." />
+        </label>
+        @if (stripeWebhookConfigured()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeWebhookConfigured') }}</p>
+          <label class="flex items-center gap-2 text-[11px] text-ink-3">
+            <input type="checkbox" [checked]="clearStripeWebhookSecret()" (change)="clearStripeWebhookSecret.set($any($event.target).checked)" />
+            {{ language.t('profile.clearStripeWebhookSecret') }}
+          </label>
+        } @else if (stripeWebhookFromEnv()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeWebhookFromEnv') }}</p>
+        }
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isStripeSaving()" (click)="saveStripeSettings()">
+          {{ isStripeSaving() ? language.t('profile.savingChanges') : language.t('profile.saveStripeSettings') }}
+        </button>
+      </div>
+    </section>
+
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('profile.googleSignIn') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('profile.googleSignInHelp') }}</p>
+      </div>
+      @if (googleError(); as message) {
+        <div class="toast toast-error" role="alert">{{ message }}</div>
+      }
+      <div class="space-y-3 rounded-xl border border-hairline p-4">
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.googleClientId') }}
+          <input class="form-input mt-1" [value]="googleClientId()" (input)="googleClientId.set($any($event.target).value)" maxlength="255" autocomplete="off" placeholder="...apps.googleusercontent.com" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.googleClientSecret') }}
+          <input type="password" class="form-input mt-1" [value]="googleClientSecret()" (input)="googleClientSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
+        </label>
+        @if (googleClientSecretConfigured()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.googleClientSecretConfigured') }}</p>
+          <label class="flex items-center gap-2 text-[11px] text-ink-3">
+            <input type="checkbox" [checked]="clearGoogleClientSecret()" (change)="clearGoogleClientSecret.set($any($event.target).checked)" />
+            {{ language.t('profile.clearGoogleClientSecret') }}
+          </label>
+        } @else if (googleClientSecretFromEnv()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.googleClientSecretFromEnv') }}</p>
+        }
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.googleRedirectUri') }}
+          <input class="form-input mt-1" [value]="googleRedirectUri()" (input)="googleRedirectUri.set($any($event.target).value)" maxlength="500" autocomplete="off" placeholder="https://example.com/api/auth/google/callback/" />
+        </label>
+        <p class="text-[11px] text-ink-3">{{ language.t('profile.googleRedirectUriHelp') }}</p>
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isGoogleSaving()" (click)="saveGoogleSettings()">
+          {{ isGoogleSaving() ? language.t('profile.savingChanges') : language.t('profile.saveGoogleSettings') }}
+        </button>
+      </div>
+    </section>
+
+    <section class="app-card space-y-4 p-5">
+      <div>
+        <h2 class="text-[14px] font-bold">{{ language.t('profile.telegramIntegration') }}</h2>
+        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('profile.telegramIntegrationHelp') }}</p>
+      </div>
+      @if (telegramError(); as message) {
+        <div class="toast toast-error" role="alert">{{ message }}</div>
+      }
+      <div class="space-y-3 rounded-xl border border-hairline p-4">
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramBotToken') }}
+          <input type="password" class="form-input mt-1" [value]="telegramBotToken()" (input)="telegramBotToken.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="123456789:AA..." />
+        </label>
+        @if (telegramBotTokenConfigured()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramBotTokenConfigured') }}</p>
+          <label class="flex items-center gap-2 text-[11px] text-ink-3">
+            <input type="checkbox" [checked]="clearTelegramBotToken()" (change)="clearTelegramBotToken.set($any($event.target).checked)" />
+            {{ language.t('profile.clearTelegramBotToken') }}
+          </label>
+        } @else if (telegramBotTokenFromEnv()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramBotTokenFromEnv') }}</p>
+        }
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramBotUsername') }}
+          <input class="form-input mt-1" [value]="telegramBotUsername()" (input)="telegramBotUsername.set($any($event.target).value)" maxlength="64" autocomplete="off" placeholder="RentEasyBot" />
+        </label>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookSecret') }}
+          <input type="password" class="form-input mt-1" [value]="telegramWebhookSecret()" (input)="telegramWebhookSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
+        </label>
+        @if (telegramWebhookSecretConfigured()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookSecretConfigured') }}</p>
+          <label class="flex items-center gap-2 text-[11px] text-ink-3">
+            <input type="checkbox" [checked]="clearTelegramWebhookSecret()" (change)="clearTelegramWebhookSecret.set($any($event.target).checked)" />
+            {{ language.t('profile.clearTelegramWebhookSecret') }}
+          </label>
+        } @else if (telegramWebhookSecretFromEnv()) {
+          <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookSecretFromEnv') }}</p>
+        }
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookUrl') }}
+          <input class="form-input mt-1" [value]="telegramWebhookUrl()" (input)="telegramWebhookUrl.set($any($event.target).value)" maxlength="500" autocomplete="off" placeholder="https://example.com/api/telegram/webhook/" />
+        </label>
+        <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookUrlHelp') }}</p>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramChatId') }}
+          <input class="form-input mt-1" [value]="telegramChatId()" (input)="telegramChatId.set($any($event.target).value)" maxlength="64" autocomplete="off" />
+        </label>
+        <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramChatIdHelp') }}</p>
+        <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramLoginAuthUrl') }}
+          <input class="form-input mt-1" [value]="telegramLoginAuthUrl()" (input)="telegramLoginAuthUrl.set($any($event.target).value)" maxlength="500" autocomplete="off" placeholder="https://example.com/api/auth/telegram/callback/" />
+        </label>
+      </div>
+      @if (telegramWebhookStatus(); as message) {
+        <div class="toast toast-success" role="status">{{ message }}</div>
+      }
+      @if (telegramWebhookError(); as message) {
+        <div class="toast toast-error" role="alert">{{ message }}</div>
+      }
+      <p class="text-[11px] text-ink-3">{{ language.t('profile.registerTelegramWebhookHelp') }}</p>
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="isTelegramWebhookSaving()" (click)="registerTelegramWebhook()">
+          {{ isTelegramWebhookSaving() ? language.t('profile.registeringTelegramWebhook') : language.t('profile.registerTelegramWebhook') }}
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="isTelegramSaving()" (click)="saveTelegramSettings()">
+          {{ isTelegramSaving() ? language.t('profile.savingChanges') : language.t('profile.saveTelegramSettings') }}
+        </button>
+      </div>
+    </section>
   }
 </div>

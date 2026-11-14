@@ -1,12 +1,11 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
-import { ConsoleService } from '../../services/console.service';
 import { compressImageToFile } from '../../shared/image';
-import type { PaymentMethodDetail, PayoutAccountDetails } from '../../models';
+import type { PayoutAccountDetails } from '../../models';
 
 @Component({
   selector: 'app-profile',
@@ -17,12 +16,7 @@ export class ProfileComponent implements OnInit {
   readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
-  private readonly console = inject(ConsoleService);
   payoutAccounts = signal<Record<string, PayoutAccountDetails>>({});
-  paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
-  abaPaywayMerchantId = signal('');
-  isPaymentMethodSaving = signal(false);
-  paymentMethodError = signal<string | null>(null);
 
   successMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
@@ -69,45 +63,15 @@ export class ProfileComponent implements OnInit {
         payment_account_number: user.payment_account_number || '',
         payment_phone: user.payment_phone || '',
       });
-      if (this.auth.isAdmin()) {
-        this.console.getSettings().subscribe({
-          next: (res) => {
-            this.paymentMethodDetails.set(res.settings.payment_method_details || {});
-            this.abaPaywayMerchantId.set(res.settings.aba_payway_merchant_id || '');
-          },
-          error: () => this.paymentMethodError.set(this.language.t('consoleSettings.failedToLoadSettings')),
-        });
-      }
+      if (!user.telegram_connected) this.connectTelegram(true);
     }
   }
 
-  updatePaymentMethodDetail(field: keyof PaymentMethodDetail, value: string): void {
-    this.paymentMethodDetails.update((details) => ({
-      ...details,
-      'ABA Pay': {
-        ...(details['ABA Pay'] || { account_name: '', account_number: '', instructions_en: '', instructions_km: '' }),
-        [field]: value,
-      },
-    }));
-  }
-
-  savePaymentMethodDetails(): void {
-    this.isPaymentMethodSaving.set(true);
-    this.paymentMethodError.set(null);
-    this.console.updateSettings({
-      payment_method_details: this.paymentMethodDetails(),
-      aba_payway_merchant_id: this.abaPaywayMerchantId().trim(),
-    }).subscribe({
-      next: (res) => {
-        this.paymentMethodDetails.set(res.settings.payment_method_details);
-        this.abaPaywayMerchantId.set(res.settings.aba_payway_merchant_id || '');
-        this.isPaymentMethodSaving.set(false);
-      },
-      error: (err) => {
-        this.isPaymentMethodSaving.set(false);
-        this.paymentMethodError.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
-      },
-    });
+  @HostListener('window:focus')
+  onWindowFocus(): void {
+    if (this.telegramLink() && !this.auth.currentUser()?.telegram_connected) {
+      this.refreshTelegramStatus();
+    }
   }
 
   async onPhotoSelected(event: Event): Promise<void> {
@@ -213,23 +177,31 @@ export class ProfileComponent implements OnInit {
     }));
   }
 
-  connectTelegram(): void {
+  connectTelegram(silent = false): void {
+    if (this.isTelegramLoading()) return;
     this.isTelegramLoading.set(true);
-    this.errorMessage.set(null);
+    if (!silent) this.errorMessage.set(null);
     this.auth.createTelegramLink().subscribe({
       next: (res) => { this.telegramLink.set(res.url); this.isTelegramLoading.set(false); },
       error: (err) => {
         this.isTelegramLoading.set(false);
-        this.errorMessage.set(err.error?.detail === 'telegram_bot_not_configured' ? 'Telegram bot is not configured yet.' : 'Could not create the Telegram connection link.');
+        if (!silent) {
+          this.errorMessage.set(err.error?.detail === 'telegram_bot_not_configured' ? 'Telegram bot is not configured yet.' : 'Could not create the Telegram connection link.');
+        }
       },
     });
   }
 
   refreshTelegramStatus(): void {
+    if (this.isTelegramLoading()) return;
     this.isTelegramLoading.set(true);
     this.auth.getPreferences().subscribe({
-      next: (res) => { this.auth.currentUser.set(res.user); this.isTelegramLoading.set(false); this.telegramLink.set(null); },
-      error: () => { this.isTelegramLoading.set(false); this.errorMessage.set('Could not refresh Telegram connection status.'); },
+      next: (res) => {
+        this.auth.currentUser.set(res.user);
+        this.isTelegramLoading.set(false);
+        if (res.user.telegram_connected) this.telegramLink.set(null);
+      },
+      error: () => { this.isTelegramLoading.set(false); },
     });
   }
 

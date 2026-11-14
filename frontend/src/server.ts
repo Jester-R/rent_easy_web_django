@@ -37,7 +37,38 @@ const browserDistFolder = resolve(
   join(import.meta.dirname, '../browser'),
 );
 
-const angularApp = new AngularNodeAppEngine();
+function parseAllowedHosts(
+  value: string | undefined,
+): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const hosts = new Set<string>();
+
+  for (const entry of value.split(',')) {
+    const host = entry.trim();
+
+    if (!host) {
+      continue;
+    }
+
+    if (host.startsWith('.')) {
+      hosts.add(host.slice(1));
+      hosts.add(`*${host}`);
+    } else {
+      hosts.add(host);
+    }
+  }
+
+  return hosts.size > 0 ? [...hosts] : undefined;
+}
+
+const allowedHosts = parseAllowedHosts(process.env['ALLOWED_HOSTS']);
+
+const angularApp = new AngularNodeAppEngine(
+  allowedHosts ? { allowedHosts } : undefined,
+);
 
 // Headers that should not be forwarded by the proxy.
 const HOP_BY_HOP = new Set([

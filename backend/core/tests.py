@@ -80,7 +80,7 @@ class ModelLinkTests(SeededTestCase):
         prop = Property.objects.first()
         self.assertEqual(prop.get_absolute_url(), f"/property/{prop.pk}/")
         payment = Payment.objects.first()
-        self.assertEqual(payment.get_absolute_url(), f"/rent/payments/{payment.pk}/")
+        self.assertEqual(payment.get_absolute_url(), f"/payments/{payment.pk}/")
 
     def test_notification_link_fallback(self):
         self.assertEqual(
@@ -100,7 +100,7 @@ class ModelLinkTests(SeededTestCase):
         if refund is not None:
             self.assertEqual(
                 refund.payment.get_absolute_url(),
-                f"/rent/payments/{refund.payment_id}/",
+                f"/payments/{refund.payment_id}/",
             )
 
 

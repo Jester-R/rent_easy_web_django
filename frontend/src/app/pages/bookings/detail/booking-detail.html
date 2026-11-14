@@ -19,7 +19,7 @@
       <div class="p-5">
         <div class="flex flex-wrap items-start gap-2">
           <h2 class="text-[18px] font-extrabold tracking-tight">{{ title(b.property) }}</h2>
-          <span [class]="'pill ' + bookingPill(b.status)">{{ b.status }}</span>
+          <span [class]="'pill ' + bookingPill(b.status)">{{ language.valueLabel(b.status) }}</span>
         </div>
 
         <p class="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-3">

@@ -16,6 +16,19 @@ from accounts.telegram_login import (
     verify_telegram_login,
     verify_telegram_login_code,
 )
+from accounts.console_api import _integration_settings_response
+from accounts.integration_config import (
+    aba_payway_api_key,
+    google_oauth_client_id,
+    google_oauth_client_secret,
+    google_oauth_redirect_uri,
+    telegram_bot_token,
+    telegram_bot_username,
+    telegram_chat_id,
+    telegram_login_auth_url,
+    telegram_webhook_secret,
+    telegram_webhook_url,
+)
 from accounts.models import (
     ApprovalStatus,
     EmailVerification,
@@ -949,3 +962,102 @@ class AccountNotificationTests(TestCase):
         ).afirst()
         self.assertIsNotNone(admin_notice)
         self.assertEqual(admin_notice.params.get("email"), user.email)
+
+
+class IntegrationConfigTests(TestCase):
+    @override_settings(
+        ABA_PAYWAY_API_KEY="env-aba",
+        GOOGLE_OAUTH_CLIENT_ID="env-client",
+        GOOGLE_OAUTH_CLIENT_SECRET="env-secret",
+        GOOGLE_OAUTH_REDIRECT_URI="https://env.example/callback/",
+        TELEGRAM_BOT_TOKEN="env-token",
+        TELEGRAM_BOT_USERNAME="EnvBot",
+        TELEGRAM_WEBHOOK_SECRET="env-webhook",
+        TELEGRAM_WEBHOOK_URL="https://env.example/webhook/",
+        TELEGRAM_CHAT_ID="env-chat",
+        TELEGRAM_LOGIN_AUTH_URL="https://env.example/login/",
+    )
+    def test_platform_values_override_environment(self):
+        PlatformSettings.objects.create(
+            pk=1,
+            aba_payway_api_key="admin-aba",
+            google_oauth_client_id="admin-client",
+            google_oauth_client_secret="admin-secret",
+            google_oauth_redirect_uri="https://admin.example/callback/",
+            telegram_bot_token="admin-token",
+            telegram_bot_username="AdminBot",
+            telegram_webhook_secret="admin-webhook",
+            telegram_webhook_url="https://admin.example/webhook/",
+            telegram_chat_id="admin-chat",
+            telegram_login_auth_url="https://admin.example/login/",
+        )
+        self.assertEqual(aba_payway_api_key(), "admin-aba")
+        self.assertEqual(google_oauth_client_id(), "admin-client")
+        self.assertEqual(google_oauth_client_secret(), "admin-secret")
+        self.assertEqual(
+            google_oauth_redirect_uri(), "https://admin.example/callback/"
+        )
+        self.assertEqual(telegram_bot_token(), "admin-token")
+        self.assertEqual(telegram_bot_username(), "AdminBot")
+        self.assertEqual(telegram_webhook_secret(), "admin-webhook")
+        self.assertEqual(telegram_webhook_url(), "https://admin.example/webhook/")
+        self.assertEqual(telegram_chat_id(), "admin-chat")
+        self.assertEqual(
+            telegram_login_auth_url(), "https://admin.example/login/"
+        )
+
+    @override_settings(
+        ABA_PAYWAY_API_KEY="env-aba",
+        GOOGLE_OAUTH_CLIENT_ID="env-client",
+        GOOGLE_OAUTH_CLIENT_SECRET="env-secret",
+        GOOGLE_OAUTH_REDIRECT_URI="https://env.example/callback/",
+        TELEGRAM_BOT_TOKEN="env-token",
+        TELEGRAM_BOT_USERNAME="@EnvBot",
+        TELEGRAM_WEBHOOK_SECRET="env-webhook",
+        TELEGRAM_WEBHOOK_URL="https://env.example/webhook/",
+        TELEGRAM_CHAT_ID="env-chat",
+        TELEGRAM_LOGIN_AUTH_URL="https://env.example/login/",
+    )
+    def test_environment_fallback(self):
+        self.assertEqual(aba_payway_api_key(), "env-aba")
+        self.assertEqual(google_oauth_client_id(), "env-client")
+        self.assertEqual(google_oauth_client_secret(), "env-secret")
+        self.assertEqual(google_oauth_redirect_uri(), "https://env.example/callback/")
+        self.assertEqual(telegram_bot_token(), "env-token")
+        self.assertEqual(telegram_bot_username(), "EnvBot")
+        self.assertEqual(telegram_webhook_secret(), "env-webhook")
+        self.assertEqual(telegram_webhook_url(), "https://env.example/webhook/")
+        self.assertEqual(telegram_chat_id(), "env-chat")
+        self.assertEqual(telegram_login_auth_url(), "https://env.example/login/")
+
+
+class IntegrationSettingsResponseTests(TestCase):
+    @override_settings(
+        ABA_PAYWAY_API_KEY="env-aba",
+        ABA_PAYWAY_MERCHANT_ID="env-merchant",
+        GOOGLE_OAUTH_CLIENT_SECRET="env-google-secret",
+        TELEGRAM_BOT_TOKEN="env-telegram-token",
+        TELEGRAM_WEBHOOK_SECRET="env-telegram-webhook",
+    )
+    def test_response_masks_secrets_and_reports_sources(self):
+        platform = PlatformSettings.objects.create(
+            pk=1,
+            aba_payway_api_key="admin-aba",
+            google_oauth_client_secret="",
+            telegram_bot_token="",
+        )
+
+        data = _integration_settings_response(platform)
+
+        self.assertEqual(data["aba_payway_merchant_id"], "env-merchant")
+        self.assertTrue(data["aba_payway_api_key_configured"])
+        self.assertFalse(data["aba_payway_api_key_from_env"])
+        self.assertNotIn("aba_payway_api_key", data)
+        self.assertFalse(data["google_oauth_client_secret_configured"])
+        self.assertTrue(data["google_oauth_client_secret_from_env"])
+        self.assertNotIn("google_oauth_client_secret", data)
+        self.assertFalse(data["telegram_bot_token_configured"])
+        self.assertTrue(data["telegram_bot_token_from_env"])
+        self.assertNotIn("telegram_bot_token", data)
+        self.assertTrue(data["telegram_webhook_secret_from_env"])
+        self.assertNotIn("telegram_webhook_secret", data)

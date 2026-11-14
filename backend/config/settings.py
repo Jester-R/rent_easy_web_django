@@ -23,9 +23,10 @@ if os.environ.get("TRUST_FORWARDED_PROTO") == "1":
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]
 ALLOWED_HOSTS += [
     host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
     if host.strip()
 ]
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 
 CSRF_TRUSTED_ORIGINS = [
@@ -35,9 +36,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS += [
     origin.strip()
-    for origin in os.environ.get("EXTRA_CSRF_TRUSTED_ORIGINS", "").split(",")
+    for env_name in ("DJANGO_CSRF_TRUSTED_ORIGINS", "EXTRA_CSRF_TRUSTED_ORIGINS")
+    for origin in os.environ.get(env_name, "").split(",")
     if origin.strip()
 ]
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -139,8 +142,9 @@ DEFAULT_SUPERADMIN = {
 RENT_HOLD_DAYS = int(os.environ.get("RENT_HOLD_DAYS", "7") or "7")
 
 # -- ABA PayWay ---------------------------------------------------------------
-# ABA supplies the API key; the merchant ID can be set here or in the admin
-# Profile form. Checkout is unavailable until both are configured.
+# ABA supplies the API key; both values can also be saved from the admin
+# Profile form, where they override these environment defaults. Checkout is
+# unavailable until both are configured.
 ABA_PAYWAY_MERCHANT_ID = os.environ.get("ABA_PAYWAY_MERCHANT_ID", "").strip()
 ABA_PAYWAY_API_KEY = os.environ.get("ABA_PAYWAY_API_KEY", "").strip()
 ABA_PAYWAY_BASE_URL = os.environ.get(
@@ -208,8 +212,8 @@ STRIPE_TIMEOUT_SECONDS = float(
 STRIPE_SESSION_MINUTES = int(
     os.environ.get("STRIPE_SESSION_MINUTES", "30") or "30"
 )
-# The browser return URL must be reachable publicly. Deployments that serve the
-# API behind the frontend's ``/api`` proxy should keep the default below;
+# The browser return URL must be reachable publicly. In production, nginx serves
+# the built frontend and forwards /api to Django, so keep the default below;
 # override this when the backend has its own public origin.
 STRIPE_RETURN_URL = os.environ.get(
     "STRIPE_RETURN_URL",
@@ -220,6 +224,7 @@ STRIPE_CANCEL_URL = os.environ.get(
 )
 
 # -- Google OAuth2 ------------------------------------------------------------
+# Admin Profile values override these environment defaults.
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
 GOOGLE_OAUTH_REDIRECT_URI = os.environ.get(
@@ -236,6 +241,7 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b").strip()
 
 # -- Telegram notifications ---------------------------------------------------
+# Admin Profile values override these environment defaults.
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "").strip()
 TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()

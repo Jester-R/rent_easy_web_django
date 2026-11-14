@@ -2,8 +2,8 @@
   <button
     type="button"
     class="form-input flex w-full items-center gap-2 text-start"
-    [class.opacity-60]="disabled()"
-    [disabled]="disabled()"
+    [class.opacity-60]="isDisabled()"
+    [disabled]="isDisabled()"
     [attr.aria-label]="ariaLabel || placeholder"
     [attr.aria-expanded]="open()"
     (click)="toggle()"

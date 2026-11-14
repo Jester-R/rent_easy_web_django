@@ -63,6 +63,16 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
     return !Number.isFinite(paidTime) || Date.now() < paidTime + 7 * 24 * 60 * 60 * 1000;
   }
 
+  statusLabel(payment: Payment): string {
+    if (payment.refund_status === 'Processed') {
+      return this.language.valueLabel('Refunded');
+    }
+    if (payment.refund_status === 'Pending') {
+      return this.language.valueLabel('Refund Pending');
+    }
+    return this.language.valueLabel(paymentStatusLabel(payment.status));
+  }
+
   ngOnInit(): void {
     this.load();
   }
@@ -122,7 +132,7 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.isRefreshing.set(false);
-        this.refreshError.set('Could not reach the payment provider. Try again shortly.');
+        this.refreshError.set(this.language.t('paymentDetail.providerUnreachable'));
         this.schedulePoll();
       },
     });
@@ -195,12 +205,12 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         const detail = err.error?.detail;
         const messages: Record<string, string> = {
-          refund_already_pending: 'A refund request is already under review.',
-          refund_already_processed: 'This payment has already been refunded.',
-          payment_not_refundable: 'Only successful payments can be submitted for refund review.',
-          refund_window_closed: 'Renter refund requests must be submitted within 7 days of payment.',
+          refund_already_pending: this.language.t('paymentDetail.refundAlreadyPending'),
+          refund_already_processed: this.language.t('paymentDetail.refundAlreadyProcessed'),
+          payment_not_refundable: this.language.t('paymentDetail.paymentNotRefundable'),
+          refund_window_closed: this.language.t('paymentDetail.refundWindowClosed'),
         };
-        this.refundRequestError.set(messages[detail] || 'Could not submit the refund request. Please try again.');
+        this.refundRequestError.set(messages[detail] || this.language.t('paymentDetail.refundSubmitFailed'));
         this.isRequestingRefund.set(false);
       },
     });
