@@ -48,7 +48,7 @@ async def _load_conversation(pk: int, user) -> Conversation:
     return conv
 
 
-async def _notify_new_message(conv: Conversation, sender) -> None:
+async def _notify_new_message(conv: Conversation, sender, message: str) -> None:
     recipient = conv.other_party(sender)
     await in_thread(
         notify,
@@ -58,6 +58,7 @@ async def _notify_new_message(conv: Conversation, sender) -> None:
         "notif_chat_message_body",
         params={
             "sender": sender.display_name,
+            "message": message,
             "title": conv.property_title or "your property",
         },
         link=f"/messages/{conv.pk}",
@@ -133,7 +134,7 @@ async def start_conversation(request):
         )
         conv.updated_at = timezone.now()
         await conv.asave(update_fields=["updated_at"])
-        await _notify_new_message(conv, user)
+        await _notify_new_message(conv, user, body)
     return {"conversation": await _summary(conv, user)}
 
 
@@ -179,7 +180,7 @@ async def send_message(request):
     )
     conv.updated_at = timezone.now()
     await conv.asave(update_fields=["updated_at"])
-    await _notify_new_message(conv, user)
+    await _notify_new_message(conv, user, msg.body)
     return {"message": await serialize_message(msg)}
 
 

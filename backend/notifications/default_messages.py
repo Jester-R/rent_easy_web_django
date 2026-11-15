@@ -6,10 +6,24 @@ DEFAULT_NOTIFICATION_MESSAGES = [
         "body_key": "notif_new_request_body",
         "label_en": "New booking request",
         "label_km": "សំណើកក់ថ្មី",
-        "title_en": "New booking request",
-        "title_km": "សំណើកក់ថ្មី",
-        "body_en": "{renter} requested {title}",
-        "body_km": "{renter} បានស្នើសុំ {title}",
+        "title_en": "New booking request from {renter}",
+        "title_km": "សំណើកក់ថ្មីពី {renter}",
+        "body_en": (
+            "Property: {title}\n"
+            "Move-in: {move_in}\n"
+            "Lease: {lease}\n"
+            "Monthly rent: {amount}\n"
+            "Reference: {reference}\n"
+            "Message: {note}"
+        ),
+        "body_km": (
+            "អចលនទ្រព្យ៖ {title}\n"
+            "កាលបរិច្ឆេទចូល៖ {move_in}\n"
+            "រយៈពេលជួល៖ {lease}\n"
+            "ថ្លៃជួលប្រចាំខែ៖ {amount}\n"
+            "លេខយោង៖ {reference}\n"
+            "សារ៖ {note}"
+        ),
     },
     {
         "key": "notif_booking_update",
@@ -176,10 +190,10 @@ DEFAULT_NOTIFICATION_MESSAGES = [
         "body_key": "notif_chat_message_body",
         "label_en": "New message",
         "label_km": "សារថ្មី",
-        "title_en": "New message",
-        "title_km": "សារថ្មី",
-        "body_en": "{sender} sent you a message about {title}.",
-        "body_km": "{sender} បានផ្ញើសារមកអ្នកអំពី {title}។",
+        "title_en": "New message from {sender}",
+        "title_km": "សារថ្មីពី {sender}",
+        "body_en": "{message}\n\nProperty: {title}",
+        "body_km": "{message}\n\nអចលនទ្រព្យ៖ {title}",
     },
     {
         "key": "notif_telegram_registration",

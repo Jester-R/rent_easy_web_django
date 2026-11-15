@@ -99,6 +99,18 @@ class PaymentResult:
     qr: dict | None = None
 
 
+def _date_text(value) -> str:
+    return value.strftime("%d %b %Y") if value else "Not specified"
+
+
+def _lease_text(booking: Booking) -> str:
+    months = max(1, booking.lease_months or 1)
+    label = f"{months} month{'s' if months != 1 else ''}"
+    if booking.end_date:
+        label += f" (until {_date_text(booking.end_date)})"
+    return label
+
+
 @transaction.atomic
 def create_booking(
     *,
@@ -135,7 +147,15 @@ def create_booking(
         Notification.Kind.BOOKING_REQUEST,
         "notif_new_request",
         "notif_new_request_body",
-        params={"renter": renter.display_name, "title": property_obj.title},
+        params={
+            "renter": renter.display_name,
+            "title": property_obj.title,
+            "amount": booking.rent_display,
+            "move_in": _date_text(booking.move_in_date),
+            "lease": _lease_text(booking),
+            "reference": booking.reference,
+            "note": booking.note or "No message",
+        },
         link=booking.get_absolute_url(),
         action="owner_decision",
     )

@@ -3,8 +3,11 @@
 type Template = readonly [string, string];
 
 export const NOTIFICATION_TEXT: Readonly<Record<string, Template>> = {
-  notif_new_request: ['New booking request', 'សំណើកក់ថ្មី'],
-  notif_new_request_body: ['{renter} requested {title}', '{renter} បានស្នើសុំ {title}'],
+  notif_new_request: ['New booking request from {renter}', 'សំណើកក់ថ្មីពី {renter}'],
+  notif_new_request_body: [
+    'Property: {title}\nMove-in: {move_in}\nLease: {lease}\nMonthly rent: {amount}\nReference: {reference}\nMessage: {note}',
+    'អចលនទ្រព្យ៖ {title}\nកាលបរិច្ឆេទចូល៖ {move_in}\nរយៈពេលជួល៖ {lease}\nថ្លៃជួលប្រចាំខែ៖ {amount}\nលេខយោង៖ {reference}\nសារ៖ {note}',
+  ],
   notif_booking_update: ['Booking updated', 'ការកក់ត្រូវបានធ្វើបច្ចុប្បន្នភាព'],
   notif_booking_update_body: [
     'Your booking for {title} is now {status}',
@@ -20,10 +23,10 @@ export const NOTIFICATION_TEXT: Readonly<Record<string, Template>> = {
     'Your payment of {amount} for {title} was successful.',
     'ការទូទាត់ចំនួន {amount} សម្រាប់ {title} របស់អ្នកបានជោគជ័យ។',
   ],
-  notif_chat_message: ['New message', 'សារថ្មី'],
+  notif_chat_message: ['New message from {sender}', 'សារថ្មីពី {sender}'],
   notif_chat_message_body: [
-    '{sender} sent you a message about {title}.',
-    '{sender} បានផ្ញើសារមកអ្នកអំពី {title}។',
+    '{message}\n\nProperty: {title}',
+    '{message}\n\nអចលនទ្រព្យ៖ {title}',
   ],
   notif_booking_approved: ['Booking approved', 'ការកក់ត្រូវបានអនុម័ត'],
   notif_booking_approved_body: [

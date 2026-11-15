@@ -8,7 +8,9 @@ from accounts.models import Role, User
 from chat.api import _notify_new_message
 from chat.models import Conversation
 from listings.models import Property
+from notifications.default_messages import DEFAULT_NOTIFICATION_MESSAGES
 from notifications.models import Notification
+from notifications.rendering import render
 
 
 class ChatNotificationTests(TestCase):
@@ -45,7 +47,8 @@ class ChatNotificationTests(TestCase):
             "property", "renter", "owner"
         ).aget(pk=self.conversation.pk)
 
-        await _notify_new_message(conversation, self.renter)
+        message = "Is the apartment still available?"
+        await _notify_new_message(conversation, self.renter, message)
 
         notification = await Notification.objects.filter(
             recipient=self.owner, kind=Notification.Kind.CHAT_MESSAGE
@@ -55,6 +58,13 @@ class ChatNotificationTests(TestCase):
         self.assertEqual(notification.link, f"/messages/{conversation.pk}")
         self.assertEqual(notification.params["sender"], self.renter.display_name)
         self.assertEqual(notification.params["title"], self.property.title)
+        self.assertEqual(notification.params["message"], message)
+        template = next(
+            item
+            for item in DEFAULT_NOTIFICATION_MESSAGES
+            if item["key"] == "notif_chat_message"
+        )
+        self.assertIn(message, render(template["body_en"], notification.params))
         self.assertEqual(
             await Notification.objects.filter(recipient=self.renter).acount(), 0
         )

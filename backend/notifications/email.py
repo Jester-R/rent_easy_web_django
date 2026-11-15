@@ -73,7 +73,7 @@ def send_email_notification(notification_id: int) -> bool:
     if title_km or body_km:
         khmer_block = (
             f'<div class="km"><div class="title">{escape(title_km)}</div>'
-            f"<p>{escape(body_km)}</p></div>"
+            f'<p style="white-space:pre-line;">{escape(body_km)}</p></div>'
         )
     html_content = f"""<!DOCTYPE html>
 <html>
@@ -81,7 +81,7 @@ def send_email_notification(notification_id: int) -> bool:
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;padding:28px;">
     <div style="font-size:20px;font-weight:800;color:#2563eb;margin-bottom:18px;">RentEasy</div>
     <div style="font-size:17px;font-weight:700;margin-bottom:8px;">{escape(title_en)}</div>
-    <p style="font-size:14px;line-height:1.6;color:#475569;margin:0 0 18px;">{escape(body_en)}</p>
+    <p style="font-size:14px;line-height:1.6;color:#475569;margin:0 0 18px;white-space:pre-line;">{escape(body_en)}</p>
     {khmer_block}
     <p style="margin:22px 0 0;">
       <a href="{escape(url)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;border-radius:10px;">Open RentEasy</a>

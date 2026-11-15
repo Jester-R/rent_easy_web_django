@@ -1,10 +1,15 @@
+from datetime import date
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase
 
 from accounts.models import Role, User
+from listings.models import Property
 from notifications.models import Notification
+from notifications.rendering import notification_copy, render
 from notifications.services import notify
+from payments.services import create_booking
 
 
 class NotificationChannelTests(TestCase):
@@ -35,6 +40,54 @@ class NotificationChannelTests(TestCase):
 
         telegram_send.assert_called_once_with(notification.pk)
         email_send.assert_called_once_with(notification.pk)
+
+    def test_booking_request_includes_full_details(self):
+        owner = User.objects.create_user(
+            email="booking-owner@real-domain.com",
+            username="booking-owner",
+            password="secret123",
+            role=Role.OWNER,
+        )
+        renter = User.objects.create_user(
+            email="booking-renter@real-domain.com",
+            username="booking-renter",
+            password="secret123",
+            role=Role.RENTER,
+        )
+        property_obj = Property.objects.create(
+            owner=owner,
+            title="BKK1 Apartment",
+            location="Phnom Penh",
+            price_per_month=Decimal("450.00"),
+            bedrooms=2,
+            bathrooms=1,
+            description="Test",
+            category="apartment",
+        )
+
+        booking = create_booking(
+            property_obj=property_obj,
+            renter=renter,
+            move_in_date=date(2026, 12, 1),
+            lease_months=6,
+            note="I would like to move in with my cat.",
+        )
+
+        notification = Notification.objects.get(
+            recipient=owner, kind=Notification.Kind.BOOKING_REQUEST
+        )
+        self.assertEqual(notification.params["reference"], booking.reference)
+        self.assertEqual(notification.params["amount"], "$450")
+        self.assertEqual(notification.params["move_in"], "01 Dec 2026")
+        self.assertEqual(notification.params["lease"], "6 months")
+        self.assertEqual(
+            notification.params["note"], "I would like to move in with my cat."
+        )
+        copy = notification_copy(notification)
+        body = render(copy["body_en"], copy["params"])
+        self.assertIn("BKK1 Apartment", body)
+        self.assertIn("01 Dec 2026", body)
+        self.assertIn("I would like to move in with my cat.", body)
 
     def test_email_channel_sends_to_verified_address(self):
         from notifications.email import send_email_notification
