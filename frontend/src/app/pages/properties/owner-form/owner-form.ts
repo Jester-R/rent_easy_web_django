@@ -21,22 +21,44 @@ import { formatCoordinates, parseCoordinates } from '../../../shared/coords';
 import { compressImageToFile } from '../../../shared/image';
 
 const ADMIN_NAME_PREFIX =
-  /^(?:province|khaet|khet|city|municipality|district|khan|srok|krong|commune|sangkat|khum|village|phum|quarter|group|ខេត្ត|រាជធានី|ក្រុង|ខណ្ឌ|ស្រុក|ឃុំ|សង្កាត់|ភូមិ)\s*/u;
+  /^(?:province|khaet|khet|city|municipality|district|khan|srok|krong|commune|sangkat|khum|village|phum|phoum|quarter|group|ខេត្ត|រាជធានី|ក្រុង|ខណ្ឌ|ស្រុក|ឃុំ|សង្កាត់|ភូមិ)\s*/iu;
 const ADMIN_NAME_SUFFIX =
-  /\s+(?:province|municipality|city|district|commune|village)$/u;
+  /\s+(?:province|municipality|city|district|commune|village)$/iu;
 
-const NUMBER_WORDS: Record<string, string[]> = {
-  '1': ['muoy', 'mouy', 'one', 'i', '1', '១'],
-  '2': ['pir', 'two', 'ii', '2', '២'],
-  '3': ['bei', 'three', 'iii', '3', '៣'],
-  '4': ['buon', 'four', 'iv', '4', '៤'],
-  '5': ['pram', 'five', 'v', '5', '៥'],
-  '6': ['prammuoy', 'six', 'vi', '6', '៦'],
-  '7': ['prampir', 'seven', 'vii', '7', '៧'],
-  '8': ['prambei', 'eight', 'viii', '8', '៨'],
-  '9': ['prambuon', 'nine', 'ix', '9', '៩'],
-  '10': ['dab', 'ten', 'x', '10', '១០'],
+const KHMER_DIGITS: Record<string, string> = {
+  '០': '0', '១': '1', '២': '2', '៣': '3', '៤': '4',
+  '៥': '5', '៦': '6', '៧': '7', '៨': '8', '៩': '9',
 };
+
+const NUMBER_MAPPINGS: { re: RegExp; num: string }[] = [
+  // 20-29
+  { re: /\b(?:dab\s*mphei|mphei)\s*(?:buon|four|4)\b/gi, num: '24' },
+  { re: /\b(?:dab\s*mphei|mphei)\s*(?:bei|three|3)\b/gi, num: '23' },
+  { re: /\b(?:dab\s*mphei|mphei)\s*(?:pir|two|2)\b/gi, num: '22' },
+  { re: /\b(?:dab\s*mphei|mphei)\s*(?:muoy|mouy|one|1)\b/gi, num: '21' },
+  { re: /\b(?:dab\s*mphei|mphei)\b/gi, num: '20' },
+  // 11-19
+  { re: /\bdab\s*(?:bram\s*buon|pram\s*buon|nine|9)\b/gi, num: '19' },
+  { re: /\bdab\s*(?:bram\s*bei|pram\s*bei|eight|8)\b/gi, num: '18' },
+  { re: /\bdab\s*(?:bram\s*pir|pram\s*pir|seven|7)\b/gi, num: '17' },
+  { re: /\bdab\s*(?:bram\s*muoy|pram\s*muoy|six|6)\b/gi, num: '16' },
+  { re: /\bdab\s*(?:bram|pram|five|5)\b/gi, num: '15' },
+  { re: /\bdab\s*(?:buon|four|4)\b/gi, num: '14' },
+  { re: /\bdab\s*(?:bei|three|3)\b/gi, num: '13' },
+  { re: /\bdab\s*(?:pir|two|2)\b/gi, num: '12' },
+  { re: /\bdab\s*(?:muoy|mouy|one|1)\b/gi, num: '11' },
+  { re: /\b(?:dab|ten)\b/gi, num: '10' },
+  // 1-9
+  { re: /\b(?:pram\s*buon|bram\s*buon|nine)\b/gi, num: '9' },
+  { re: /\b(?:pram\s*bei|bram\s*bei|eight)\b/gi, num: '8' },
+  { re: /\b(?:pram\s*pir|bram\s*pir|seven)\b/gi, num: '7' },
+  { re: /\b(?:pram\s*muoy|bram\s*muoy|six)\b/gi, num: '6' },
+  { re: /\b(?:pram|bram|five)\b/gi, num: '5' },
+  { re: /\b(?:buon|four)\b/gi, num: '4' },
+  { re: /\b(?:bei|three)\b/gi, num: '3' },
+  { re: /\b(?:pir|two)\b/gi, num: '2' },
+  { re: /\b(?:muoy|mouy|one)\b/gi, num: '1' },
+];
 
 @Component({
   selector: 'app-owner-property-form',
@@ -788,6 +810,8 @@ export class OwnerPropertyFormComponent implements OnInit {
   private normalizeAdministrativeText(val: string): string {
     if (!val) return '';
     let s = val.normalize('NFKC').toLowerCase();
+    // Convert Khmer digits to Arabic digits
+    s = s.replace(/[០-៩]/gu, (d) => KHMER_DIGITS[d] || d);
     s = s.replace(ADMIN_NAME_PREFIX, '');
     s = s.replace(ADMIN_NAME_SUFFIX, '');
     s = s.replace(/sihanoukville|mittapheap|kampong\s*saom/gui, 'preah sihanouk');
@@ -805,18 +829,25 @@ export class OwnerPropertyFormComponent implements OnInit {
     s = s.replace(/kambol/gui, 'kamboul');
     s = s.replace(/siem\s*reap/gui, 'siem reab');
 
+    // Common phonetic / romanization spelling differences in Khmer names
+    s = s.replace(/thnaot/gui, 'tnaot');
+    s = s.replace(/thmor|thmar/gui, 'tmar');
+    s = s.replace(/chhouk|chhook|chuk/gui, 'chhuk');
+    s = s.replace(/trapeang/gui, 'tropeang');
     s = s.replace(/boeung/gui, 'boeng');
     s = s.replace(/toul/gui, 'tuol');
     s = s.replace(/kork/gui, 'kouk');
-    s = s.replace(/\bquarter\s*([0-9]+)\b/gui, (_, n) => 'lekh ' + n);
+    s = s.replace(/prek/gui, 'preaek');
+    s = s.replace(/stung/gui, 'steung');
+    s = s.replace(/slaket/gui, 'sla ket');
+    s = s.replace(/chamkar/gui, 'chomkar');
 
-    for (const [digit, words] of Object.entries(NUMBER_WORDS)) {
-      for (const w of words) {
-        s = s.replace(
-          new RegExp('(?:ti|lekh|\\b)\\s*' + w + '\\b', 'gui'),
-          'ti ' + digit,
-        );
-      }
+    // Strip prefix markers before numbers like "ti 1", "lekh 1", "quarter 1", "group 1", "no 1"
+    s = s.replace(/\b(?:ti|lekh|quarter|group|no\.?)\s*(\d+)\b/gui, '$1');
+
+    // Convert number words to digits
+    for (const { re, num } of NUMBER_MAPPINGS) {
+      s = s.replace(re, num);
     }
 
     return s.replace(/[^\p{L}\p{N}]+/gu, '').trim();
