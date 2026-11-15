@@ -23,7 +23,8 @@ if os.environ.get("TRUST_FORWARDED_PROTO") == "1":
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]
 ALLOWED_HOSTS += [
     host.strip()
-    for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    for env_name in ("ALLOWED_HOSTS", "DJANGO_ALLOWED_HOSTS")
+    for host in os.environ.get(env_name, "").split(",")
     if host.strip()
 ]
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
