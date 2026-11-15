@@ -9,12 +9,28 @@ from urllib.parse import unquote, urljoin, urlparse
 import httpx
 
 _COORDINATE_PATTERNS = (
-    re.compile(r"!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)", re.I),
-    re.compile(r"@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)"),
+    # 1. URL search or place path: /maps/search/11.587689,+104.922923 or /maps/place/11.587689,+104.922923
     re.compile(
-        r"(?:[?&](?:q|query|ll|sll|center|latlng|daddr|markers)=)(-?\d+(?:\.\d+)?)(?:%2C|,\s*)(-?\d+(?:\.\d+)?)",
+        r"/(?:maps/)?(?:search|place)/(-?\d+(?:\.\d+)?),?\s*(?:\+|%20|\s)*(-?\d+(?:\.\d+)?)",
         re.I,
     ),
+    # 2. Coordinates in 3d/4d params: !3d11.587689!4d104.922923
+    re.compile(r"!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)", re.I),
+    # 3. @lat,lng: @11.587689,104.922923
+    re.compile(r"@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)"),
+    # 4. Query params (q=, query=, ll=, sll=, latlng=, daddr=, markers=) with optional + or space
+    re.compile(
+        r"(?:[?&](?:q|query|ll|sll|latlng|daddr|markers)=)(-?\d+(?:\.\d+)?)(?:%2C|,\s*)(?:\+|%20|\s)*(-?\d+(?:\.\d+)?)",
+        re.I,
+    ),
+    # 5. Protobuf: !1s11.587689,+104.922923
+    re.compile(
+        r"!1s(-?\d+(?:\.\d+)?)(?:%2C|,\s*)(?:\+|%20|\s)*(-?\d+(?:\.\d+)?)",
+        re.I,
+    ),
+    # 6. JSON array: ["11.587689, 104.922923"]
+    re.compile(r'\["(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)"\]'),
+    # 7. Array: [null,null,11.587689,104.922923]
     re.compile(r"\[null,null,(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\]"),
 )
 

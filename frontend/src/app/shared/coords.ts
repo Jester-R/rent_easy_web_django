@@ -75,6 +75,12 @@ export function parseCoordinates(input: string | null | undefined): Coordinates 
     return valid(named['lat'], named['lng']);
   }
 
+  // Google Maps path search/place: /maps/search/11.587689,+104.922923 or /maps/place/11.587689,+104.922923
+  const searchPath = text.match(
+    /\/(?:maps\/)?(?:search|place)\/(-?\d+(?:\.\d+)?),?\s*(?:\+|%20|\s)*(-?\d+(?:\.\d+)?)/i
+  );
+  if (searchPath) return valid(Number(searchPath[1]), Number(searchPath[2]));
+
   // Google embed iframe: !2d<lng>!3d<lat>
   const embed = text.match(/!2d(-?\d+(?:\.\d+)?)!3d(-?\d+(?:\.\d+)?)/i);
   if (embed) return valid(Number(embed[2]), Number(embed[1]));
@@ -94,10 +100,10 @@ export function parseCoordinates(input: string | null | undefined): Coordinates 
   const dir = text.match(/\/dir\/[^/]+\/[^/]+\/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
   if (dir) return valid(Number(dir[1]), Number(dir[2]));
 
-  const q = text.match(/[?&]q=(?:loc:)?(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
+  const q = text.match(/[?&]q=(?:loc:)?(-?\d+(?:\.\d+)?)(?:%2C|,\s*)(?:\+|%20|\s)*(-?\d+(?:\.\d+)?)/i);
   if (q) return valid(Number(q[1]), Number(q[2]));
 
-  const query = text.match(/[?&]query=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
+  const query = text.match(/[?&]query=(-?\d+(?:\.\d+)?)(?:%2C|,\s*)(?:\+|%20|\s)*(-?\d+(?:\.\d+)?)/i);
   if (query) return valid(Number(query[1]), Number(query[2]));
 
   const ll = text.match(/[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
