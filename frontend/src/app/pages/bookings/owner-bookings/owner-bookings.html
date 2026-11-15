@@ -62,7 +62,7 @@
                     }">
                     {{ label(b.status) }}
                   </span>
-                  @if (b.is_paid) {
+                  @if (b.is_paid && b.status !== 'Confirmed') {
                     <span class="pill pill-approved">
                       {{ language.t('ownerBookings.paid') }}
                     </span>

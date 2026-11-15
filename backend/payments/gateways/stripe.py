@@ -26,6 +26,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.conf import settings
+from django.db import OperationalError, ProgrammingError
 
 #: Session events that carry a final payment outcome.
 COMPLETED_EVENTS = frozenset(
@@ -52,12 +53,47 @@ class StripeGatewayError(RuntimeError):
         super().__init__(f"{self.code}: {self.message}" if self.code else self.message)
 
 
+def _platform_value(field: str) -> str:
+    """Read an admin-managed Stripe setting, tolerating an unmigrated database."""
+    try:
+        from accounts.models import PlatformSettings
+
+        value = (
+            PlatformSettings.objects.filter(pk=1)
+            .values_list(field, flat=True)
+            .first()
+        )
+    except (OperationalError, ProgrammingError):
+        return ""
+    return str(value or "").strip()
+
+
+def secret_key() -> str:
+    """Return the Stripe secret key, preferring the admin setting over env."""
+    return _platform_value("stripe_secret_key") or str(
+        getattr(settings, "STRIPE_SECRET_KEY", "") or ""
+    ).strip()
+
+
+def publishable_key() -> str:
+    """Return the Stripe publishable key, preferring the admin setting."""
+    return _platform_value("stripe_publishable_key") or str(
+        getattr(settings, "STRIPE_PUBLISHABLE_KEY", "") or ""
+    ).strip()
+
+
+def webhook_secret() -> str:
+    """Return the webhook signing secret, preferring the admin setting."""
+    return _platform_value("stripe_webhook_secret") or str(
+        getattr(settings, "STRIPE_WEBHOOK_SECRET", "") or ""
+    ).strip()
+
+
 def is_configured() -> bool:
-    """Whether real Stripe calls are enabled for this environment."""
-    return bool(
-        getattr(settings, "STRIPE_ENABLED", False)
-        and getattr(settings, "STRIPE_SECRET_KEY", "")
-    )
+    """Whether real Stripe calls are enabled, via admin settings or env."""
+    admin_secret = _platform_value("stripe_secret_key")
+    enabled = bool(getattr(settings, "STRIPE_ENABLED", False))
+    return bool(secret_key()) and (enabled or bool(admin_secret))
 
 
 def amount_to_minor_units(value: Decimal | int | float | str) -> int:
@@ -93,7 +129,7 @@ def _client():
 
     if not is_configured():
         raise StripeGatewayError("not_configured", "Stripe is not configured")
-    return stripe_sdk.StripeClient(settings.STRIPE_SECRET_KEY)
+    return stripe_sdk.StripeClient(secret_key())
 
 
 def _call(operation):
@@ -207,7 +243,7 @@ def construct_webhook_event(raw_body: bytes, signature: str):
 
     if not signature or not is_configured():
         return None
-    secret = settings.STRIPE_WEBHOOK_SECRET
+    secret = webhook_secret()
     if not secret:
         return None
     try:

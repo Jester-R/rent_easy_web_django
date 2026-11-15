@@ -20,6 +20,11 @@ from django.conf import settings
 from django.utils import timezone
 
 from accounts.google_oauth import _generate_unique_username
+from accounts.integration_config import (
+    telegram_bot_token,
+    telegram_bot_username,
+    telegram_login_auth_url as configured_telegram_login_auth_url,
+)
 from accounts.models import (
     ApprovalStatus,
     Role,
@@ -47,15 +52,12 @@ TELEGRAM_PROFILE_FIELDS = (
 
 def is_telegram_login_configured() -> bool:
     """Return True when the bot token and public username are configured."""
-    return bool(
-        getattr(settings, "TELEGRAM_BOT_TOKEN", "")
-        and getattr(settings, "TELEGRAM_BOT_USERNAME", "")
-    )
+    return bool(telegram_bot_token() and telegram_bot_username())
 
 
 def telegram_bot_id() -> str:
     """Return the public numeric bot id used by the Telegram OAuth popup."""
-    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+    token = telegram_bot_token()
     return token.split(":", 1)[0] if ":" in token else ""
 
 
@@ -65,7 +67,7 @@ def telegram_login_auth_url() -> str:
         f"{getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:4200').rstrip('/')}"
         "/api/auth/telegram/callback/"
     )
-    return getattr(settings, "TELEGRAM_LOGIN_AUTH_URL", "") or default_url
+    return configured_telegram_login_auth_url() or default_url
 
 
 def verify_telegram_login(data: dict[str, Any]) -> dict[str, str] | None:
@@ -75,7 +77,7 @@ def verify_telegram_login(data: dict[str, Any]) -> dict[str, str] | None:
     tampered with, or too old. See
     https://core.telegram.org/widgets/login#checking-authorization
     """
-    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+    token = telegram_bot_token()
     if not token:
         return None
 

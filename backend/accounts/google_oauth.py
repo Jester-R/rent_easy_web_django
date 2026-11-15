@@ -12,6 +12,11 @@ import httpx
 from django.conf import settings
 from django.core import signing
 
+from accounts.integration_config import (
+    google_oauth_client_id,
+    google_oauth_client_secret,
+    google_oauth_redirect_uri,
+)
 from accounts.models import ApprovalStatus, Role, User
 from core.bolt import in_thread
 
@@ -27,10 +32,7 @@ STATE_MAX_AGE = 600  # 10 minutes
 
 def is_google_oauth_configured() -> bool:
     """Return True if Google OAuth2 client credentials are configured."""
-    return bool(
-        getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-        and getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "")
-    )
+    return bool(google_oauth_client_id() and google_oauth_client_secret())
 
 
 def generate_oauth_state(
@@ -65,13 +67,13 @@ def get_authorization_url(
     role: str = "", next_url: str = "", redirect_uri: str = ""
 ) -> str:
     """Build the Google OAuth2 authorization URL."""
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
+    client_id = google_oauth_client_id()
     if not client_id:
         raise ValueError("GOOGLE_OAUTH_CLIENT_ID is not configured")
 
     target_redirect_uri = (
         redirect_uri
-        or getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", "")
+        or google_oauth_redirect_uri()
         or f"{getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:4200')}/api/auth/google/callback/"
     )
 
@@ -93,14 +95,14 @@ def get_authorization_url(
 
 async def exchange_code_for_user_info(code: str, redirect_uri: str) -> dict[str, Any]:
     """Exchange authorization code with Google for tokens and fetch profile info."""
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    client_secret = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "")
+    client_id = await in_thread(google_oauth_client_id)
+    client_secret = await in_thread(google_oauth_client_secret)
     if not client_id or not client_secret:
         raise ValueError("Google OAuth credentials are not configured")
 
     target_redirect_uri = (
         redirect_uri
-        or getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", "")
+        or await in_thread(google_oauth_redirect_uri)
         or f"{getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:4200')}/api/auth/google/callback/"
     )
 

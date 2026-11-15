@@ -1,7 +1,10 @@
 <div class="space-y-4">
-  <header>
-    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleNotifications.title') }}</h1>
-    <p class="text-[12px] text-ink-3">{{ language.t('consoleNotifications.description') }}</p>
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleNotifications.title') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('consoleNotifications.description') }}</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openBroadcastModal()">{{ language.t('consoleNotifications.openBroadcast') }}</button>
   </header>
 
   @if (error()) {
@@ -43,39 +46,55 @@
       </div>
     </section>
 
-    <section class="app-card space-y-4 p-5">
-      <div>
-        <h2 class="text-[14px] font-bold">{{ language.t('consoleSettings.broadcastNotification') }}</h2>
-        <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleSettings.sendAnnouncementToOwnersOrRenters') }}</p>
-      </div>
-      @if (broadcastSentCount() !== null) {
-        <p class="toast toast-success" role="status">{{ language.t('consoleSettings.broadcastSentTo') }} {{ broadcastSentCount() }} {{ language.t('consoleSettings.users') }}</p>
-      }
-      <label class="block max-w-sm text-[11px] text-ink-3">
-        {{ language.t('consoleSettings.audience') }}
-        <select class="form-input mt-1" [(ngModel)]="broadcastTarget">
-          <option value="renters">{{ language.t('consoleSettings.renters') }}</option>
-          <option value="owners">{{ language.t('consoleSettings.owners') }}</option>
-          <option value="all">{{ language.t('consoleSettings.allUsers') }}</option>
-        </select>
-      </label>
-      <div class="grid gap-3 sm:grid-cols-2">
-        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
-          <input class="form-input mt-1" [(ngModel)]="broadcastTitleEn" maxlength="500" />
-        </label>
-        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleKhmer') }}
-          <input class="form-input mt-1" [(ngModel)]="broadcastTitleKm" maxlength="500" />
-        </label>
-        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyEnglish') }}
-          <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyEn" maxlength="500"></textarea>
-        </label>
-        <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyKhmer') }}
-          <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyKm" maxlength="500"></textarea>
-        </label>
-      </div>
-      <div class="flex justify-end">
-        <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="sendBroadcast()">{{ language.t('consoleSettings.sendBroadcast') }}</button>
-      </div>
-    </section>
+  }
+
+  @if (showBroadcastModal()) {
+    <div class="modal-backdrop" role="presentation" (click)="closeBroadcastModal()">
+      <section class="modal-panel app-card w-full max-w-2xl p-4 sm:p-6" role="dialog" aria-modal="true" [attr.aria-label]="language.t('consoleSettings.broadcastNotification')" (click)="$event.stopPropagation()">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-extrabold">{{ language.t('consoleSettings.broadcastNotification') }}</h2>
+            <p class="mt-1 text-xs text-ink-3">{{ language.t('consoleSettings.sendAnnouncementToOwnersOrRenters') }}</p>
+          </div>
+          <button type="button" class="btn btn-ghost" (click)="closeBroadcastModal()">{{ language.t('consoleNotifications.close') }}</button>
+        </header>
+
+        @if (broadcastError()) {
+          <div class="toast toast-error mt-4" role="alert">{{ broadcastError() }}</div>
+        }
+        @if (broadcastSentCount() !== null) {
+          <p class="toast toast-success mt-4" role="status">{{ language.t('consoleSettings.broadcastSentTo') }} {{ broadcastSentCount() }} {{ language.t('consoleSettings.users') }}</p>
+        }
+
+        <div class="mt-4 space-y-3">
+          <label class="block max-w-sm text-[11px] text-ink-3">
+            {{ language.t('consoleSettings.audience') }}
+            <select class="form-input mt-1" [(ngModel)]="broadcastTarget">
+              <option value="renters">{{ language.t('consoleSettings.renters') }}</option>
+              <option value="owners">{{ language.t('consoleSettings.owners') }}</option>
+              <option value="all">{{ language.t('consoleSettings.allUsers') }}</option>
+            </select>
+          </label>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
+              <input class="form-input mt-1" [(ngModel)]="broadcastTitleEn" maxlength="500" />
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleKhmer') }}
+              <input class="form-input mt-1" [(ngModel)]="broadcastTitleKm" maxlength="500" />
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyEnglish') }}
+              <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyEn" maxlength="500"></textarea>
+            </label>
+            <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.bodyKhmer') }}
+              <textarea class="form-input mt-1" rows="3" [(ngModel)]="broadcastBodyKm" maxlength="500"></textarea>
+            </label>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" class="btn btn-ghost" (click)="closeBroadcastModal()">{{ language.t('consoleNotifications.close') }}</button>
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="isSaving()" (click)="sendBroadcast()">{{ language.t('consoleSettings.sendBroadcast') }}</button>
+        </div>
+      </section>
+    </div>
   }
 </div>

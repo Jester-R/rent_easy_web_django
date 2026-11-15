@@ -17,6 +17,7 @@ export const renterBookings: PageCatalog = {
   payRent: ['Pay Rent', 'បង់ថ្លៃជួល'],
   paymentDetails: ['Payment details', 'ព័ត៌មានលម្អិតការទូទាត់'],
   cancel: ['Cancel', 'បោះបង់'],
+  cancelAndRefund: ['Cancel & request refund', 'បោះបង់ និងស្នើសុំសងប្រាក់វិញ'],
   completeRentPayment: ['Complete Rent Payment', 'បញ្ចប់ការបង់ថ្លៃជួល'],
   totalDue: ['Total Due', 'សរុបត្រូវបង់'],
   paymentMethod: ['Payment Method', 'វិធីបង់ប្រាក់'],

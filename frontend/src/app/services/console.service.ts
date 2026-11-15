@@ -42,6 +42,18 @@ export class ConsoleService {
     );
   }
 
+  registerTelegramWebhook(): Observable<{
+    ok: boolean;
+    url: string;
+    description?: string;
+  }> {
+    return this.http.post<{ ok: boolean; url: string; description?: string }>(
+      `${this.base}/settings/telegram/webhook/`,
+      {},
+      this.opts
+    );
+  }
+
   sendNotificationBroadcast(data: {
     target: 'owners' | 'renters' | 'all';
     title_en: string;

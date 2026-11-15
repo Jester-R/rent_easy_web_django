@@ -37,6 +37,11 @@ from accounts.google_oauth import (
     is_google_oauth_configured,
     verify_oauth_state,
 )
+from accounts.integration_config import (
+    google_oauth_client_id,
+    telegram_bot_username,
+    telegram_webhook_secret,
+)
 from accounts.models import (
     ApprovalStatus,
     AuditLog,
@@ -477,25 +482,28 @@ async def logout_view(request):
 
 @api.get("/auth/google/config/")
 async def google_oauth_config_view(request):
-    configured = is_google_oauth_configured()
+    configured = await in_thread(is_google_oauth_configured)
     return {
         "enabled": configured,
         "client_id": (
-            getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "") if configured else ""
+            await in_thread(google_oauth_client_id) if configured else ""
         ),
     }
 
 
 @api.get("/auth/google/url/")
 async def google_oauth_url_view(request):
-    if not is_google_oauth_configured():
+    if not await in_thread(is_google_oauth_configured):
         return {"enabled": False, "url": ""}
     role = q(request, "role", "")
     next_url = q(request, "next", "")
     redirect_uri = q(request, "redirect_uri", "")
     try:
-        url = get_authorization_url(
-            role=role, next_url=next_url, redirect_uri=redirect_uri
+        url = await in_thread(
+            get_authorization_url,
+            role=role,
+            next_url=next_url,
+            redirect_uri=redirect_uri,
         )
         return {"enabled": True, "url": url}
     except Exception as exc:
@@ -507,7 +515,7 @@ async def google_oauth_login_view(request):
     frontend_base = getattr(
         settings, "FRONTEND_BASE_URL", "http://localhost:4200"
     ).rstrip("/")
-    if not is_google_oauth_configured():
+    if not await in_thread(is_google_oauth_configured):
         return Redirect(
             f"{frontend_base}/login?error=oauth_not_configured", status_code=303
         )
@@ -516,8 +524,11 @@ async def google_oauth_login_view(request):
     next_url = q(request, "next", "")
     redirect_uri = q(request, "redirect_uri", "")
     try:
-        url = get_authorization_url(
-            role=role, next_url=next_url, redirect_uri=redirect_uri
+        url = await in_thread(
+            get_authorization_url,
+            role=role,
+            next_url=next_url,
+            redirect_uri=redirect_uri,
         )
         return Redirect(url, status_code=303)
     except Exception as exc:
@@ -663,23 +674,21 @@ async def google_oauth_callback_post(request):
 
 @api.get("/auth/telegram/config/")
 async def telegram_login_config_view(request):
-    enabled = is_telegram_login_configured()
+    enabled = await in_thread(is_telegram_login_configured)
     return {
         "enabled": enabled,
         "bot_username": (
-            getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
-            if enabled
-            else ""
+            await in_thread(telegram_bot_username) if enabled else ""
         ),
-        "bot_id": telegram_bot_id() if enabled else "",
-        "auth_url": telegram_login_auth_url() if enabled else "",
+        "bot_id": await in_thread(telegram_bot_id) if enabled else "",
+        "auth_url": await in_thread(telegram_login_auth_url) if enabled else "",
     }
 
 
 @api.post("/auth/telegram/login/start/")
 async def telegram_login_start(request):
-    bot_username = getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
-    if not is_telegram_login_configured() or not bot_username:
+    bot_username = await in_thread(telegram_bot_username)
+    if not await in_thread(is_telegram_login_configured) or not bot_username:
         raise HTTPException(status_code=503, detail="telegram_not_configured")
 
     data = json_body(request)
@@ -739,7 +748,7 @@ async def telegram_login_callback(request):
     frontend_base = getattr(
         settings, "FRONTEND_BASE_URL", "http://localhost:4200"
     ).rstrip("/")
-    if not is_telegram_login_configured():
+    if not await in_thread(is_telegram_login_configured):
         return Redirect(
             f"{frontend_base}/login?error=telegram_not_configured", status_code=303
         )
@@ -758,7 +767,7 @@ async def telegram_login_callback(request):
         )
         if key in received
     }
-    verified = verify_telegram_login(payload)
+    verified = await in_thread(verify_telegram_login, payload)
     if verified is None:
         return Redirect(
             f"{frontend_base}/login?error=telegram_invalid", status_code=303
@@ -896,7 +905,7 @@ async def profile_update(request):
 @api.post("/auth/telegram/link/")
 async def telegram_link_create(request):
     user = await require_login(request)
-    bot_username = getattr(settings, "TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
+    bot_username = await in_thread(telegram_bot_username)
     if not bot_username:
         raise HTTPException(status_code=503, detail="telegram_bot_not_configured")
     user.telegram_link_token = secrets.token_urlsafe(24)
@@ -923,7 +932,7 @@ async def telegram_unlink(request):
 
 @api.post("/telegram/webhook/")
 async def telegram_webhook(request):
-    expected_secret = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "")
+    expected_secret = await in_thread(telegram_webhook_secret)
     supplied_secret = ""
     for header_name, header_value in request.headers.items():
         if header_name.lower() == "x-telegram-bot-api-secret-token":

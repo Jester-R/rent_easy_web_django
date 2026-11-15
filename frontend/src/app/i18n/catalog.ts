@@ -21,6 +21,7 @@ import { ownerDashboard } from './pages/owner-dashboard';
 import { ownerForm } from './pages/owner-form';
 import { ownerList } from './pages/owner-list';
 import { ownerPayments } from './pages/owner-payments';
+import { paymentDetail } from './pages/payment-detail';
 import { profile } from './pages/profile';
 import { propertyDetail } from './pages/property-detail';
 import { register } from './pages/register';
@@ -62,6 +63,7 @@ export const CATALOG: Catalog = {
   ...expand('ownerForm', ownerForm),
   ...expand('ownerList', ownerList),
   ...expand('ownerPayments', ownerPayments),
+  ...expand('paymentDetail', paymentDetail),
   ...expand('profile', profile),
   ...expand('propertyDetail', propertyDetail),
   ...expand('register', register),

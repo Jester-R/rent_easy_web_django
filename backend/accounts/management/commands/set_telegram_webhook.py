@@ -9,6 +9,12 @@ from django.core.management.base import BaseCommand, CommandError
 
 import httpx
 
+from accounts.integration_config import (
+    telegram_bot_token,
+    telegram_webhook_secret,
+    telegram_webhook_url,
+)
+
 
 class Command(BaseCommand):
     help = "Set (or inspect/delete) the Telegram bot webhook for RentEasy login."
@@ -17,7 +23,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--url",
             default="",
-            help="Public webhook URL. Defaults to TELEGRAM_WEBHOOK_URL or FRONTEND_BASE_URL/api/telegram/webhook/.",
+            help="Public webhook URL. Defaults to the admin Telegram setting, TELEGRAM_WEBHOOK_URL, or FRONTEND_BASE_URL/api/telegram/webhook/.",
         )
         parser.add_argument(
             "--delete",
@@ -34,7 +40,7 @@ class Command(BaseCommand):
         # Never print request URLs at INFO: they contain the bot token.
         logging.getLogger("httpx").setLevel(logging.WARNING)
 
-        token = getattr(settings, "TELEGRAM_BOT_TOKEN", "").strip()
+        token = telegram_bot_token()
         if not token:
             raise CommandError("TELEGRAM_BOT_TOKEN is not configured")
 
@@ -48,18 +54,18 @@ class Command(BaseCommand):
             self._print(httpx.post(f"{api_base}/deleteWebhook", timeout=10.0))
             return
 
-        secret = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "").strip()
+        secret = telegram_webhook_secret()
         if not secret:
             raise CommandError(
                 "TELEGRAM_WEBHOOK_SECRET is not configured. Generate one with "
                 '`python -c "import secrets; print(secrets.token_hex(32))"` '
-                "and add it to .env."
+                "and save it from Profile > Telegram or in .env."
             )
 
         url = options["url"].strip()
         if not url:
             url = (
-                getattr(settings, "TELEGRAM_WEBHOOK_URL", "").strip()
+                telegram_webhook_url()
                 or f"{settings.FRONTEND_BASE_URL.rstrip('/')}/api/telegram/webhook/"
             )
 

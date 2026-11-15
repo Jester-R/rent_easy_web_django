@@ -26,6 +26,8 @@ export class ConsoleNotificationsComponent implements OnInit {
   broadcastBodyEn = '';
   broadcastBodyKm = '';
   broadcastSentCount = signal<number | null>(null);
+  broadcastError = signal<string | null>(null);
+  showBroadcastModal = signal(false);
   messagesSaved = signal(false);
 
   ngOnInit(): void {
@@ -59,6 +61,15 @@ export class ConsoleNotificationsComponent implements OnInit {
     });
   }
 
+  openBroadcastModal(): void {
+    this.broadcastError.set(null);
+    this.showBroadcastModal.set(true);
+  }
+
+  closeBroadcastModal(): void {
+    if (!this.isSaving()) this.showBroadcastModal.set(false);
+  }
+
   sendBroadcast(): void {
     const data = {
       target: this.broadcastTarget,
@@ -68,11 +79,11 @@ export class ConsoleNotificationsComponent implements OnInit {
       body_km: this.broadcastBodyKm.trim(),
     };
     if (!data.title_en || !data.title_km || !data.body_en || !data.body_km) {
-      this.error.set(this.language.t('consoleSettings.broadcastFieldsRequired'));
+      this.broadcastError.set(this.language.t('consoleSettings.broadcastFieldsRequired'));
       return;
     }
     this.isSaving.set(true);
-    this.error.set(null);
+    this.broadcastError.set(null);
     this.broadcastSentCount.set(null);
     this.console.sendNotificationBroadcast(data).subscribe({
       next: (result) => {
@@ -85,7 +96,7 @@ export class ConsoleNotificationsComponent implements OnInit {
       },
       error: (err) => {
         this.isSaving.set(false);
-        this.error.set(err?.error?.detail || this.language.t('consoleSettings.failedToSendBroadcast'));
+        this.broadcastError.set(err?.error?.detail || this.language.t('consoleSettings.failedToSendBroadcast'));
       },
     });
   }

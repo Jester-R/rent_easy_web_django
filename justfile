@@ -59,13 +59,13 @@ backend:
 # Start the frontend development server.
 [unix]
 frontend:
-    @cd frontend && if command -v bun >/dev/null 2>&1; then bunx ng serve; else npm start; fi
+    @cd frontend && export __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS="${__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS:-$ALLOWED_HOSTS}"; if command -v bun >/dev/null 2>&1; then bunx ng serve; else npm start; fi
 
 [windows]
 frontend:
-    @cd /d frontend && (where bun >nul 2>nul && bunx ng serve) || npm start
+    @cd /d frontend && (set "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=%ALLOWED_HOSTS%" & ((where bun >nul 2>nul && bunx ng serve) || npm start))
 
-# Build the frontend.
+# Build the frontend and emit index.html for static hosting.
 [unix]
 build-frontend:
     @cd frontend && if command -v bun >/dev/null 2>&1; then bun run build; else npm run build; fi
@@ -87,11 +87,95 @@ run:
     @{{just_executable()}} frontend
 
 
-# Build frontend and prepare the package directory.
+# Set up dependencies, build frontend, and prepare tarballs in package/.
 [unix]
 pack:
+    @{{just_executable()}} setup
     @{{just_executable()}} build-frontend
-    mkdir -p package/backend package/frontend
+    rm -rf package
+    mkdir -p package
+    @if [ -f .env ]; then cp .env backend/.env; fi
+    tar -czf package/backend.tar.gz -C backend \
+        --exclude='*/__pycache__' \
+        --exclude='*.pyc' \
+        --exclude='*/db.sqlite3*' \
+        --exclude='*/media' \
+        --exclude='*/staticfiles' \
+        .
+    @if [ -f .env ]; then rm -f backend/.env; fi
+    tar -czf package/frontend.tar.gz -C frontend/dist/frontend .
 
-    cp -r backend/. package/backend/
-    cp -r frontend/dist/frontend/. package/frontend/
+    echo "Created package/backend.tar.gz and package/frontend.tar.gz"
+
+[windows]
+pack:
+    @{{just_executable()}} setup
+    @{{just_executable()}} build-frontend
+    @if exist package rmdir /s /q package
+    @mkdir package
+    @if exist .env copy /y .env backend\.env >nul
+    @tar -czf package\backend.tar.gz -C backend --exclude=__pycache__ --exclude=*/__pycache__ --exclude=*.pyc --exclude=db.sqlite3* --exclude=*/db.sqlite3* --exclude=media --exclude=*/media --exclude=staticfiles --exclude=*/staticfiles .
+    @if exist .env del /q backend\.env
+    @tar -czf package\frontend.tar.gz -C frontend/dist/frontend .
+    @echo Created package\backend.tar.gz and package\frontend.tar.gz
+
+# Copy the prepared backend and frontend tarballs to a destination path (prompts when omitted).
+[unix]
+deploy dest="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    for archive in package/backend.tar.gz package/frontend.tar.gz; do
+        if [[ ! -f "$archive" ]]; then
+            echo "$archive not found; run 'just pack' first" >&2
+            exit 1
+        fi
+    done
+
+    destination={{quote(dest)}}
+    if [[ -z "$destination" ]]; then
+        read -r -p "Deploy destination path: " destination
+    fi
+    if [[ -z "$destination" ]]; then
+        echo "destination path is required" >&2
+        exit 1
+    fi
+
+    if [[ "$destination" == *:* ]]; then
+        scp package/backend.tar.gz package/frontend.tar.gz "$destination"/
+    else
+        mkdir -p "$destination"
+        cp package/backend.tar.gz package/frontend.tar.gz "$destination"/
+    fi
+
+    echo "Deployed package/backend.tar.gz and package/frontend.tar.gz to $destination"
+
+[windows]
+[script("powershell.exe", "-NoProfile", "-File")]
+deploy dest="":
+    $ErrorActionPreference = "Stop"
+
+    foreach ($archive in @("package/backend.tar.gz", "package/frontend.tar.gz")) {
+        if (-not (Test-Path $archive)) {
+            Write-Error "$archive not found; run 'just pack' first"
+            exit 1
+        }
+    }
+
+    $destination = {{quote(dest)}}
+    if ([string]::IsNullOrWhiteSpace($destination)) {
+        $destination = Read-Host "Deploy destination path"
+    }
+    if ([string]::IsNullOrWhiteSpace($destination)) {
+        Write-Error "destination path is required"
+        exit 1
+    }
+
+    if ($destination.Contains(":") -and $destination -notmatch "^[A-Za-z]:[\\/]") {
+        scp package/backend.tar.gz package/frontend.tar.gz "${destination}/"
+    } else {
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+        Copy-Item package/backend.tar.gz, package/frontend.tar.gz -Destination $destination
+    }
+
+    Write-Host "Deployed package/backend.tar.gz and package/frontend.tar.gz to $destination"

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, map, of, shareReplay, switchMap } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, shareReplay, switchMap, throwError } from 'rxjs';
 import { Property, LandingData, PropertyCategorySetting } from '../models';
 
 export interface PropertyBrowseResponse {
@@ -70,10 +70,12 @@ export class PropertyService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api';
   private readonly csvCache = new Map<string, Observable<string[][]>>();
+  private districtsCache?: Observable<CambodiaDistrict[]>;
   private readonly datasetBaseUrl =
     'https://data.mef.gov.kh/api/v1/public-datasets';
 
   getCambodiaDistricts(): Observable<CambodiaDistrict[]> {
+    if (this.districtsCache) return this.districtsCache;
     const pageSize = 200;
     const fetchPage = (page: number) => {
       const params = new HttpParams()
@@ -85,7 +87,7 @@ export class PropertyService {
       );
     };
 
-    return fetchPage(1).pipe(
+    this.districtsCache = fetchPage(1).pipe(
       switchMap((firstPage) => {
         const totalPages = this.parseTotalPages(firstPage);
         if (totalPages <= 1) return of(this.parseCambodiaDistricts(firstPage));
@@ -100,7 +102,13 @@ export class PropertyService {
       map((districts) => districts.filter(
         (district, index, all) => all.findIndex((candidate) => candidate.code === district.code) === index,
       ).sort((a, b) => a.name_en.localeCompare(b.name_en))),
+      catchError((error) => {
+        this.districtsCache = undefined;
+        return throwError(() => error);
+      }),
+      shareReplay(1),
     );
+    return this.districtsCache;
   }
 
   getCambodiaProvinces(): Observable<CambodiaProvince[]> {

@@ -43,9 +43,12 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   @Input() searchPlaceholder = 'Search...';
   @Input() ariaLabel = '';
   @Input() showPlaceholderOnEmpty = false;
+  @Input() set disabled(value: boolean) {
+    this.isDisabled.set(!!value);
+  }
 
   readonly value = signal<string>('');
-  readonly disabled = signal(false);
+  readonly isDisabled = signal(false);
   readonly open = signal(false);
   readonly query = signal('');
   readonly activeIndex = signal(0);
@@ -78,11 +81,11 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    this.disabled.set(isDisabled);
+    this.isDisabled.set(isDisabled);
   }
 
   toggle(): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     this.open.update((v) => !v);
     if (this.open()) {
       this.query.set('');
@@ -106,7 +109,7 @@ export class SearchableSelectComponent implements ControlValueAccessor {
   }
 
   onKeydown(event: KeyboardEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     const items = this.filtered();
     if (event.key === 'ArrowDown') {
       event.preventDefault();

@@ -12,6 +12,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
+from accounts.models import PlatformSettings
 from bookings.models import Booking, BookingStatus
 from listings.models import Property
 from notifications.models import Notification
@@ -380,46 +381,49 @@ class AbaPaymentFlowTests(TestCase):
         self.assertEqual(payment.status, Payment.Status.PENDING)
 
     @override_settings(**ABA_SETTINGS)
-    def test_pay_booking_starts_pending_checkout(self):
-        checkout = {
-            "provider": "aba_payway",
-            "action_url": "https://checkout-sandbox.payway.com.kh/purchase",
-            "method": "POST",
-            "fields": {"tran_id": "PAY-TEST00000007", "amount": "100"},
+    def test_pay_booking_starts_pending_qr(self):
+        qr = {
+            "image": "data:image/png;base64,qr",
+            "qr_string": "000201010212",
+            "deeplink": "",
+            "amount": "100",
+            "currency": "USD",
+            "expires_in": 30,
         }
-        with patch.object(aba, "create_purchase_form", return_value=checkout) as create:
+        with patch.object(aba, "create_qr_payment", return_value=qr) as create:
             result = pay_booking(booking=self.booking, method="ABA Pay")
 
         self.assertEqual(result.payment.status, Payment.Status.PENDING)
         self.assertEqual(result.payment.provider, Payment.Provider.ABA_PAYWAY)
-        self.assertEqual(result.checkout, checkout)
+        self.assertEqual(result.qr, qr)
+        self.assertIsNone(result.checkout)
         self.assertEqual(result.payment.provider_ref, result.payment.reference)
         create.assert_called_once()
 
     @override_settings(**ABA_SETTINGS)
     def test_simulated_success_cannot_bypass_configured_gateway(self):
-        checkout = {
-            "provider": "aba_payway",
-            "action_url": "https://checkout-sandbox.payway.com.kh/purchase",
-            "method": "POST",
-            "fields": {"tran_id": "PAY-TEST00000007", "amount": "100"},
+        qr = {
+            "image": "data:image/png;base64,qr",
+            "qr_string": "000201010212",
+            "deeplink": "",
+            "amount": "100",
+            "currency": "USD",
+            "expires_in": 30,
         }
-        with patch.object(aba, "create_purchase_form", return_value=checkout):
+        with patch.object(aba, "create_qr_payment", return_value=qr):
             result = pay_booking(
                 booking=self.booking, method="ABA Pay", simulate="success"
             )
 
         self.assertEqual(result.payment.status, Payment.Status.PENDING)
         self.assertEqual(result.payment.provider, Payment.Provider.ABA_PAYWAY)
-        self.assertEqual(result.checkout, checkout)
+        self.assertEqual(result.qr, qr)
 
     @override_settings(**{**ABA_SETTINGS, "ABA_PAYWAY_ENABLED": False})
-    def test_without_credentials_falls_back_to_mock(self):
-        result = pay_booking(booking=self.booking, method="ABA Pay", simulate="success")
-        self.assertEqual(result.checkout, None)
-        self.assertEqual(result.payment.provider, Payment.Provider.MOCK)
-        self.assertEqual(result.payment.method, Payment.Method.ABA_MOCK)
-        self.assertEqual(result.payment.status, Payment.Status.SUCCESS)
+    def test_without_credentials_requires_gateway_configuration(self):
+        with self.assertRaises(aba.PayWayError) as raised:
+            pay_booking(booking=self.booking, method="ABA Pay", simulate="success")
+        self.assertEqual(raised.exception.code, "not_configured")
 
     @override_settings(**ABA_SETTINGS)
     def test_callback_without_amount_stays_pending_when_check_fails(self):
@@ -595,6 +599,49 @@ class StripeGatewayTests(TestCase):
             self.assertFalse(stripe_gateway.is_configured())
         with override_settings(**{**STRIPE_SETTINGS, "STRIPE_SECRET_KEY": ""}):
             self.assertFalse(stripe_gateway.is_configured())
+
+    def test_platform_settings_override_environment(self):
+        PlatformSettings.objects.create(
+            pk=1,
+            stripe_publishable_key="pk_admin",
+            stripe_secret_key="sk_admin",
+            stripe_webhook_secret="whsec_admin",
+        )
+        with override_settings(
+            **{
+                **STRIPE_SETTINGS,
+                "STRIPE_ENABLED": False,
+                "STRIPE_SECRET_KEY": "",
+                "STRIPE_PUBLISHABLE_KEY": "",
+                "STRIPE_WEBHOOK_SECRET": "",
+            }
+        ):
+            self.assertTrue(stripe_gateway.is_configured())
+            self.assertEqual(stripe_gateway.secret_key(), "sk_admin")
+            self.assertEqual(stripe_gateway.publishable_key(), "pk_admin")
+            self.assertEqual(stripe_gateway.webhook_secret(), "whsec_admin")
+
+    def test_platform_webhook_secret_is_used_for_verification(self):
+        PlatformSettings.objects.create(
+            pk=1,
+            stripe_secret_key="sk_admin",
+            stripe_webhook_secret="whsec_admin",
+        )
+        payload = json.dumps(
+            {"type": "checkout.session.completed", "data": {"object": {}}}
+        ).encode()
+        header = _signed_webhook(payload, "whsec_admin")
+        with override_settings(
+            **{
+                **STRIPE_SETTINGS,
+                "STRIPE_ENABLED": False,
+                "STRIPE_SECRET_KEY": "",
+                "STRIPE_WEBHOOK_SECRET": "whsec_env",
+            }
+        ):
+            self.assertIsNotNone(
+                stripe_gateway.construct_webhook_event(payload, header)
+            )
 
     def test_webhook_signature_round_trip(self):
         payload = json.dumps(

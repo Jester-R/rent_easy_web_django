@@ -118,7 +118,9 @@ async def _refresh_pending_payment(payment: Payment) -> Payment:
             .afirst()
         ) or payment
 
-    if payment.provider == Payment.Provider.ABA_PAYWAY and aba_gateway.is_configured():
+    if payment.provider == Payment.Provider.ABA_PAYWAY and await in_thread(
+        aba_gateway.is_configured
+    ):
         try:
             await in_thread(reconcile_aba_payment, payment)
         except aba_gateway.PayWayError as exc:
@@ -136,7 +138,9 @@ async def _refresh_pending_payment(payment: Payment) -> Payment:
             ) from exc
         return await reload()
 
-    if payment.provider == Payment.Provider.STRIPE and stripe_gateway.is_configured():
+    if payment.provider == Payment.Provider.STRIPE and await in_thread(
+        stripe_gateway.is_configured
+    ):
         try:
             await in_thread(reconcile_stripe_payment, payment)
         except Exception as exc:  # network failure: keep the pending row
@@ -162,7 +166,9 @@ async def aba_callback(request):
     """
     raw_body = getattr(request, "body", b"") or b""
     signature = _payway_signature(request)
-    if not aba_gateway.verify_callback_signature(raw_body, signature):
+    if not await in_thread(
+        aba_gateway.verify_callback_signature, raw_body, signature
+    ):
         raise HTTPException(status_code=401, detail="invalid_signature")
 
     import json
