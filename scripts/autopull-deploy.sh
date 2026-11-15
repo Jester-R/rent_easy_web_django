@@ -54,5 +54,13 @@ if [ -f "$APP_DIR/scripts/autopull-deploy.sh" ]; then
   install -m 0755 "$APP_DIR/scripts/autopull-deploy.sh" /usr/local/bin/renteasy-autopull
 fi
 
+if [ -f "$APP_DIR/scripts/telegram-webhook-check.sh" ]; then
+  install -m 0755 "$APP_DIR/scripts/telegram-webhook-check.sh" /usr/local/bin/renteasy-telegram-webhook
+  install -m 0644 "$APP_DIR/scripts/renteasy-telegram-webhook.service" /etc/systemd/system/renteasy-telegram-webhook.service
+  install -m 0644 "$APP_DIR/scripts/renteasy-telegram-webhook.timer" /etc/systemd/system/renteasy-telegram-webhook.timer
+  systemctl daemon-reload
+  systemctl enable --now renteasy-telegram-webhook.timer
+fi
+
 systemctl restart "$SERVICE"
 log "deployed $(app_shell "git -C '$APP_DIR' rev-parse --short HEAD")"

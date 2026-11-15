@@ -12,6 +12,8 @@ from .models import Notification
 from .rendering import notification_copy, render
 
 logger = logging.getLogger(__name__)
+# Telegram puts the bot token in the request URL, so never log httpx requests.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def _message_text(notification: Notification) -> str:

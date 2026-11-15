@@ -215,6 +215,12 @@ default. Re-run it whenever the public URL changes (for example after restarting
 a development tunnel). You can inspect or remove the webhook with
 `just telegram-webhook --info` or `just telegram-webhook --delete`.
 
+The bot token and webhook registration do not expire. Production deployments
+also install `renteasy-telegram-webhook.timer`, which checks every five minutes
+and re-registers the webhook if it is missing, points at the wrong URL, or
+Telegram reports a delivery error. Use
+`python manage.py set_telegram_webhook --ensure` to run the same check manually.
+
 If someone opens the bot and presses **Start** without a deep-link token, the bot
 replies with a short instruction to tap the Telegram icon on the RentEasy login
 page instead of leaving them with silence.

@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically ensure the RentEasy Telegram bot webhook is healthy
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=5min
+OnCalendar=*:0/5
+AccuracySec=30s
+Persistent=true
+Unit=renteasy-telegram-webhook.service
+
+[Install]
+WantedBy=timers.target
