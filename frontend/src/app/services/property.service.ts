@@ -63,6 +63,11 @@ export interface CambodiaVillage {
   name_km: string;
 }
 
+export interface ReverseGeocodeResult {
+  display_name?: string;
+  address?: Record<string, string>;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -230,6 +235,20 @@ export class PropertyService {
       `${this.baseUrl}/maps/resolve/`,
       { url },
       { withCredentials: true },
+    );
+  }
+
+  reverseGeocode(latitude: number, longitude: number): Observable<ReverseGeocodeResult> {
+    const params = new HttpParams()
+      .set('format', 'jsonv2')
+      .set('lat', String(latitude))
+      .set('lon', String(longitude))
+      .set('zoom', '18')
+      .set('addressdetails', '1')
+      .set('accept-language', 'en,km');
+    return this.http.get<ReverseGeocodeResult>(
+      'https://nominatim.openstreetmap.org/reverse',
+      { params },
     );
   }
 

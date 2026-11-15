@@ -109,9 +109,6 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
         const point = this.marker.getLatLng();
         this.emitCoordinates(point.lat, point.lng);
       });
-      if (!hasCoords) {
-        this.emitCoordinates(center[0], center[1]);
-      }
     }
 
     setTimeout(() => this.map?.invalidateSize(), 0);

@@ -40,66 +40,6 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="form-label">{{ bilingualLabel('ownerForm.province') }}</label>
-          <app-searchable-select
-            [options]="provinceOptions()"
-            [ngModel]="provinceCode()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="onProvinceChange($event)"
-            [placeholder]="language.t('ownerForm.selectProvince')"
-            [searchPlaceholder]="language.t('ownerForm.search')"
-          />
-        </div>
-
-        <div>
-          <label class="form-label">{{ bilingualLabel('ownerForm.locationDistrict') }}</label>
-          <app-searchable-select
-            [options]="locationOptions()"
-            formControlName="location"
-            [placeholder]="language.t('ownerForm.selectLocation')"
-            [searchPlaceholder]="language.t('ownerForm.search')"
-          />
-          @if (districtLoadError()) {
-            <p class="mt-1 text-xs text-ink-3" role="status">
-              {{ language.t('ownerForm.districtLoadFailed') }}
-              <button type="button" class="font-bold underline" (click)="loadDistricts()">{{ language.t('ownerForm.tryAgain') }}</button>
-            </p>
-          }
-        </div>
-
-        <div>
-          <label class="form-label">{{ bilingualLabel('ownerForm.commune') }}</label>
-          <app-searchable-select
-            [options]="communeOptions()"
-            [ngModel]="communeCode()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="onCommuneChange($event)"
-            [placeholder]="language.t('ownerForm.selectCommune')"
-            [searchPlaceholder]="language.t('ownerForm.search')"
-          />
-        </div>
-
-        <div>
-          <label class="form-label">{{ bilingualLabel('ownerForm.village') }}</label>
-          <app-searchable-select
-            [options]="villageOptions()"
-            [ngModel]="villageCode()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="villageCode.set($event)"
-            [placeholder]="language.t('ownerForm.selectVillage')"
-            [searchPlaceholder]="language.t('ownerForm.search')"
-          />
-        </div>
-      </div>
-
-      @if (locationLoadError()) {
-        <p class="text-xs text-ink-3" role="status">
-          {{ language.t('ownerForm.locationLoadFailed') }}
-        </p>
-      }
-
       <div>
         <label class="form-label">{{ bilingualLabel('ownerForm.monthlyRentUSD') }}</label>
         <input
@@ -182,7 +122,76 @@
         <p class="text-xs text-ink-3">
           {{ language.t('ownerForm.clickTheMapOrDragThePinToSetTheExactLocation') }}
         </p>
+        @if (isReverseGeocoding()) {
+          <p class="text-xs text-ink-3" role="status">{{ language.t('ownerForm.findingAddressOnOpenStreetMap') }}</p>
+        }
+        @if (mapAddressMatched()) {
+          <p class="text-xs font-semibold text-success" role="status">{{ language.t('ownerForm.addressFieldsFilledFromMap') }}</p>
+        }
+        @if (mapAddressNotFound()) {
+          <p class="text-xs text-ink-3" role="status">{{ language.t('ownerForm.addressNotFoundOnMap') }}</p>
+        }
       </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">{{ bilingualLabel('ownerForm.province') }}</label>
+          <app-searchable-select
+            [options]="provinceOptions()"
+            [ngModel]="provinceCode()"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="onProvinceChange($event)"
+            [placeholder]="language.t('ownerForm.selectProvince')"
+            [searchPlaceholder]="language.t('ownerForm.search')"
+          />
+        </div>
+
+        <div>
+          <label class="form-label">{{ bilingualLabel('ownerForm.locationDistrict') }}</label>
+          <app-searchable-select
+            [options]="locationOptions()"
+            formControlName="location"
+            [placeholder]="language.t('ownerForm.selectLocation')"
+            [searchPlaceholder]="language.t('ownerForm.search')"
+          />
+          @if (districtLoadError()) {
+            <p class="mt-1 text-xs text-ink-3" role="status">
+              {{ language.t('ownerForm.districtLoadFailed') }}
+              <button type="button" class="font-bold underline" (click)="loadDistricts()">{{ language.t('ownerForm.tryAgain') }}</button>
+            </p>
+          }
+        </div>
+
+        <div>
+          <label class="form-label">{{ bilingualLabel('ownerForm.commune') }}</label>
+          <app-searchable-select
+            [options]="communeOptions()"
+            [ngModel]="communeCode()"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="onCommuneChange($event)"
+            [placeholder]="language.t('ownerForm.selectCommune')"
+            [searchPlaceholder]="language.t('ownerForm.search')"
+          />
+        </div>
+
+        <div>
+          <label class="form-label">{{ bilingualLabel('ownerForm.village') }}</label>
+          <app-searchable-select
+            [options]="villageOptions()"
+            [ngModel]="villageCode()"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="villageCode.set($event)"
+            [placeholder]="language.t('ownerForm.selectVillage')"
+            [searchPlaceholder]="language.t('ownerForm.search')"
+          />
+        </div>
+      </div>
+
+      @if (locationLoadError()) {
+        <p class="text-xs text-ink-3" role="status">
+          {{ language.t('ownerForm.locationLoadFailed') }}
+        </p>
+      }
 
       <div>
         <label class="form-label">{{ bilingualLabel('ownerForm.propertyPhotos') }}</label>

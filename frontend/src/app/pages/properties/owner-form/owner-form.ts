@@ -20,6 +20,11 @@ import { Property, PropertyCategorySetting } from '../../../models';
 import { formatCoordinates, parseCoordinates } from '../../../shared/coords';
 import { compressImageToFile } from '../../../shared/image';
 
+const ADMIN_NAME_PREFIX =
+  /^(?:province|khaet|khet|city|municipality|district|khan|srok|krong|commune|sangkat|khum|village|phum|quarter|group|ខេត្ត|រាជធានី|ក្រុង|ខណ្ឌ|ស្រុក|ឃុំ|សង្កាត់|ភូមិ)\s*/u;
+const ADMIN_NAME_SUFFIX =
+  /\s+(?:province|municipality|city|district|commune|village)$/u;
+
 @Component({
   selector: 'app-owner-property-form',
   imports: [
@@ -69,7 +74,12 @@ export class OwnerPropertyFormComponent implements OnInit {
   private districtCode = signal('');
   districtLoadError = signal(false);
   locationLoadError = signal(false);
+  private provincesLoaded = false;
+  private districtsLoaded = false;
+  private communesLoaded = false;
   private villagesRequested = false;
+  private villagesLoaded = false;
+  private pendingMapAddress: Record<string, string> | null = null;
   private pendingAiLocation: {
     location?: string;
     province?: string;
@@ -188,8 +198,14 @@ export class OwnerPropertyFormComponent implements OnInit {
   private loadedProperty: Property | null = null;
   coordError = signal(false);
   isResolvingCoordinates = signal(false);
+  isReverseGeocoding = signal(false);
+  mapAddressMatched = signal(false);
+  mapAddressNotFound = signal(false);
   private coordinateResolveTimer: ReturnType<typeof setTimeout> | null = null;
   private coordinateResolveRequest = 0;
+  private reverseGeocodeTimer: ReturnType<typeof setTimeout> | null = null;
+  private reverseGeocodeRequest = 0;
+  private lastReverseGeocodeAt = 0;
 
   form = this.fb.group({
     title: [''],
@@ -235,9 +251,11 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.districtLoadError.set(false);
     this.propertyService.getCambodiaDistricts().subscribe({
       next: (districts) => {
+        this.districtsLoaded = true;
         this.cambodiaDistricts.set(districts);
         this.districtLoadError.set(districts.length === 0);
         this.applyLoadedPropertyLocation();
+        this.applyPendingMapAddress();
       },
       error: () => this.districtLoadError.set(true),
     });
@@ -247,9 +265,11 @@ export class OwnerPropertyFormComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
     this.propertyService.getCambodiaProvinces().subscribe({
       next: (provinces) => {
+        this.provincesLoaded = true;
         this.cambodiaProvinces.set(provinces);
         this.locationLoadError.set(provinces.length === 0);
         this.applyLoadedPropertyLocation();
+        this.applyPendingMapAddress();
       },
       error: () => this.locationLoadError.set(true),
     });
@@ -259,8 +279,10 @@ export class OwnerPropertyFormComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
     this.propertyService.getCambodiaCommunes().subscribe({
       next: (communes) => {
+        this.communesLoaded = true;
         this.cambodiaCommunes.set(communes);
         this.applyLoadedPropertyLocation();
+        this.applyPendingMapAddress();
       },
       error: () => this.locationLoadError.set(true),
     });
@@ -271,20 +293,25 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.villagesRequested = true;
     this.propertyService.getCambodiaVillages().subscribe({
       next: (villages) => {
+        this.villagesLoaded = true;
         this.cambodiaVillages.set(villages);
         this.applyLoadedPropertyLocation();
+        this.applyPendingMapAddress();
         if (this.pendingAiLocation) {
           this.applyAiLocation(this.pendingAiLocation);
         }
       },
       error: () => {
         this.villagesRequested = false;
+        this.villagesLoaded = false;
+        this.pendingMapAddress = null;
         this.locationLoadError.set(true);
       },
     });
   }
 
   onProvinceChange(code: string): void {
+    this.cancelMapAddressLookup();
     this.provinceCode.set(code);
     this.districtCode.set('');
     this.communeCode.set('');
@@ -293,6 +320,7 @@ export class OwnerPropertyFormComponent implements OnInit {
   }
 
   onDistrictChange(value: string): void {
+    this.cancelMapAddressLookup();
     const district = this.findDistrictByName(value);
     this.districtCode.set(district?.code || '');
     if (district) this.provinceCode.set(district.province_code);
@@ -301,6 +329,7 @@ export class OwnerPropertyFormComponent implements OnInit {
   }
 
   onCommuneChange(code: string): void {
+    this.cancelMapAddressLookup();
     this.communeCode.set(code);
     this.villageCode.set('');
     if (code) this.ensureVillagesLoaded();
@@ -391,12 +420,14 @@ export class OwnerPropertyFormComponent implements OnInit {
     const requestId = ++this.coordinateResolveRequest;
     if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
     this.isResolvingCoordinates.set(false);
+    this.cancelMapAddressLookup();
     const raw = this.form.get('coordinates')?.value || '';
     const parsed = parseCoordinates(raw);
     if (parsed) {
       this.latitude.set(parsed.latitude);
       this.longitude.set(parsed.longitude);
       this.coordError.set(false);
+      this.scheduleMapAddressLookup(parsed.latitude, parsed.longitude);
       return;
     }
 
@@ -422,6 +453,7 @@ export class OwnerPropertyFormComponent implements OnInit {
               );
               this.isResolvingCoordinates.set(false);
               this.coordError.set(false);
+              this.scheduleMapAddressLookup(point.latitude, point.longitude);
             },
             error: () => {
               if (requestId !== this.coordinateResolveRequest) return;
@@ -445,6 +477,7 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.coordinateResolveRequest++;
     if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
     this.isResolvingCoordinates.set(false);
+    this.cancelMapAddressLookup();
     this.latitude.set(point.latitude);
     this.longitude.set(point.longitude);
     this.coordError.set(false);
@@ -452,16 +485,266 @@ export class OwnerPropertyFormComponent implements OnInit {
       { coordinates: formatCoordinates(point.latitude, point.longitude) },
       { emitEvent: false }
     );
+    this.scheduleMapAddressLookup(point.latitude, point.longitude, 250);
   }
 
   clearCoordinates(): void {
     this.coordinateResolveRequest++;
     if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
     this.isResolvingCoordinates.set(false);
+    this.cancelMapAddressLookup();
     this.latitude.set(null);
     this.longitude.set(null);
     this.coordError.set(false);
     this.form.patchValue({ coordinates: '' }, { emitEvent: false });
+  }
+
+  private scheduleMapAddressLookup(
+    latitude: number,
+    longitude: number,
+    delay = 600,
+  ): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const requestId = ++this.reverseGeocodeRequest;
+    if (this.reverseGeocodeTimer) clearTimeout(this.reverseGeocodeTimer);
+    this.isReverseGeocoding.set(false);
+    this.mapAddressMatched.set(false);
+    this.mapAddressNotFound.set(false);
+    const wait = Math.max(
+      delay,
+      1100 - (Date.now() - this.lastReverseGeocodeAt),
+    );
+    this.reverseGeocodeTimer = setTimeout(() => {
+      this.lastReverseGeocodeAt = Date.now();
+      this.isReverseGeocoding.set(true);
+      this.propertyService.reverseGeocode(latitude, longitude).subscribe({
+        next: (result) => {
+          if (requestId !== this.reverseGeocodeRequest) return;
+          this.isReverseGeocoding.set(false);
+          const outcome = this.applyAddressFromOpenStreetMap(result.address);
+          this.mapAddressMatched.set(outcome === 'applied');
+          this.mapAddressNotFound.set(outcome === 'unmatched');
+        },
+        error: () => {
+          if (requestId !== this.reverseGeocodeRequest) return;
+          this.isReverseGeocoding.set(false);
+          this.mapAddressMatched.set(false);
+          this.mapAddressNotFound.set(true);
+        },
+      });
+    }, delay);
+  }
+
+  private cancelMapAddressLookup(): void {
+    this.reverseGeocodeRequest++;
+    if (this.reverseGeocodeTimer) clearTimeout(this.reverseGeocodeTimer);
+    this.reverseGeocodeTimer = null;
+    this.isReverseGeocoding.set(false);
+    this.mapAddressMatched.set(false);
+    this.mapAddressNotFound.set(false);
+    this.pendingMapAddress = null;
+  }
+
+  private applyAddressFromOpenStreetMap(
+    address: Record<string, string> | undefined,
+  ): 'applied' | 'pending' | 'unmatched' {
+    if (!address) return 'unmatched';
+    const country = (address['country_code'] || '').toLowerCase();
+    if (country && country !== 'kh') return 'unmatched';
+    if (!this.provincesLoaded || !this.districtsLoaded || !this.communesLoaded) {
+      this.pendingMapAddress = address;
+      return 'pending';
+    }
+
+    const provinceCandidates = this.addressCandidates(address, [
+      'state',
+      'province',
+      'region',
+      'municipality',
+      'city',
+    ]);
+    const districtCandidates = this.addressCandidates(address, [
+      'county',
+      'city_district',
+      'district',
+      'town',
+      'municipality',
+      'city',
+    ]);
+    const communeCandidates = this.addressCandidates(address, [
+      'suburb',
+      'village',
+      'hamlet',
+      'neighbourhood',
+      'quarter',
+      'borough',
+    ]);
+    const villageCandidates = this.addressCandidates(address, [
+      'hamlet',
+      'neighbourhood',
+      'quarter',
+      'borough',
+      'residential',
+      'village',
+    ]);
+    if (
+      !provinceCandidates.length &&
+      !districtCandidates.length &&
+      !communeCandidates.length &&
+      !villageCandidates.length
+    ) {
+      return 'unmatched';
+    }
+
+    let province = this.findAddressMatch(
+      this.cambodiaProvinces(),
+      provinceCandidates,
+    );
+    if (!province) {
+      const isoCode = address['ISO3166-2-lvl4'] || address['ISO3166-2'] || '';
+      const match = /^KH-(\d{1,2})$/i.exec(isoCode.trim());
+      if (match) {
+        const code = match[1].padStart(2, '0');
+        province = this.cambodiaProvinces().find((item) => item.code === code);
+      }
+    }
+
+    let district = this.findAddressMatch(
+      this.cambodiaDistricts().filter(
+        (item) => !province || item.province_code === province.code,
+      ),
+      districtCandidates,
+    );
+    let commune = this.findAddressMatch(
+      this.cambodiaCommunes().filter(
+        (item) =>
+          (!province || item.province_code === province.code) &&
+          (!district || item.district_code === district.code),
+      ),
+      communeCandidates,
+    );
+    let village = this.findAddressMatch(
+      this.cambodiaVillages().filter(
+        (item) => !commune || item.commune_code === commune.code,
+      ),
+      villageCandidates,
+    );
+
+    if (!commune && village) {
+      commune = this.cambodiaCommunes().find(
+        (item) => item.code === village!.commune_code,
+      );
+    }
+    if (!district && commune) {
+      district = this.cambodiaDistricts().find(
+        (item) => item.code === commune!.district_code,
+      );
+    }
+    if (!province && commune) {
+      province = this.cambodiaProvinces().find(
+        (item) => item.code === commune!.province_code,
+      );
+    }
+    if (!province && district) {
+      province = this.cambodiaProvinces().find(
+        (item) => item.code === district!.province_code,
+      );
+    }
+
+    if (!province && !district && !commune && !village) return 'unmatched';
+
+    this.form.patchValue(
+      {
+        location: district
+          ? this.locationLabel(district.name_en, district.name_km)
+          : '',
+      },
+      { emitEvent: false },
+    );
+    this.provinceCode.set(province?.code || district?.province_code || '');
+    this.districtCode.set(district?.code || '');
+    this.communeCode.set(commune?.code || '');
+    this.villageCode.set(village ? this.villageKey(village) : '');
+
+    if (commune && !this.villagesLoaded) {
+      this.pendingMapAddress = address;
+      this.ensureVillagesLoaded();
+    }
+    return 'applied';
+  }
+
+  private applyPendingMapAddress(): void {
+    if (
+      !this.pendingMapAddress ||
+      !this.provincesLoaded ||
+      !this.districtsLoaded ||
+      !this.communesLoaded
+    ) {
+      return;
+    }
+    const address = this.pendingMapAddress;
+    this.pendingMapAddress = null;
+    const outcome = this.applyAddressFromOpenStreetMap(address);
+    this.mapAddressMatched.set(outcome === 'applied');
+    this.mapAddressNotFound.set(outcome === 'unmatched');
+  }
+
+  private addressCandidates(
+    address: Record<string, string>,
+    keys: string[],
+  ): string[] {
+    return [
+      ...new Set(
+        keys
+          .map((key) => address[key])
+          .filter(
+            (value): value is string =>
+              typeof value === 'string' && !!value.trim(),
+          ),
+      ),
+    ];
+  }
+
+  private findAddressMatch<T extends { name_en: string; name_km: string }>(
+    items: T[],
+    candidates: string[],
+  ): T | undefined {
+    for (const candidate of candidates) {
+      const candidateKeys = new Set(this.addressNameKeys(candidate));
+      if (!candidateKeys.size) continue;
+      const match = items.find(
+        (item) =>
+          this.addressNameKeys(item.name_en).some((key) =>
+            candidateKeys.has(key),
+          ) ||
+          this.addressNameKeys(item.name_km).some((key) =>
+            candidateKeys.has(key),
+          ),
+      );
+      if (match) return match;
+    }
+    return undefined;
+  }
+
+  private addressNameKeys(value: string): string[] {
+    let normalized = value
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+    if (!normalized) return [];
+
+    const variants = [normalized];
+    for (let index = 0; index < 3; index++) {
+      const stripped = normalized
+        .replace(ADMIN_NAME_PREFIX, '')
+        .replace(ADMIN_NAME_SUFFIX, '')
+        .trim();
+      if (!stripped || stripped === normalized) break;
+      variants.push(stripped);
+      normalized = stripped;
+    }
+    return [...new Set(variants.map((variant) => variant.replace(/\s+/g, '')))];
   }
 
   async onImagesSelected(event: Event): Promise<void> {
