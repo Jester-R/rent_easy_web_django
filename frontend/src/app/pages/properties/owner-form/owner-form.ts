@@ -336,6 +336,14 @@ export class OwnerPropertyFormComponent implements OnInit {
         this.cambodiaVillages.set(villages);
         this.applyLoadedPropertyLocation();
         this.applyPendingMapAddress();
+        if (this.communeCode() && !this.villageCode()) {
+          const communeVillages = villages.filter(
+            (v) => v.commune_code === this.communeCode(),
+          );
+          if (communeVillages.length > 0) {
+            this.villageCode.set(this.villageKey(communeVillages[0]));
+          }
+        }
         if (this.pendingAiLocation) {
           this.applyAiLocation(this.pendingAiLocation);
         }
@@ -371,7 +379,17 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.cancelMapAddressLookup();
     this.communeCode.set(code);
     this.villageCode.set('');
-    if (code) this.ensureVillagesLoaded();
+    if (code) {
+      this.ensureVillagesLoaded();
+      if (this.villagesLoaded) {
+        const communeVillages = this.cambodiaVillages().filter(
+          (v) => v.commune_code === code,
+        );
+        if (communeVillages.length > 0) {
+          this.villageCode.set(this.villageKey(communeVillages[0]));
+        }
+      }
+    }
   }
 
   private ensureVillagesLoaded(): void {
@@ -749,6 +767,7 @@ export class OwnerPropertyFormComponent implements OnInit {
       const communeVillages = this.cambodiaVillages().filter(
         (v) => v.commune_code === commune!.code,
       );
+      // 4a. Exact normalized match
       for (const cand of allCandidates) {
         const norm = this.normalizeAdministrativeText(cand);
         if (!norm) continue;
@@ -759,7 +778,24 @@ export class OwnerPropertyFormComponent implements OnInit {
         );
         if (village) break;
       }
-      if (!village && communeVillages.length === 1) {
+      // 4b. Substring / partial match
+      if (!village) {
+        for (const cand of allCandidates) {
+          const norm = this.normalizeAdministrativeText(cand);
+          if (!norm) continue;
+          village = communeVillages.find((v) => {
+            const vEn = this.normalizeAdministrativeText(v.name_en);
+            const vKm = this.normalizeAdministrativeText(v.name_km);
+            return (
+              (vEn && (norm.includes(vEn) || vEn.includes(norm))) ||
+              (vKm && (norm.includes(vKm) || vKm.includes(norm)))
+            );
+          });
+          if (village) break;
+        }
+      }
+      // 4c. Always auto-complete to the first village of the commune if no specific village is found
+      if (!village && communeVillages.length > 0) {
         village = communeVillages[0];
       }
     }
