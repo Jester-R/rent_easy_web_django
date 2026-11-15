@@ -1,0 +1,180 @@
+<div class="space-y-4">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleSessions.loginSessions') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('consoleSessions.subtitle') }}</p>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm w-full sm:w-auto" [disabled]="isExporting()" (click)="exportCsv()">
+      <app-icon name="download" [size]="15" />
+      <span>{{ isExporting() ? language.t('profile.savingChanges') : language.t('consoleSessions.exportCsv') }}</span>
+    </button>
+  </div>
+
+  @if (error(); as message) {
+    <div class="toast toast-error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="error.set(null)" aria-label="Dismiss">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="monitor" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleSessions.allSessions') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight">{{ allCount() }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="shield" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleSessions.activeSessions') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight text-success">{{ activeCount() }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="clock" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleSessions.inactiveSessions') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight text-ink-2">{{ inactiveCount() }}</span>
+      </span>
+    </div>
+  </div>
+
+  <section class="app-card p-4">
+    <form class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_11rem_11rem_11rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
+      <div class="relative sm:col-span-2 xl:col-span-1">
+        <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
+          <app-icon name="search" [size]="16" />
+        </span>
+        <input #q type="search" class="form-input ps-11" [placeholder]="language.t('consoleSessions.searchPlaceholder')" [value]="query()" (input)="onSearch(q.value)" />
+      </div>
+      <app-searchable-select
+        [options]="statusOptions()"
+        [ngModel]="status()"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="onStatusChange($event)"
+        [placeholder]="language.t('consoleSessions.allStatuses')"
+        [searchPlaceholder]="language.t('consoleSessions.filter')"
+      />
+      <app-searchable-select
+        [options]="methodOptions()"
+        [ngModel]="method()"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="onMethodChange($event)"
+        [placeholder]="language.t('consoleSessions.allMethods')"
+        [searchPlaceholder]="language.t('consoleSessions.filter')"
+      />
+      <app-searchable-select
+        [options]="roleOptions()"
+        [ngModel]="role()"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="onRoleChange($event)"
+        [placeholder]="language.t('consoleSessions.allRoles')"
+        [searchPlaceholder]="language.t('consoleSessions.filter')"
+      />
+      <div class="flex gap-2 sm:col-span-2 xl:col-span-1">
+        <button type="submit" class="btn btn-primary flex-1">
+          <app-icon name="filter" [size]="15" /><span>{{ language.t('consoleSessions.filter') }}</span>
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="reset()" [title]="language.t('consoleSessions.reset')" [attr.aria-label]="language.t('consoleSessions.reset')">
+          <app-icon name="refresh" [size]="15" />
+        </button>
+      </div>
+    </form>
+    <p class="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-ink-3">
+      <app-icon name="info" [size]="13" class="mt-0.5 shrink-0" />
+      <span>{{ language.t('consoleSessions.approximateLocation') }}</span>
+    </p>
+  </section>
+
+  @if (isLoading() && sessions().length === 0) {
+    <div class="space-y-3" aria-hidden="true">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="app-card skeleton h-24"></div>
+      }
+    </div>
+  } @else if (sessions().length === 0) {
+    <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
+      <span class="empty-state-icon"><app-icon name="monitor" [size]="30" /></span>
+      <p class="text-[15px] font-bold text-ink">{{ language.t('consoleSessions.noSessions') }}</p>
+      <p class="max-w-sm text-[13px] leading-relaxed text-ink-3">{{ language.t('consoleSessions.noSessionsHelp') }}</p>
+      <button type="button" class="btn btn-primary btn-sm mt-1" (click)="reset()">
+        <app-icon name="refresh" [size]="15" /><span>{{ language.t('consoleSessions.reset') }}</span>
+      </button>
+    </div>
+  } @else {
+    <div class="table-wrap app-card" role="region" tabindex="0" [attr.aria-label]="language.t('consoleSessions.loginSessions')">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="text-start">{{ language.t('consoleSessions.user') }}</th>
+            <th class="text-start">{{ language.t('consoleSessions.status') }}</th>
+            <th class="text-start">{{ language.t('consoleSessions.device') }}</th>
+            <th class="text-start">{{ language.t('consoleSessions.location') }}</th>
+            <th class="text-start">{{ language.t('consoleSessions.ipAddress') }}</th>
+            <th class="text-start">{{ language.t('consoleSessions.signedIn') }}</th>
+            <th class="text-start">{{ language.t('consoleSessions.lastSeen') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of sessions(); track item.id) {
+            <tr>
+              <td [attr.data-label]="language.t('consoleSessions.user')" class="min-w-[13rem]">
+                <div class="flex items-center gap-2.5">
+                  <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
+                        [style.background-color]="'hsl(' + item.user.avatar_hue + ' 42% 92%)'"
+                        [style.color]="'hsl(' + item.user.avatar_hue + ' 55% 28%)'">
+                    {{ initials(item.user.display_name) }}
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block truncate font-bold">{{ item.user.display_name }}</span>
+                    <span class="block truncate text-[11px] text-ink-3">{{ item.user.email }}</span>
+                    <span class="block text-[10px] font-semibold text-ink-3">{{ language.valueLabel(roleLabel(item.user.role)) }}</span>
+                  </span>
+                </div>
+              </td>
+              <td [attr.data-label]="language.t('consoleSessions.status')">
+                <div class="flex flex-col items-start gap-1">
+                  <span class="pill" [class.pill-approved]="item.is_active" [class.pill-neutral]="!item.is_active">
+                    {{ item.is_active ? language.t('consoleSessions.active') : language.t('consoleSessions.inactive') }}
+                  </span>
+                  @if (item.is_current) {
+                    <span class="pill pill-warning">{{ language.t('consoleSessions.current') }}</span>
+                  }
+                  @if (item.logged_out_at) {
+                    <span class="text-[10px] text-ink-3">{{ language.t('consoleSessions.signedOut') }} {{ shortDate(item.logged_out_at) }}</span>
+                  }
+                </div>
+              </td>
+              <td [attr.data-label]="language.t('consoleSessions.device')">
+                <div class="min-w-[9rem]">
+                  <span class="block font-semibold">{{ deviceLabel(item.device_type) }}</span>
+                  <span class="block text-[11px] text-ink-3">{{ item.browser || item.operating_system || language.t('consoleSessions.unknown') }}</span>
+                  @if (item.browser && item.operating_system) {
+                    <span class="block text-[10px] text-ink-3">{{ item.operating_system }}</span>
+                  }
+                </div>
+              </td>
+              <td [attr.data-label]="language.t('consoleSessions.location')">
+                <div class="min-w-[9rem]">
+                  <span class="block font-semibold">{{ location(item) }}</span>
+                  @if (item.country_code) {
+                    <span class="block text-[11px] text-ink-3">{{ item.country_code }}</span>
+                  }
+                </div>
+              </td>
+              <td [attr.data-label]="language.t('consoleSessions.ipAddress')" class="whitespace-nowrap font-mono text-[12px] text-ink-2">{{ item.ip_address || '—' }}</td>
+              <td [attr.data-label]="language.t('consoleSessions.signedIn')" class="whitespace-nowrap text-ink-2">{{ prettyDate(item.created_at) }}</td>
+              <td [attr.data-label]="language.t('consoleSessions.lastSeen')" class="whitespace-nowrap text-ink-2">{{ prettyDate(item.last_seen_at) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
+  }
+</div>

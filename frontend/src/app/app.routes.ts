@@ -29,6 +29,8 @@ import { ConsoleBookingsComponent } from './pages/console/bookings/console-booki
 import { ConsolePaymentsComponent } from './pages/console/payments/console-payments';
 import { ConsoleSettingsComponent } from './pages/console/settings/console-settings';
 import { ConsoleNotificationsComponent } from './pages/console/notifications/console-notifications';
+import { ConsoleSessionsComponent } from './pages/console/sessions/console-sessions';
+import { ConsoleAuditComponent } from './pages/console/audit/console-audit';
 import { PaymentDetailComponent } from './pages/payments/detail/payment-detail';
 import { DeniedComponent } from './pages/auth/denied/denied';
 import { NotFoundComponent } from './pages/errors/not-found/not-found';
@@ -38,6 +40,7 @@ import {
   guestGuard,
   ownerGuard,
   renterGuard,
+  superadminGuard,
 } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -88,6 +91,8 @@ export const routes: Routes = [
   { path: 'console/payments', component: ConsolePaymentsComponent, canActivate: [adminGuard] },
   { path: 'console/notifications', component: ConsoleNotificationsComponent, canActivate: [adminGuard] },
   { path: 'console/settings', component: ConsoleSettingsComponent, canActivate: [adminGuard] },
+  { path: 'console/sessions', component: ConsoleSessionsComponent, canActivate: [superadminGuard] },
+  { path: 'console/audit-logs', component: ConsoleAuditComponent, canActivate: [superadminGuard] },
 
   { path: '**', component: NotFoundComponent },
 ];

@@ -312,6 +312,57 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.save(update_fields=["last_login_at"])
 
 
+class LoginSession(models.Model):
+    """One row per successful sign-in, used by the superadmin security view.
+
+    ``session_key`` points at Django's session row. A session is considered
+    active while that row still exists and has not expired, so a user closing
+    the browser (or signing out) leaves a useful historical record.
+    """
+
+    class DeviceType(models.TextChoices):
+        DESKTOP = "desktop", "Desktop"
+        MOBILE = "mobile", "Mobile"
+        TABLET = "tablet", "Tablet"
+        BOT = "bot", "Bot"
+        UNKNOWN = "unknown", "Unknown"
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="login_sessions"
+    )
+    session_key = models.CharField(max_length=64, unique=True, db_index=True)
+    auth_method = models.CharField(max_length=20, default="email")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    device_type = models.CharField(
+        max_length=16, choices=DeviceType.choices, default=DeviceType.UNKNOWN
+    )
+    browser = models.CharField(max_length=40, blank=True)
+    operating_system = models.CharField(max_length=40, blank=True)
+    country_code = models.CharField(max_length=2, blank=True)
+    country = models.CharField(max_length=80, blank=True)
+    region = models.CharField(max_length=120, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    session_expires_at = models.DateTimeField(null=True, blank=True)
+    logged_out_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["ip_address", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.session_key[:8]}"
+
+    @property
+    def location_label(self) -> str:
+        return ", ".join(part for part in (self.city, self.country) if part)
+
+
 class AuditLog(models.Model):
     """Lightweight trail of privileged actions (superadmin console)."""
 
@@ -323,6 +374,8 @@ class AuditLog(models.Model):
         PAYMENT = "payment", "Payment"
         PAYOUT = "payout", "Payout"
         REFUND = "refund", "Refund"
+        LOGIN = "login", "Login"
+        LOGOUT = "logout", "Logout"
 
     actor = models.ForeignKey(
         User,

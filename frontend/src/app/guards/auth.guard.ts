@@ -58,6 +58,23 @@ export const adminGuard: CanActivateFn = (_route, state) => {
   return auth.isLoading() ? auth.checkAuth().pipe(map(decide)) : decide();
 };
 
+/** Security console: super-admin role only. */
+export const superadminGuard: CanActivateFn = (_route, state) => {
+  const platformId = inject(PLATFORM_ID);
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!isPlatformBrowser(platformId)) return true;
+
+  const decide = () => {
+    if (!auth.currentUser()) {
+      return router.createUrlTree(['/login'], { queryParams: { next: state.url } });
+    }
+    return auth.isSuperadmin() ? true : router.createUrlTree(['/denied']);
+  };
+
+  return auth.isLoading() ? auth.checkAuth().pipe(map(decide)) : decide();
+};
+
 /** Keep authenticated users away from login/register/role-select. */
 export const guestGuard: CanActivateFn = () => {
   const platformId = inject(PLATFORM_ID);

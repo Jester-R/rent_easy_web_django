@@ -53,6 +53,7 @@ from accounts.models import (
     normalize_identity,
 )
 from accounts.payouts import apply_payout_fields
+from accounts.session_tracking import end_login_session, record_login_session
 from accounts.telegram_login import (
     TELEGRAM_LOGIN_REQUEST_TTL,
     TELEGRAM_LOGIN_TOKEN_PREFIX,
@@ -203,6 +204,7 @@ async def login_view(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, "Email")
     await in_thread(notify_account_signed_in, user, "email")
 
     destination = body_str(data, "next") or user.home_url
@@ -352,6 +354,8 @@ async def register_verify_otp_view(request):
     )
     await in_thread(notify_account_created, user, "email")
     await in_thread(login, request, user)
+    await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, "Email")
     return {
         "status": "active",
         "user": await serialize_user(user),
@@ -438,6 +442,7 @@ async def role_select_view(request):
     await user.asave(update_fields=["role", "is_active", "approval_status"])
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, provider)
     await in_thread(notify_account_signed_in, user, provider)
     await AuditLog.objects.acreate(
         actor=user,
@@ -464,9 +469,10 @@ async def logout_view(request):
     from core.bolt import get_user
 
     user = await get_user(request)
+    await in_thread(end_login_session, request)
     await AuditLog.objects.acreate(
         actor=user,
-        action=AuditLog.Action.UPDATE,
+        action=AuditLog.Action.LOGOUT,
         entity="session",
         entity_id=str(user.pk) if user else "",
         summary="logout",
@@ -592,6 +598,7 @@ async def google_oauth_callback_get(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, "Google")
     if not created:
         await in_thread(notify_account_signed_in, user, "Google")
 
@@ -654,6 +661,7 @@ async def google_oauth_callback_post(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, "Google")
     if not created:
         await in_thread(notify_account_signed_in, user, "Google")
 
@@ -732,6 +740,7 @@ async def telegram_login_verify(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, "Telegram")
     if not created:
         await in_thread(notify_account_signed_in, user, "Telegram")
     return {
@@ -797,6 +806,7 @@ async def telegram_login_callback(request):
 
     await in_thread(login, request, user)
     await in_thread(user.touch_login)
+    await in_thread(record_login_session, user, request, "Telegram")
     if not created:
         await in_thread(notify_account_signed_in, user, "Telegram")
 

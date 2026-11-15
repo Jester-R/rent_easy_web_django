@@ -1,0 +1,223 @@
+<div class="space-y-4">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleAudit.auditLog') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('consoleAudit.subtitle') }}</p>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm w-full sm:w-auto" [disabled]="isExporting()" (click)="exportCsv()">
+      <app-icon name="download" [size]="15" />
+      <span>{{ isExporting() ? language.t('profile.savingChanges') : language.t('consoleAudit.exportCsv') }}</span>
+    </button>
+  </div>
+
+  @if (error(); as message) {
+    <div class="toast toast-error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span class="flex-1">{{ message }}</span>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="error.set(null)" aria-label="Dismiss">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="list" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleAudit.totalEvents') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight">{{ total() }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="login" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleAudit.logins') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight text-success">{{ logins() }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="shield" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleAudit.securityEvents') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight">{{ securityEvents() }}</span>
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon"><app-icon name="edit" [size]="20" /></span>
+      <span class="min-w-0">
+        <span class="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('consoleAudit.changes') }}</span>
+        <span class="block text-[19px] font-extrabold leading-tight">{{ changes() }}</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+    <section class="app-card p-4">
+      <div class="mb-4 flex items-center justify-between gap-2">
+        <h2 class="flex items-center gap-2 text-[14px] font-extrabold tracking-tight">
+          <app-icon name="chart" [size]="17" />
+          <span>{{ language.t('consoleAudit.last14Days') }}</span>
+        </h2>
+        <span class="text-[11px] text-ink-3">{{ total() }} {{ language.t('consoleAudit.events') }}</span>
+      </div>
+      @if (byDay().length) {
+        <div class="overflow-x-auto pb-1">
+          <div class="flex h-36 min-w-[420px] items-end gap-1.5">
+            @for (day of byDay(); track day.date) {
+              <div class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5" [title]="dayLabel(day.date) + ': ' + day.count">
+                <span class="text-[9px] font-bold tabular-nums text-ink-3">{{ day.count }}</span>
+                <div class="w-full rounded-t-md bg-primary/85 transition-all hover:bg-primary" [style.height.%]="dayBarHeight(day.count)"></div>
+                <span class="whitespace-nowrap text-[9px] font-semibold text-ink-3">{{ dayLabel(day.date) }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="py-10 text-center text-[12px] text-ink-3">{{ language.t('consoleAudit.noActivity') }}</p>
+      }
+    </section>
+
+    <section class="app-card p-4">
+      <h2 class="mb-4 text-[14px] font-extrabold tracking-tight">{{ language.t('consoleAudit.actionBreakdown') }}</h2>
+      @if (byAction().length) {
+        <div class="space-y-3">
+          @for (item of byAction(); track item.action) {
+            <div>
+              <div class="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold">
+                <span class="min-w-0 truncate">{{ actionLabel(item.action) }}</span>
+                <span class="tabular-nums text-ink-3">{{ item.n }}</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                <div class="h-full rounded-full bg-primary/80" [style.width.%]="actionBarWidth(item.n)"></div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="py-6 text-center text-[12px] text-ink-3">{{ language.t('consoleAudit.noActivity') }}</p>
+      }
+
+      @if (byEntity().length) {
+        <div class="divider my-4"></div>
+        <div class="flex flex-wrap gap-2">
+          @for (item of byEntity(); track item.entity) {
+            <span class="pill pill-neutral">{{ entityLabel(item.entity) }} · {{ item.n }}</span>
+          }
+        </div>
+      }
+    </section>
+  </div>
+
+  <section class="app-card p-4">
+    <form class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_10rem_10rem_9rem_9rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
+      <div class="relative sm:col-span-2 xl:col-span-1">
+        <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
+          <app-icon name="search" [size]="16" />
+        </span>
+        <input #q type="search" class="form-input ps-11" [placeholder]="language.t('consoleAudit.searchPlaceholder')" [value]="query()" (input)="onSearch(q.value)" />
+      </div>
+      <app-searchable-select
+        [options]="actionOptions()"
+        [ngModel]="action()"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="onActionChange($event)"
+        [placeholder]="language.t('consoleAudit.allActions')"
+        [searchPlaceholder]="language.t('consoleAudit.filter')"
+      />
+      <app-searchable-select
+        [options]="entityOptions()"
+        [ngModel]="entity()"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="onEntityChange($event)"
+        [placeholder]="language.t('consoleAudit.allEntities')"
+        [searchPlaceholder]="language.t('consoleAudit.filter')"
+      />
+      <label class="text-[11px] font-semibold text-ink-3">
+        <span class="mb-1 block">{{ language.t('consoleAudit.fromDate') }}</span>
+        <input type="date" class="form-input" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" [ngModelOptions]="{ standalone: true }" />
+      </label>
+      <label class="text-[11px] font-semibold text-ink-3">
+        <span class="mb-1 block">{{ language.t('consoleAudit.toDate') }}</span>
+        <input type="date" class="form-input" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" [ngModelOptions]="{ standalone: true }" />
+      </label>
+      <div class="flex gap-2 sm:col-span-2 xl:col-span-1 xl:items-end">
+        <button type="submit" class="btn btn-primary flex-1">
+          <app-icon name="filter" [size]="15" /><span>{{ language.t('consoleAudit.filter') }}</span>
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="reset()" [title]="language.t('consoleAudit.reset')" [attr.aria-label]="language.t('consoleAudit.reset')">
+          <app-icon name="refresh" [size]="15" />
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (isLoading() && logs().length === 0) {
+    <div class="space-y-3" aria-hidden="true">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="app-card skeleton h-24"></div>
+      }
+    </div>
+  } @else if (logs().length === 0) {
+    <div class="app-card flex flex-col items-center gap-3 px-6 py-12 text-center">
+      <span class="empty-state-icon"><app-icon name="list" [size]="30" /></span>
+      <p class="text-[15px] font-bold text-ink">{{ language.t('consoleAudit.noEvents') }}</p>
+      <p class="max-w-sm text-[13px] leading-relaxed text-ink-3">{{ language.t('consoleAudit.noEventsHelp') }}</p>
+      <button type="button" class="btn btn-primary btn-sm mt-1" (click)="reset()">
+        <app-icon name="refresh" [size]="15" /><span>{{ language.t('consoleAudit.reset') }}</span>
+      </button>
+    </div>
+  } @else {
+    <div class="table-wrap app-card" role="region" tabindex="0" [attr.aria-label]="language.t('consoleAudit.auditLog')">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="text-start">{{ language.t('consoleAudit.time') }}</th>
+            <th class="text-start">{{ language.t('consoleAudit.actor') }}</th>
+            <th class="text-start">{{ language.t('consoleAudit.action') }}</th>
+            <th class="text-start">{{ language.t('consoleAudit.entity') }}</th>
+            <th class="text-start">{{ language.t('consoleAudit.summary') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of logs(); track item.id) {
+            <tr>
+              <td [attr.data-label]="language.t('consoleAudit.time')" class="whitespace-nowrap text-ink-2">{{ prettyDate(item.created_at) }}</td>
+              <td [attr.data-label]="language.t('consoleAudit.actor')" class="min-w-[11rem]">
+                @if (item.actor; as actor) {
+                  <div class="flex items-center gap-2.5">
+                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-extrabold"
+                          [style.background-color]="'hsl(' + actor.avatar_hue + ' 42% 92%)'"
+                          [style.color]="'hsl(' + actor.avatar_hue + ' 55% 28%)'">
+                      {{ initials(actor.display_name) }}
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block truncate font-bold">{{ actor.display_name }}</span>
+                      <span class="block truncate text-[11px] text-ink-3">{{ actor.email }}</span>
+                    </span>
+                  </div>
+                } @else {
+                  <span class="text-ink-3">{{ language.t('consoleAudit.system') }}</span>
+                }
+              </td>
+              <td [attr.data-label]="language.t('consoleAudit.action')">
+                <span [class]="'pill whitespace-nowrap ' + actionPill(item.action)">{{ actionLabel(item.action) }}</span>
+              </td>
+              <td [attr.data-label]="language.t('consoleAudit.entity')">
+                <div class="min-w-[8rem]">
+                  <span class="block font-semibold">{{ entityLabel(item.entity) }}</span>
+                  @if (item.entity_id) {
+                    <span class="block truncate font-mono text-[10px] text-ink-3">#{{ item.entity_id }}</span>
+                  }
+                </div>
+              </td>
+              <td [attr.data-label]="language.t('consoleAudit.summary')" class="min-w-[16rem] text-ink-2">
+                <span class="block break-words">{{ item.summary || '—' }}</span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
+  }
+</div>

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -18,6 +18,11 @@ export class App {
   readonly auth = inject(AuthService);
   readonly language = inject(LanguageService);
   private readonly router = inject(Router);
+  readonly adminMoreOpen = signal(false);
+
+  closeAdminMore(): void {
+    this.adminMoreOpen.set(false);
+  }
 
   logout(): void {
     this.auth.logout().subscribe({

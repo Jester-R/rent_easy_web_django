@@ -358,6 +358,91 @@ export interface ConsoleDashboardData {
 
 export type RoleOption = { value: string; label: string };
 
+export interface SessionUser {
+  id: number;
+  display_name: string;
+  full_name: string;
+  email: string;
+  username: string;
+  role: string;
+  avatar_hue: number;
+  is_active: boolean;
+}
+
+export interface LoginSessionItem {
+  id: number;
+  auth_method: string;
+  ip_address: string;
+  user_agent: string;
+  device_type: string;
+  browser: string;
+  operating_system: string;
+  country_code: string;
+  country: string;
+  region: string;
+  city: string;
+  location: string;
+  created_at: string;
+  last_seen_at: string;
+  session_expires_at: string | null;
+  logged_out_at: string | null;
+  is_active: boolean;
+  is_current: boolean;
+  user: SessionUser;
+}
+
+export interface ConsoleSessionsResponse {
+  sessions: LoginSessionItem[];
+  q: string;
+  status: string;
+  method: string;
+  role: string;
+  total: number;
+  page: number;
+  page_size: number;
+  active_count: number;
+  inactive_count: number;
+  methods: RoleOption[];
+  roles: RoleOption[];
+}
+
+export interface AuditActor {
+  id: number;
+  display_name: string;
+  full_name: string;
+  email: string;
+  username: string;
+  role: string;
+  avatar_hue: number;
+}
+
+export interface AuditReportItem {
+  id: number;
+  action: string;
+  entity: string;
+  entity_id: string;
+  summary: string;
+  created_at: string;
+  actor: AuditActor | null;
+}
+
+export interface ConsoleAuditResponse {
+  logs: AuditReportItem[];
+  q: string;
+  action: string;
+  entity: string;
+  date_from: string;
+  date_to: string;
+  total: number;
+  page: number;
+  page_size: number;
+  by_action: { action: string; n: number }[];
+  by_entity: { entity: string; n: number }[];
+  by_day: { date: string; count: number }[];
+  actions: RoleOption[];
+  entities: RoleOption[];
+}
+
 export interface ConsoleUserItem extends User {
   property_count: number;
   booking_count: number;

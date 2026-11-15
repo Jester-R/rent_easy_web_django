@@ -1,11 +1,13 @@
 import { app } from './pages/app';
 import { bookingDetail } from './pages/booking-detail';
 import { browse } from './pages/browse';
+import { consoleAudit } from './pages/console-audit';
 import { consoleBookings } from './pages/console-bookings';
 import { consoleDashboard } from './pages/console-dashboard';
 import { consoleNotifications } from './pages/console-notifications';
 import { consolePayments } from './pages/console-payments';
 import { consoleProperties } from './pages/console-properties';
+import { consoleSessions } from './pages/console-sessions';
 import { consoleSettings } from './pages/console-settings';
 import { consoleUserForm } from './pages/console-user-form';
 import { consoleUsers } from './pages/console-users';
@@ -43,11 +45,13 @@ export const CATALOG: Catalog = {
   ...expand('app', app),
   ...expand('bookingDetail', bookingDetail),
   ...expand('browse', browse),
+  ...expand('consoleAudit', consoleAudit),
   ...expand('consoleBookings', consoleBookings),
   ...expand('consoleDashboard', consoleDashboard),
   ...expand('consoleNotifications', consoleNotifications),
   ...expand('consolePayments', consolePayments),
   ...expand('consoleProperties', consoleProperties),
+  ...expand('consoleSessions', consoleSessions),
   ...expand('consoleSettings', consoleSettings),
   ...expand('consoleUserForm', consoleUserForm),
   ...expand('consoleUsers', consoleUsers),

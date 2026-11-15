@@ -11,27 +11,35 @@ payment/notification services and manager helpers hop through
 
 from __future__ import annotations
 
+import csv
+import io
 import logging
+from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 import httpx
 from django.conf import settings
+from django.contrib.sessions.models import Session
 from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django_bolt import BoltAPI
 from django_bolt.exceptions import HTTPException
+from django_bolt.responses import Response
 
 from accounts.models import (
     ApprovalStatus,
     AuditLog,
+    LoginSession,
     PlatformSettings,
     Role,
     User,
     is_valid_username,
     normalize_identity,
 )
+from accounts.session_tracking import current_session_key
 from accounts.default_promotion import DEFAULT_HOME_PROMOTION
 from accounts.integration_config import (
     telegram_bot_token,
@@ -710,6 +718,376 @@ async def notification_broadcast(request):
         f"sent announcement to {sent} {target}",
     )
     return {"ok": True, "sent": sent}
+
+
+# ---------------------------------------------------------------------------
+# Security: login sessions + audit report
+# ---------------------------------------------------------------------------
+
+
+def _date_boundary(value: str, *, end: bool = False):
+    parsed = parse_date((value or "").strip())
+    if not parsed:
+        return None
+    moment = datetime.combine(parsed, time.min)
+    if end:
+        moment += timedelta(days=1)
+    return timezone.make_aware(moment, timezone.get_current_timezone())
+
+
+def _session_filters(request):
+    from core.bolt import q
+
+    query = q(request, "q")
+    status = q(request, "status", "all")
+    method = q(request, "method", "all")
+    role = q(request, "role", "all")
+    queryset = LoginSession.objects.select_related("user").all()
+    if query:
+        queryset = queryset.filter(
+            Q(user__full_name__icontains=query)
+            | Q(user__email__icontains=query)
+            | Q(user__username__icontains=query)
+            | Q(ip_address__icontains=query)
+            | Q(city__icontains=query)
+            | Q(country__icontains=query)
+            | Q(browser__icontains=query)
+            | Q(operating_system__icontains=query)
+        )
+    if method != "all":
+        queryset = queryset.filter(auth_method=method)
+    if role in dict(Role.choices):
+        queryset = queryset.filter(user__role=role)
+    return queryset, {"q": query, "status": status, "method": method, "role": role}
+
+
+async def _active_session_keys() -> set[str]:
+    return {
+        key
+        async for key in Session.objects.filter(expire_date__gt=timezone.now())
+        .values_list("session_key", flat=True)
+    }
+
+
+def _apply_session_status(queryset, status: str, active_keys: set[str]):
+    if status == "active":
+        return queryset.filter(
+            logged_out_at__isnull=True, session_key__in=active_keys
+        )
+    if status == "inactive":
+        return queryset.filter(
+            Q(logged_out_at__isnull=False) | ~Q(session_key__in=active_keys)
+        )
+    return queryset
+
+
+def _session_item(item, active_keys: set[str], current_key: str) -> dict:
+    is_active = bool(
+        item.logged_out_at is None
+        and item.session_key in active_keys
+    )
+    return {
+        "id": item.pk,
+        "auth_method": item.auth_method,
+        "ip_address": item.ip_address or "",
+        "user_agent": item.user_agent,
+        "device_type": item.device_type,
+        "browser": item.browser,
+        "operating_system": item.operating_system,
+        "country_code": item.country_code,
+        "country": item.country,
+        "region": item.region,
+        "city": item.city,
+        "location": item.location_label,
+        "created_at": item.created_at.isoformat(),
+        "last_seen_at": item.last_seen_at.isoformat(),
+        "session_expires_at": (
+            item.session_expires_at.isoformat() if item.session_expires_at else None
+        ),
+        "logged_out_at": item.logged_out_at.isoformat() if item.logged_out_at else None,
+        "is_active": is_active,
+        "is_current": item.session_key == current_key,
+        "user": {
+            "id": item.user_id,
+            "display_name": item.user.display_name,
+            "full_name": item.user.full_name,
+            "email": item.user.email,
+            "username": item.user.username,
+            "role": item.user.role,
+            "avatar_hue": item.user.avatar_hue,
+            "is_active": item.user.is_active,
+        },
+    }
+
+
+@console_api.get("/sessions/")
+async def sessions_list(request):
+    await superadmin_required(request)
+    from core.bolt import pagination
+
+    queryset, filters = _session_filters(request)
+    active_keys = await _active_session_keys()
+    base = _apply_session_status(queryset, filters["status"], active_keys)
+    total = await base.acount()
+    page, page_size = pagination(request)
+    current_key = await in_thread(current_session_key, request)
+    rows = [
+        _session_item(item, active_keys, current_key)
+        async for item in base[(page - 1) * page_size : page * page_size]
+    ]
+    return {
+        "sessions": rows,
+        **filters,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "active_count": await _apply_session_status(
+            queryset, "active", active_keys
+        ).acount(),
+        "inactive_count": await _apply_session_status(
+            queryset, "inactive", active_keys
+        ).acount(),
+        "methods": [
+            {"value": value, "label": label}
+            async for value, label in _distinct_session_values("auth_method")
+        ],
+        "roles": [{"value": value, "label": label} for value, label in Role.choices],
+    }
+
+
+async def _distinct_session_values(field: str):
+    values = [
+        value
+        async for value in LoginSession.objects.values_list(field, flat=True).distinct()
+        if value
+    ]
+    labels = {
+        "email": "Email",
+        "google": "Google",
+        "telegram": "Telegram",
+    }
+    for value in sorted(values):
+        yield value, labels.get(value, value.replace("_", " ").title())
+
+
+@console_api.get("/sessions/export/")
+async def sessions_export(request):
+    await superadmin_required(request)
+    queryset, filters = _session_filters(request)
+    active_keys = await _active_session_keys()
+    queryset = _apply_session_status(queryset, filters["status"], active_keys)[:10000]
+    current_key = await in_thread(current_session_key, request)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "Signed in",
+            "User",
+            "Email",
+            "Role",
+            "Method",
+            "Status",
+            "Current session",
+            "IP address",
+            "City",
+            "Region",
+            "Country",
+            "Device",
+            "Browser",
+            "Operating system",
+            "Last seen",
+            "Expires",
+            "Signed out",
+        ]
+    )
+    async for item in queryset:
+        row = _session_item(item, active_keys, current_key)
+        writer.writerow(
+            [
+                row["created_at"],
+                row["user"]["display_name"],
+                row["user"]["email"],
+                row["user"]["role"],
+                row["auth_method"],
+                "Active" if row["is_active"] else "Inactive",
+                "Yes" if row["is_current"] else "No",
+                row["ip_address"],
+                row["city"],
+                row["region"],
+                row["country"],
+                row["device_type"],
+                row["browser"],
+                row["operating_system"],
+                row["last_seen_at"],
+                row["session_expires_at"] or "",
+                row["logged_out_at"] or "",
+            ]
+        )
+    filename = f"login-sessions-{timezone.now():%Y%m%d-%H%M}.csv"
+    return Response(
+        ("\ufeff" + output.getvalue()).encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _audit_filters(request):
+    from core.bolt import q
+
+    query = q(request, "q")
+    action = q(request, "action", "all")
+    entity = q(request, "entity", "all")
+    date_from = q(request, "date_from")
+    date_to = q(request, "date_to")
+    queryset = AuditLog.objects.select_related("actor").all()
+    if query:
+        queryset = queryset.filter(
+            Q(summary__icontains=query)
+            | Q(entity__icontains=query)
+            | Q(entity_id__icontains=query)
+            | Q(actor__full_name__icontains=query)
+            | Q(actor__email__icontains=query)
+        )
+    if action != "all":
+        queryset = queryset.filter(action=action)
+    if entity != "all":
+        queryset = queryset.filter(entity=entity)
+    start = _date_boundary(date_from)
+    end = _date_boundary(date_to, end=True)
+    if start:
+        queryset = queryset.filter(created_at__gte=start)
+    if end:
+        queryset = queryset.filter(created_at__lt=end)
+    return queryset, {
+        "q": query,
+        "action": action,
+        "entity": entity,
+        "date_from": date_from,
+        "date_to": date_to,
+    }
+
+
+def _audit_item(item) -> dict:
+    return {
+        "id": item.pk,
+        "action": item.action,
+        "entity": item.entity,
+        "entity_id": item.entity_id,
+        "summary": item.summary,
+        "created_at": item.created_at.isoformat(),
+        "actor": (
+            {
+                "id": item.actor_id,
+                "display_name": item.actor.display_name,
+                "full_name": item.actor.full_name,
+                "email": item.actor.email,
+                "username": item.actor.username,
+                "role": item.actor.role,
+                "avatar_hue": item.actor.avatar_hue,
+            }
+            if item.actor
+            else None
+        ),
+    }
+
+
+@console_api.get("/audit-logs/")
+async def audit_logs_list(request):
+    await superadmin_required(request)
+    from core.bolt import pagination
+
+    queryset, filters = _audit_filters(request)
+    total = await queryset.acount()
+    page, page_size = pagination(request)
+
+    by_action = [
+        row
+        async for row in queryset.values("action")
+        .annotate(n=Count("id"))
+        .order_by("-n")
+    ]
+    by_entity = [
+        row
+        async for row in queryset.values("entity")
+        .annotate(n=Count("id"))
+        .order_by("-n")[:8]
+    ]
+    entity_values = [
+        value
+        async for value in AuditLog.objects.values_list("entity", flat=True)
+        .distinct()
+        .order_by("entity")
+        if value
+    ]
+
+    today = timezone.localdate()
+    chart_start = _date_boundary((today - timedelta(days=13)).isoformat())
+    daily = {
+        row["day"]: row["n"]
+        async for row in queryset.filter(created_at__gte=chart_start)
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(n=Count("id"))
+    }
+    by_day = [
+        {
+            "date": (today - timedelta(days=offset)).isoformat(),
+            "count": daily.get(today - timedelta(days=offset), 0),
+        }
+        for offset in range(13, -1, -1)
+    ]
+
+    return {
+        "logs": [
+            _audit_item(item)
+            async for item in queryset[(page - 1) * page_size : page * page_size]
+        ],
+        **filters,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "by_action": by_action,
+        "by_entity": by_entity,
+        "by_day": by_day,
+        "actions": [
+            {"value": value, "label": label}
+            for value, label in AuditLog.Action.choices
+        ],
+        "entities": [
+            {"value": value, "label": value.replace("_", " ").title()}
+            for value in entity_values
+        ],
+    }
+
+
+@console_api.get("/audit-logs/export/")
+async def audit_logs_export(request):
+    await superadmin_required(request)
+    queryset, _filters = _audit_filters(request)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        ["Time", "Actor", "Actor email", "Action", "Entity", "Entity ID", "Summary"]
+    )
+    async for item in queryset[:10000]:
+        writer.writerow(
+            [
+                item.created_at.isoformat(),
+                item.actor.display_name if item.actor else "System",
+                item.actor.email if item.actor else "",
+                item.action,
+                item.entity,
+                item.entity_id,
+                item.summary,
+            ]
+        )
+    filename = f"audit-log-{timezone.now():%Y%m%d-%H%M}.csv"
+    return Response(
+        ("\ufeff" + output.getvalue()).encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ---------------------------------------------------------------------------

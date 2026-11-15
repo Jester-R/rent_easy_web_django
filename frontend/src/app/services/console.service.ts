@@ -2,10 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+  ConsoleAuditResponse,
   ConsoleBookingsResponse,
   ConsoleDashboardData,
   ConsolePaymentsResponse,
   ConsolePropertiesResponse,
+  ConsoleSessionsResponse,
   ConsoleSettings,
   ConsoleUsersResponse,
   Payout,
@@ -117,6 +119,74 @@ export class ConsoleService {
       { ids },
       this.opts
     );
+  }
+
+  /* --------------------------- security reports --------------------------- */
+
+  getSessions(filters?: {
+    q?: string;
+    status?: string;
+    method?: string;
+    role?: string;
+    page?: number;
+    page_size?: number;
+  }): Observable<ConsoleSessionsResponse> {
+    return this.http.get<ConsoleSessionsResponse>(`${this.base}/sessions/`, {
+      params: this.securityParams(filters),
+      withCredentials: true,
+    });
+  }
+
+  downloadSessions(filters?: {
+    q?: string;
+    status?: string;
+    method?: string;
+    role?: string;
+  }): Observable<Blob> {
+    return this.http.get(`${this.base}/sessions/export/`, {
+      params: this.securityParams(filters),
+      withCredentials: true,
+      responseType: 'blob',
+    });
+  }
+
+  getAuditLogs(filters?: {
+    q?: string;
+    action?: string;
+    entity?: string;
+    date_from?: string;
+    date_to?: string;
+    page?: number;
+    page_size?: number;
+  }): Observable<ConsoleAuditResponse> {
+    return this.http.get<ConsoleAuditResponse>(`${this.base}/audit-logs/`, {
+      params: this.securityParams(filters),
+      withCredentials: true,
+    });
+  }
+
+  downloadAuditLogs(filters?: {
+    q?: string;
+    action?: string;
+    entity?: string;
+    date_from?: string;
+    date_to?: string;
+  }): Observable<Blob> {
+    return this.http.get(`${this.base}/audit-logs/export/`, {
+      params: this.securityParams(filters),
+      withCredentials: true,
+      responseType: 'blob',
+    });
+  }
+
+  private securityParams(filters?: Record<string, string | number | undefined>): HttpParams {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(filters || {})) {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params = params.set(key, String(value));
+      }
+    }
+    return params;
   }
 
   /* ------------------------------ properties ------------------------------ */

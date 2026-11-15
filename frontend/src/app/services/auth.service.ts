@@ -29,6 +29,7 @@ export class AuthService {
   readonly isRenter = computed(() => this.currentUser()?.role === 'renter');
   readonly isOwner = computed(() => this.currentUser()?.role === 'owner');
   readonly isAdmin = computed(() => this.currentUser()?.is_superadmin_role || this.currentUser()?.is_staff);
+  readonly isSuperadmin = computed(() => !!this.currentUser()?.is_superadmin_role);
 
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
