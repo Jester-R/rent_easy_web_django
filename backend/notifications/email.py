@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 
 from .models import Notification
-from .rendering import notification_copy, render
+from .rendering import notification_copy, notification_url, render
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +29,6 @@ def _email_address(recipient) -> str:
     if domain in DISPOSABLE_DOMAINS:
         return ""
     return email
-
-
-def _notification_url(notification: Notification) -> str:
-    base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:4200").rstrip("/")
-    path = notification.get_absolute_url() or "/notifications/"
-    if path.startswith("http://") or path.startswith("https://"):
-        return path
-    return f"{base}{path}"
 
 
 def send_email_notification(notification_id: int) -> bool:
@@ -62,7 +54,7 @@ def send_email_notification(notification_id: int) -> bool:
     body_km = render(copy["body_km"], params) if copy["body_km"] else ""
 
     subject = f"RentEasy - {title_en}"[:150]
-    url = _notification_url(notification)
+    url = notification_url(notification)
     text_parts = [f"RentEasy\n\n{title_en}\n{body_en}"]
     if title_km or body_km:
         text_parts.append(f"\n{title_km}\n{body_km}")

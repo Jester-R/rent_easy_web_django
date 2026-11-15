@@ -9,7 +9,7 @@ import httpx
 from accounts.integration_config import telegram_bot_token, telegram_chat_id
 
 from .models import Notification
-from .rendering import notification_copy, render
+from .rendering import notification_copy, notification_url, render
 
 logger = logging.getLogger(__name__)
 # Telegram puts the bot token in the request URL, so never log httpx requests.
@@ -28,7 +28,8 @@ def _message_text(notification: Notification) -> str:
             f"\n\n{render(copy['title_km'], params)}"
             f"\n{render(copy['body_km'], params)}"
         )
-    return text[:4096]
+    suffix = f"\n\nOpen RentEasy: {notification_url(notification)}"
+    return f"{text[: max(0, 4096 - len(suffix))]}{suffix}"[:4096]
 
 
 def send_telegram_notification(notification_id: int) -> None:

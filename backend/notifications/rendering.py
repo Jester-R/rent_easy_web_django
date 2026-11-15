@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.conf import settings
+
 from .models import Notification
 
 
@@ -17,6 +19,15 @@ def render(template: str, params: dict[str, Any]) -> str:
         return template.format_map(_SafeFormat(params))
     except (KeyError, ValueError):
         return template
+
+
+def notification_url(notification: Notification) -> str:
+    """Return the absolute site URL for a notification's destination."""
+    base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:4200").rstrip("/")
+    path = notification.get_absolute_url() or "/notifications/"
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    return f"{base}{path}"
 
 
 def notification_copy(notification: Notification) -> dict[str, Any]:

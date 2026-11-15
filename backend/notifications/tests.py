@@ -2,13 +2,14 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from accounts.models import Role, User
 from listings.models import Property
 from notifications.models import Notification
 from notifications.rendering import notification_copy, render
 from notifications.services import notify
+from notifications.telegram import _message_text
 from payments.services import create_booking
 
 
@@ -88,6 +89,28 @@ class NotificationChannelTests(TestCase):
         self.assertIn("BKK1 Apartment", body)
         self.assertIn("01 Dec 2026", body)
         self.assertIn("I would like to move in with my cat.", body)
+
+    @override_settings(FRONTEND_BASE_URL="https://renteasy.example")
+    def test_telegram_message_links_to_the_notification_page(self):
+        user = self._user()
+        notification = Notification.objects.create(
+            recipient=user,
+            kind=Notification.Kind.CHAT_MESSAGE,
+            title_key="notif_chat_message",
+            body_key="notif_chat_message_body",
+            params={
+                "sender": "Demo Owner",
+                "message": "Is the apartment still available?",
+                "title": "BKK1 Apartment",
+            },
+            link="/messages/42",
+        )
+
+        text = _message_text(notification)
+
+        self.assertIn("Is the apartment still available?", text)
+        self.assertIn("https://renteasy.example/messages/42", text)
+        self.assertTrue(text.endswith("https://renteasy.example/messages/42"))
 
     def test_email_channel_sends_to_verified_address(self):
         from notifications.email import send_email_notification
