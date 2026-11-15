@@ -212,3 +212,24 @@ class AIDescriptionTests(TestCase):
         self.assertEqual(
             _FakeGroqClient.last_request["response_format"], {"type": "json_object"}
         )
+
+
+class MapsResolutionTests(TestCase):
+    async def test_resolve_google_maps_direct_patterns(self):
+        from core.maps import resolve_google_maps_url
+
+        url1 = "https://www.google.com/maps/place/Phnom+Penh/@11.5564,104.9282,15z"
+        res1 = await resolve_google_maps_url(url1)
+        self.assertEqual(res1, (11.5564, 104.9282))
+
+        url2 = "Check out: https://maps.google.com/?q=11.5564,104.9282"
+        res2 = await resolve_google_maps_url(url2)
+        self.assertEqual(res2, (11.5564, 104.9282))
+
+        url3 = '<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3908.77!2d104.9282!3d11.5564!2m3..."></iframe>'
+        res3 = await resolve_google_maps_url(url3)
+        self.assertEqual(res3, (11.5564, 104.9282))
+
+        invalid = "not a map link"
+        res_invalid = await resolve_google_maps_url(invalid)
+        self.assertIsNone(res_invalid)

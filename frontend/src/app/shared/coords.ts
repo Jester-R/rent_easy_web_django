@@ -9,6 +9,9 @@ const PAIR = /(-?\d{1,3}(?:\.\d+)?)[\s,;]+(-?\d{1,3}(?:\.\d+)?)/;
 const NAMED =
   /(?:lat|latitude|la)\s*[=:]\s*(-?\d{1,3}(?:\.\d+)?)|(?:lng|lon|long|longitude|lo)\s*[=:]\s*(-?\d{1,3}(?:\.\d+)?)/gi;
 
+const DMS_REGEX =
+  /(\d{1,3})[°\s]+(\d{1,2})['\s]+([\d.]+)(?:\"|\'\')?\s*([NSns])[\s,;]+(\d{1,3})[°\s]+(\d{1,2})['\s]+([\d.]+)(?:\"|\'\')?\s*([EWew])/i;
+
 function valid(latitude: number, longitude: number): Coordinates | null {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   if (latitude < -90 || latitude > 90) return null;
@@ -17,16 +20,49 @@ function valid(latitude: number, longitude: number): Coordinates | null {
   return { latitude, longitude };
 }
 
+function parseDms(input: string): Coordinates | null {
+  const m = input.match(DMS_REGEX);
+  if (!m) return null;
+  const latDeg = parseFloat(m[1]);
+  const latMin = parseFloat(m[2]);
+  const latSec = parseFloat(m[3]);
+  const latHem = m[4].toUpperCase();
+
+  const lngDeg = parseFloat(m[5]);
+  const lngMin = parseFloat(m[6]);
+  const lngSec = parseFloat(m[7]);
+  const lngHem = m[8].toUpperCase();
+
+  let lat = latDeg + latMin / 60 + latSec / 3600;
+  let lng = lngDeg + lngMin / 60 + lngSec / 3600;
+  if (latHem === 'S') lat = -lat;
+  if (lngHem === 'W') lng = -lng;
+  return valid(lat, lng);
+}
+
 /**
  * Parse a coordinate pair out of a pasted value. Supports:
  * - "11.5564, 104.9282" / "11.5564 104.9282"
- * - Google Maps URLs (`@lat,lng`, `?q=lat,lng`, `!3dlat!4dlng`)
- * - query strings with `lat=`/`lng=` params
+ * - DMS ("11°33'23.0\"N 104°55'41.5\"E")
+ * - Google Maps URLs (`@lat,lng`, `?q=lat,lng`, `!3dlat!4dlng`, `!2dlng!3dlat`)
+ * - query strings with `lat=`/`lng=`/`markers=`/`center=` params
+ * - iframe embed codes
  */
 export function parseCoordinates(input: string | null | undefined): Coordinates | null {
   if (!input) return null;
-  const text = String(input).trim();
+  let text = String(input).trim();
   if (!text) return null;
+
+  // Unescape URL encoded strings if present
+  try {
+    text = decodeURIComponent(text);
+  } catch {
+    // Keep text as-is if malformed percent encoding
+  }
+
+  // Check DMS format
+  const dms = parseDms(text);
+  if (dms) return dms;
 
   const named: Record<string, number> = {};
   let match: RegExpExecArray | null;
@@ -38,6 +74,10 @@ export function parseCoordinates(input: string | null | undefined): Coordinates 
   if (named['lat'] !== undefined && named['lng'] !== undefined) {
     return valid(named['lat'], named['lng']);
   }
+
+  // Google embed iframe: !2d<lng>!3d<lat>
+  const embed = text.match(/!2d(-?\d+(?:\.\d+)?)!3d(-?\d+(?:\.\d+)?)/i);
+  if (embed) return valid(Number(embed[2]), Number(embed[1]));
 
   const bang = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i);
   if (bang) return valid(Number(bang[1]), Number(bang[2]));
@@ -54,7 +94,7 @@ export function parseCoordinates(input: string | null | undefined): Coordinates 
   const dir = text.match(/\/dir\/[^/]+\/[^/]+\/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
   if (dir) return valid(Number(dir[1]), Number(dir[2]));
 
-  const q = text.match(/[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
+  const q = text.match(/[?&]q=(?:loc:)?(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
   if (q) return valid(Number(q[1]), Number(q[2]));
 
   const query = text.match(/[?&]query=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
@@ -72,11 +112,17 @@ export function parseCoordinates(input: string | null | undefined): Coordinates 
   const center = text.match(/[?&]center=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
   if (center) return valid(Number(center[1]), Number(center[2]));
 
+  const markers = text.match(/[?&]markers=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
+  if (markers) return valid(Number(markers[1]), Number(markers[2]));
+
   const latlng = text.match(/[?&]latlng=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
   if (latlng) return valid(Number(latlng[1]), Number(latlng[2]));
 
   const destination = text.match(/[?&]destination=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
   if (destination) return valid(Number(destination[1]), Number(destination[2]));
+
+  const jsonArr = text.match(/\[null,null,(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\]/);
+  if (jsonArr) return valid(Number(jsonArr[1]), Number(jsonArr[2]));
 
   const pair = text.match(PAIR);
   if (pair) return valid(Number(pair[1]), Number(pair[2]));
@@ -84,7 +130,7 @@ export function parseCoordinates(input: string | null | undefined): Coordinates 
   return null;
 }
 
-/** "11.5564, 104.9282" at 6 decimal places. */
+/** "11.556400, 104.928200" at 6 decimal places. */
 export function formatCoordinates(latitude?: number | null, longitude?: number | null): string {
   if (latitude == null || longitude == null) return '';
   return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;

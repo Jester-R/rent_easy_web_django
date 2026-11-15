@@ -30,7 +30,7 @@ from core.bolt import (
     session_set,
 )
 from core.bolt_serializers import property as serialize_property
-from core.maps import resolve_google_maps_url
+from core.maps import resolve_google_maps_url, reverse_geocode_osm
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -221,6 +221,17 @@ async def resolve_maps_link(request):
     if coordinates is None:
         raise HTTPException(status_code=422, detail="coordinates_not_found")
     return {"latitude": coordinates[0], "longitude": coordinates[1]}
+
+
+@api.post("/maps/reverse/")
+async def reverse_maps_coords(request):
+    await owner_required(request)
+    data = json_body(request)
+    latitude = body_float(data, "latitude")
+    longitude = body_float(data, "longitude")
+    if latitude is None or longitude is None:
+        raise HTTPException(status_code=422, detail="coordinates_required")
+    return await reverse_geocode_osm(latitude, longitude)
 
 
 @api.get("/media/{path:path}")

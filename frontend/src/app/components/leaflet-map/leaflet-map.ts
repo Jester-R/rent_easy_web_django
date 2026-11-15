@@ -52,6 +52,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
 
   private map: any = null;
   private marker: any = null;
+  private L: any = null;
   private lastEmit = '';
 
   constructor() {
@@ -65,13 +66,18 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
     loadLeaflet()
-      .then((L) => this.initMap(L))
+      .then((L) => {
+        this.L = L;
+        this.initMap(L);
+      })
       .catch(() => undefined);
   }
 
   ngOnDestroy(): void {
     this.map?.remove();
     this.map = null;
+    this.marker = null;
+    this.L = null;
   }
 
   private initMap(L: any): void {
@@ -79,47 +85,83 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     const lng = this.longitude();
     const hasCoords = typeof lat === 'number' && typeof lng === 'number';
     const center: [number, number] = hasCoords ? [lat!, lng!] : [11.5564, 104.9282];
+    const initialZoom = hasCoords ? Math.max(this.zoom(), 16) : this.zoom();
 
     this.map = L.map(this.host().nativeElement, {
       zoomControl: this.interactive(),
       attributionControl: true,
       scrollWheelZoom: this.interactive(),
-    }).setView(center, this.zoom());
+    }).setView(center, initialZoom);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(this.map);
 
+    if (hasCoords) {
+      this.marker = this.createMarker(L, center).addTo(this.map);
+    }
+
+    if (this.interactive()) {
+      this.map.on('click', (event: any) => {
+        const point = event.latlng;
+        if (!this.marker) {
+          this.marker = this.createMarker(this.L || L, [point.lat, point.lng]).addTo(this.map);
+        } else {
+          this.marker.setLatLng(point);
+        }
+        this.emitCoordinates(point.lat, point.lng);
+      });
+    }
+
+    setTimeout(() => this.map?.invalidateSize(), 100);
+  }
+
+  private createMarker(L: any, point: [number, number]): any {
     const icon = L.divIcon({
       className: 'renteasy-map-pin',
       html: `<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#dc2626;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>`,
       iconSize: [26, 26],
       iconAnchor: [13, 26],
     });
-    this.marker = L.marker(center, { icon, draggable: this.interactive() }).addTo(this.map);
-
+    const marker = L.marker(point, { icon, draggable: this.interactive() });
     if (this.interactive()) {
-      this.map.on('click', (event: any) => {
-        const point = event.latlng;
-        this.marker.setLatLng(point);
-        this.emitCoordinates(point.lat, point.lng);
-      });
-      this.marker.on('dragend', () => {
-        const point = this.marker.getLatLng();
-        this.emitCoordinates(point.lat, point.lng);
+      marker.on('dragend', () => {
+        const p = marker.getLatLng();
+        this.emitCoordinates(p.lat, p.lng);
       });
     }
-
-    setTimeout(() => this.map?.invalidateSize(), 0);
+    return marker;
   }
 
   private syncMarker(lat: number | null, lng: number | null): void {
-    if (!this.map || !this.marker || lat == null || lng == null) return;
+    if (!this.map) return;
+
+    if (lat == null || lng == null) {
+      if (this.marker) {
+        this.marker.remove();
+        this.marker = null;
+      }
+      return;
+    }
+
     const point: [number, number] = [lat, lng];
-    this.marker.setLatLng(point);
-    if (!this.map.getBounds().contains(point)) {
-      this.map.setView(point, this.zoom());
+    if (!this.marker && this.L) {
+      this.marker = this.createMarker(this.L, point).addTo(this.map);
+    } else if (this.marker) {
+      this.marker.setLatLng(point);
+    }
+
+    // Always navigate / fly the map directly to the coordinates
+    const targetZoom = Math.max(this.map.getZoom() || 14, 16);
+    try {
+      if (typeof this.map.flyTo === 'function') {
+        this.map.flyTo(point, targetZoom, { animate: true, duration: 0.8 });
+      } else {
+        this.map.setView(point, targetZoom);
+      }
+    } catch {
+      this.map.setView(point, targetZoom);
     }
   }
 

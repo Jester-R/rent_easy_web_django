@@ -25,6 +25,19 @@ const ADMIN_NAME_PREFIX =
 const ADMIN_NAME_SUFFIX =
   /\s+(?:province|municipality|city|district|commune|village)$/u;
 
+const NUMBER_WORDS: Record<string, string[]> = {
+  '1': ['muoy', 'mouy', 'one', 'i', '1', '១'],
+  '2': ['pir', 'two', 'ii', '2', '២'],
+  '3': ['bei', 'three', 'iii', '3', '៣'],
+  '4': ['buon', 'four', 'iv', '4', '៤'],
+  '5': ['pram', 'five', 'v', '5', '៥'],
+  '6': ['prammuoy', 'six', 'vi', '6', '៦'],
+  '7': ['prampir', 'seven', 'vii', '7', '៧'],
+  '8': ['prambei', 'eight', 'viii', '8', '៨'],
+  '9': ['prambuon', 'nine', 'ix', '9', '៩'],
+  '10': ['dab', 'ten', 'x', '10', '១០'],
+};
+
 @Component({
   selector: 'app-owner-property-form',
   imports: [
@@ -79,7 +92,10 @@ export class OwnerPropertyFormComponent implements OnInit {
   private communesLoaded = false;
   private villagesRequested = false;
   private villagesLoaded = false;
-  private pendingMapAddress: Record<string, string> | null = null;
+  private pendingMapData: {
+    address?: Record<string, string>;
+    displayName?: string;
+  } | null = null;
   private pendingAiLocation: {
     location?: string;
     province?: string;
@@ -229,6 +245,7 @@ export class OwnerPropertyFormComponent implements OnInit {
       this.loadDistricts();
       this.loadProvinces();
       this.loadCommunes();
+      this.loadVillages();
     }
     const editId = this.id();
     if (editId) {
@@ -304,7 +321,7 @@ export class OwnerPropertyFormComponent implements OnInit {
       error: () => {
         this.villagesRequested = false;
         this.villagesLoaded = false;
-        this.pendingMapAddress = null;
+        this.pendingMapData = null;
         this.locationLoadError.set(true);
       },
     });
@@ -415,61 +432,84 @@ export class OwnerPropertyFormComponent implements OnInit {
     });
   }
 
+  /** Handle direct clipboard paste for fast coordinate resolution. */
+  onCoordinatesPaste(event: ClipboardEvent): void {
+    const text = event.clipboardData?.getData('text') || '';
+    if (text.trim()) {
+      event.preventDefault();
+      this.form.patchValue({ coordinates: text.trim() });
+      this.onCoordinatesInput();
+    }
+  }
+
   /** Parse a pasted "lat, lng" or maps URL into the map pin. */
   onCoordinatesInput(): void {
     const requestId = ++this.coordinateResolveRequest;
     if (this.coordinateResolveTimer) clearTimeout(this.coordinateResolveTimer);
     this.isResolvingCoordinates.set(false);
     this.cancelMapAddressLookup();
-    const raw = this.form.get('coordinates')?.value || '';
+    const raw = (this.form.get('coordinates')?.value || '').trim();
+    if (!raw) {
+      this.latitude.set(null);
+      this.longitude.set(null);
+      this.coordError.set(false);
+      return;
+    }
+
     const parsed = parseCoordinates(raw);
     if (parsed) {
       this.latitude.set(parsed.latitude);
       this.longitude.set(parsed.longitude);
       this.coordError.set(false);
-      this.scheduleMapAddressLookup(parsed.latitude, parsed.longitude);
+      if (
+        raw.includes('http') ||
+        raw.includes('maps') ||
+        raw.includes('<iframe') ||
+        raw.includes('°')
+      ) {
+        this.form.patchValue(
+          { coordinates: formatCoordinates(parsed.latitude, parsed.longitude) },
+          { emitEvent: false },
+        );
+      }
+      this.scheduleMapAddressLookup(parsed.latitude, parsed.longitude, 100);
       return;
     }
 
-    if (raw.trim()) {
-      const text = raw.trim();
-      if (
-        text.includes('maps.app.goo.gl') ||
-        text.includes('goo.gl/maps') ||
-        text.includes('google.com/maps') ||
-        text.includes('maps.google.com')
-      ) {
-        this.coordError.set(false);
-        this.coordinateResolveTimer = setTimeout(() => {
-          this.isResolvingCoordinates.set(true);
-          this.propertyService.resolveGoogleMapsUrl(text).subscribe({
-            next: (point) => {
-              if (requestId !== this.coordinateResolveRequest) return;
-              this.latitude.set(point.latitude);
-              this.longitude.set(point.longitude);
-              this.form.patchValue(
-                { coordinates: formatCoordinates(point.latitude, point.longitude) },
-                { emitEvent: false },
-              );
-              this.isResolvingCoordinates.set(false);
-              this.coordError.set(false);
-              this.scheduleMapAddressLookup(point.latitude, point.longitude);
-            },
-            error: () => {
-              if (requestId !== this.coordinateResolveRequest) return;
-              this.isResolvingCoordinates.set(false);
-              this.coordError.set(true);
-            },
-          });
-        }, 350);
-        return;
-      }
+    if (
+      raw.includes('maps.app.goo.gl') ||
+      raw.includes('goo.gl') ||
+      raw.includes('google.com') ||
+      raw.includes('maps.google') ||
+      raw.startsWith('http')
+    ) {
       this.coordError.set(false);
-    } else {
-      this.latitude.set(null);
-      this.longitude.set(null);
-      this.coordError.set(false);
+      this.coordinateResolveTimer = setTimeout(() => {
+        this.isResolvingCoordinates.set(true);
+        this.propertyService.resolveGoogleMapsUrl(raw).subscribe({
+          next: (point) => {
+            if (requestId !== this.coordinateResolveRequest) return;
+            this.latitude.set(point.latitude);
+            this.longitude.set(point.longitude);
+            this.form.patchValue(
+              { coordinates: formatCoordinates(point.latitude, point.longitude) },
+              { emitEvent: false },
+            );
+            this.isResolvingCoordinates.set(false);
+            this.coordError.set(false);
+            this.scheduleMapAddressLookup(point.latitude, point.longitude, 100);
+          },
+          error: () => {
+            if (requestId !== this.coordinateResolveRequest) return;
+            this.isResolvingCoordinates.set(false);
+            this.coordError.set(true);
+          },
+        });
+      }, 200);
+      return;
     }
+
+    this.coordError.set(false);
   }
 
   /** Move the pin from a map click / drag. */
@@ -483,9 +523,9 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.coordError.set(false);
     this.form.patchValue(
       { coordinates: formatCoordinates(point.latitude, point.longitude) },
-      { emitEvent: false }
+      { emitEvent: false },
     );
-    this.scheduleMapAddressLookup(point.latitude, point.longitude, 250);
+    this.scheduleMapAddressLookup(point.latitude, point.longitude, 200);
   }
 
   clearCoordinates(): void {
@@ -502,7 +542,7 @@ export class OwnerPropertyFormComponent implements OnInit {
   private scheduleMapAddressLookup(
     latitude: number,
     longitude: number,
-    delay = 600,
+    delay = 300,
   ): void {
     if (!isPlatformBrowser(this.platformId)) return;
     const requestId = ++this.reverseGeocodeRequest;
@@ -512,7 +552,7 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.mapAddressNotFound.set(false);
     const wait = Math.max(
       delay,
-      1100 - (Date.now() - this.lastReverseGeocodeAt),
+      400 - (Date.now() - this.lastReverseGeocodeAt),
     );
     this.reverseGeocodeTimer = setTimeout(() => {
       this.lastReverseGeocodeAt = Date.now();
@@ -521,7 +561,10 @@ export class OwnerPropertyFormComponent implements OnInit {
         next: (result) => {
           if (requestId !== this.reverseGeocodeRequest) return;
           this.isReverseGeocoding.set(false);
-          const outcome = this.applyAddressFromOpenStreetMap(result.address);
+          const outcome = this.applyAddressFromOpenStreetMap(
+            result.address,
+            result.display_name,
+          );
           this.mapAddressMatched.set(outcome === 'applied');
           this.mapAddressNotFound.set(outcome === 'unmatched');
         },
@@ -532,7 +575,7 @@ export class OwnerPropertyFormComponent implements OnInit {
           this.mapAddressNotFound.set(true);
         },
       });
-    }, delay);
+    }, wait);
   }
 
   private cancelMapAddressLookup(): void {
@@ -542,116 +585,166 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.isReverseGeocoding.set(false);
     this.mapAddressMatched.set(false);
     this.mapAddressNotFound.set(false);
-    this.pendingMapAddress = null;
+    this.pendingMapData = null;
   }
 
   private applyAddressFromOpenStreetMap(
     address: Record<string, string> | undefined,
+    displayName?: string,
   ): 'applied' | 'pending' | 'unmatched' {
-    if (!address) return 'unmatched';
-    const country = (address['country_code'] || '').toLowerCase();
+    if (!address && !displayName) return 'unmatched';
+    const country = ((address && address['country_code']) || '').toLowerCase();
     if (country && country !== 'kh') return 'unmatched';
     if (!this.provincesLoaded || !this.districtsLoaded || !this.communesLoaded) {
-      this.pendingMapAddress = address;
+      this.pendingMapData = { address, displayName };
       return 'pending';
     }
 
-    const provinceCandidates = this.addressCandidates(address, [
-      'state',
-      'province',
-      'region',
-      'municipality',
-      'city',
-    ]);
-    const districtCandidates = this.addressCandidates(address, [
-      'county',
-      'city_district',
-      'district',
-      'town',
-      'municipality',
-      'city',
-    ]);
-    const communeCandidates = this.addressCandidates(address, [
-      'suburb',
-      'village',
-      'hamlet',
-      'neighbourhood',
-      'quarter',
-      'borough',
-    ]);
-    const villageCandidates = this.addressCandidates(address, [
-      'hamlet',
-      'neighbourhood',
-      'quarter',
-      'borough',
-      'residential',
-      'village',
-    ]);
-    if (
-      !provinceCandidates.length &&
-      !districtCandidates.length &&
-      !communeCandidates.length &&
-      !villageCandidates.length
-    ) {
+    const addr = address || {};
+    const postcode = (addr['postcode'] || '').trim().replace(/[^0-9]/g, '');
+
+    const parts = (displayName || '').split(',').map((s) => s.trim());
+    const allCandidates = [
+      ...Object.values(addr),
+      ...parts,
+    ].filter(
+      (v): v is string => typeof v === 'string' && v.trim().length > 1,
+    );
+
+    if (!allCandidates.length && !postcode) {
       return 'unmatched';
     }
 
-    let province = this.findAddressMatch(
-      this.cambodiaProvinces(),
-      provinceCandidates,
-    );
+    let province: CambodiaProvince | undefined;
+    let district: CambodiaDistrict | undefined;
+    let commune: CambodiaCommune | undefined;
+    let village: CambodiaVillage | undefined;
+
+    // 1. Province matching
+    for (const cand of allCandidates) {
+      const norm = this.normalizeAdministrativeText(cand);
+      if (!norm) continue;
+      province = this.cambodiaProvinces().find(
+        (p) =>
+          this.normalizeAdministrativeText(p.name_en) === norm ||
+          this.normalizeAdministrativeText(p.name_km) === norm,
+      );
+      if (province) break;
+    }
     if (!province) {
-      const isoCode = address['ISO3166-2-lvl4'] || address['ISO3166-2'] || '';
-      const match = /^KH-(\d{1,2})$/i.exec(isoCode.trim());
-      if (match) {
-        const code = match[1].padStart(2, '0');
-        province = this.cambodiaProvinces().find((item) => item.code === code);
+      const isoCode = (addr['ISO3166-2-lvl4'] || addr['ISO3166-2'] || '').trim();
+      const m = /^KH-(\d{1,2})$/i.exec(isoCode);
+      if (m) {
+        const code = m[1].padStart(2, '0');
+        province = this.cambodiaProvinces().find((p) => p.code === code);
+      }
+    }
+    if (!province && postcode.length >= 2) {
+      province = this.cambodiaProvinces().find(
+        (p) => p.code === postcode.slice(0, 2),
+      );
+    }
+
+    // 2. Commune matching (name match first)
+    for (const cand of allCandidates) {
+      const norm = this.normalizeAdministrativeText(cand);
+      if (!norm) continue;
+      commune = this.cambodiaCommunes().find((c) => {
+        if (province && c.province_code !== province.code) return false;
+        return (
+          this.normalizeAdministrativeText(c.name_en) === norm ||
+          this.normalizeAdministrativeText(c.name_km) === norm
+        );
+      });
+      if (commune) {
+        if (!district) {
+          district = this.cambodiaDistricts().find(
+            (d) => d.code === commune!.district_code,
+          );
+        }
+        if (!province) {
+          province = this.cambodiaProvinces().find(
+            (p) => p.code === commune!.province_code,
+          );
+        }
+        break;
       }
     }
 
-    let district = this.findAddressMatch(
-      this.cambodiaDistricts().filter(
-        (item) => !province || item.province_code === province.code,
-      ),
-      districtCandidates,
-    );
-    let commune = this.findAddressMatch(
-      this.cambodiaCommunes().filter(
-        (item) =>
-          (!province || item.province_code === province.code) &&
-          (!district || item.district_code === district.code),
-      ),
-      communeCandidates,
-    );
-    let village = this.findAddressMatch(
-      this.cambodiaVillages().filter(
-        (item) => !commune || item.commune_code === commune.code,
-      ),
-      villageCandidates,
-    );
-
-    if (!commune && village) {
-      commune = this.cambodiaCommunes().find(
-        (item) => item.code === village!.commune_code,
-      );
+    // Fallback: Commune by 6-digit NIS postcode
+    if (!commune && postcode.length === 6) {
+      commune = this.cambodiaCommunes().find((c) => c.code === postcode);
+      if (commune) {
+        if (!district) {
+          district = this.cambodiaDistricts().find(
+            (d) => d.code === commune!.district_code,
+          );
+        }
+        if (!province) {
+          province = this.cambodiaProvinces().find(
+            (p) => p.code === commune!.province_code,
+          );
+        }
+      }
     }
-    if (!district && commune) {
+
+    // 3. District matching (if not deduced from commune)
+    if (!district) {
+      for (const cand of allCandidates) {
+        const norm = this.normalizeAdministrativeText(cand);
+        if (!norm) continue;
+        district = this.cambodiaDistricts().find((d) => {
+          if (province && d.province_code !== province.code) return false;
+          return (
+            this.normalizeAdministrativeText(d.name_en) === norm ||
+            this.normalizeAdministrativeText(d.name_km) === norm
+          );
+        });
+        if (district) {
+          if (!province) {
+            province = this.cambodiaProvinces().find(
+              (p) => p.code === district!.province_code,
+            );
+          }
+          break;
+        }
+      }
+    }
+    // Fallback: District by 4-digit NIS postcode
+    if (!district && postcode.length >= 4) {
       district = this.cambodiaDistricts().find(
-        (item) => item.code === commune!.district_code,
+        (d) => d.code === postcode.slice(0, 4),
       );
-    }
-    if (!province && commune) {
-      province = this.cambodiaProvinces().find(
-        (item) => item.code === commune!.province_code,
-      );
-    }
-    if (!province && district) {
-      province = this.cambodiaProvinces().find(
-        (item) => item.code === district!.province_code,
-      );
+      if (district && !province) {
+        province = this.cambodiaProvinces().find(
+          (p) => p.code === district!.province_code,
+        );
+      }
     }
 
-    if (!province && !district && !commune && !village) return 'unmatched';
+    // 4. Village matching
+    if (commune && this.villagesLoaded) {
+      const communeVillages = this.cambodiaVillages().filter(
+        (v) => v.commune_code === commune!.code,
+      );
+      for (const cand of allCandidates) {
+        const norm = this.normalizeAdministrativeText(cand);
+        if (!norm) continue;
+        village = communeVillages.find(
+          (v) =>
+            this.normalizeAdministrativeText(v.name_en) === norm ||
+            this.normalizeAdministrativeText(v.name_km) === norm,
+        );
+        if (village) break;
+      }
+      if (!village && communeVillages.length === 1) {
+        village = communeVillages[0];
+      }
+    }
+
+    if (!province && !district && !commune && !village) {
+      return 'unmatched';
+    }
 
     this.form.patchValue(
       {
@@ -667,7 +760,7 @@ export class OwnerPropertyFormComponent implements OnInit {
     this.villageCode.set(village ? this.villageKey(village) : '');
 
     if (commune && !this.villagesLoaded) {
-      this.pendingMapAddress = address;
+      this.pendingMapData = { address, displayName };
       this.ensureVillagesLoaded();
     }
     return 'applied';
@@ -675,76 +768,58 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   private applyPendingMapAddress(): void {
     if (
-      !this.pendingMapAddress ||
+      !this.pendingMapData ||
       !this.provincesLoaded ||
       !this.districtsLoaded ||
       !this.communesLoaded
     ) {
       return;
     }
-    const address = this.pendingMapAddress;
-    this.pendingMapAddress = null;
-    const outcome = this.applyAddressFromOpenStreetMap(address);
+    const data = this.pendingMapData;
+    this.pendingMapData = null;
+    const outcome = this.applyAddressFromOpenStreetMap(
+      data.address,
+      data.displayName,
+    );
     this.mapAddressMatched.set(outcome === 'applied');
     this.mapAddressNotFound.set(outcome === 'unmatched');
   }
 
-  private addressCandidates(
-    address: Record<string, string>,
-    keys: string[],
-  ): string[] {
-    return [
-      ...new Set(
-        keys
-          .map((key) => address[key])
-          .filter(
-            (value): value is string =>
-              typeof value === 'string' && !!value.trim(),
-          ),
-      ),
-    ];
-  }
+  private normalizeAdministrativeText(val: string): string {
+    if (!val) return '';
+    let s = val.normalize('NFKC').toLowerCase();
+    s = s.replace(ADMIN_NAME_PREFIX, '');
+    s = s.replace(ADMIN_NAME_SUFFIX, '');
+    s = s.replace(/sihanoukville|mittapheap|kampong\s*saom/gui, 'preah sihanouk');
+    s = s.replace(
+      /7\s*makara|prampi\s*makara|pram\s*pir\s*makara|7\s*meakkakra/gui,
+      'prampir meakkakra',
+    );
+    s = s.replace(/toul\s*kork|tuol\s*kork/gui, 'tuol kouk');
+    s = s.replace(/chroy\s*changvar|chroy\s*changva/gui, 'chraoy chongvar');
+    s = s.replace(/daun\s*penh/gui, 'doun penh');
+    s = s.replace(/sen\s*sok/gui, 'saen sokh');
+    s = s.replace(/russey\s*keo|russei\s*kaev/gui, 'russei keo');
+    s = s.replace(/pur\s*senchey|por\s*sen\s*chey/gui, 'pou saen chey');
+    s = s.replace(/prek\s*pnov/gui, 'preaek pnov');
+    s = s.replace(/kambol/gui, 'kamboul');
+    s = s.replace(/siem\s*reap/gui, 'siem reab');
 
-  private findAddressMatch<T extends { name_en: string; name_km: string }>(
-    items: T[],
-    candidates: string[],
-  ): T | undefined {
-    for (const candidate of candidates) {
-      const candidateKeys = new Set(this.addressNameKeys(candidate));
-      if (!candidateKeys.size) continue;
-      const match = items.find(
-        (item) =>
-          this.addressNameKeys(item.name_en).some((key) =>
-            candidateKeys.has(key),
-          ) ||
-          this.addressNameKeys(item.name_km).some((key) =>
-            candidateKeys.has(key),
-          ),
-      );
-      if (match) return match;
+    s = s.replace(/boeung/gui, 'boeng');
+    s = s.replace(/toul/gui, 'tuol');
+    s = s.replace(/kork/gui, 'kouk');
+    s = s.replace(/\bquarter\s*([0-9]+)\b/gui, (_, n) => 'lekh ' + n);
+
+    for (const [digit, words] of Object.entries(NUMBER_WORDS)) {
+      for (const w of words) {
+        s = s.replace(
+          new RegExp('(?:ti|lekh|\\b)\\s*' + w + '\\b', 'gui'),
+          'ti ' + digit,
+        );
+      }
     }
-    return undefined;
-  }
 
-  private addressNameKeys(value: string): string[] {
-    let normalized = value
-      .normalize('NFKC')
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim();
-    if (!normalized) return [];
-
-    const variants = [normalized];
-    for (let index = 0; index < 3; index++) {
-      const stripped = normalized
-        .replace(ADMIN_NAME_PREFIX, '')
-        .replace(ADMIN_NAME_SUFFIX, '')
-        .trim();
-      if (!stripped || stripped === normalized) break;
-      variants.push(stripped);
-      normalized = stripped;
-    }
-    return [...new Set(variants.map((variant) => variant.replace(/\s+/g, '')))];
+    return s.replace(/[^\p{L}\p{N}]+/gu, '').trim();
   }
 
   async onImagesSelected(event: Event): Promise<void> {

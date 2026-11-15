@@ -103,6 +103,7 @@
           type="text"
           formControlName="coordinates"
           (input)="onCoordinatesInput()"
+          (paste)="onCoordinatesPaste($event)"
           [placeholder]="language.t('ownerForm.pasteAGoogleMapsLinkOr1155641049282')"
           class="form-input"
         />

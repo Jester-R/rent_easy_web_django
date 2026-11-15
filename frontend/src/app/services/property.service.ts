@@ -239,16 +239,26 @@ export class PropertyService {
   }
 
   reverseGeocode(latitude: number, longitude: number): Observable<ReverseGeocodeResult> {
-    const params = new HttpParams()
+    const backendRequest = this.http.post<ReverseGeocodeResult>(
+      `${this.baseUrl}/maps/reverse/`,
+      { latitude, longitude },
+      { withCredentials: true },
+    );
+    const nominatimParams = new HttpParams()
       .set('format', 'jsonv2')
       .set('lat', String(latitude))
       .set('lon', String(longitude))
       .set('zoom', '18')
       .set('addressdetails', '1')
       .set('accept-language', 'en,km');
-    return this.http.get<ReverseGeocodeResult>(
+    const nominatimRequest = this.http.get<ReverseGeocodeResult>(
       'https://nominatim.openstreetmap.org/reverse',
-      { params },
+      { params: nominatimParams },
+    );
+
+    return backendRequest.pipe(
+      catchError(() => nominatimRequest),
+      catchError(() => of({ display_name: '', address: {} })),
     );
   }
 
