@@ -238,6 +238,7 @@ export class OwnerPropertyFormComponent implements OnInit {
   isEdit = signal(false);
   isLoading = signal(false);
   isUploadingPhotos = signal(false);
+  photoDropActive = signal(false);
   isGeneratingDescription = signal(false);
   aiPrompt = '';
   aiPanelOpen = signal(false);
@@ -964,20 +965,53 @@ export class OwnerPropertyFormComponent implements OnInit {
   async onImagesSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files || []);
-    const remaining = Math.max(0, 12 - this.existingImages().length - this.selectedImages().length);
-    if (files.length > remaining) {
-      this.errorMessage.set('You can add up to 12 photos.');
-      input.value = '';
+    input.value = '';
+    await this.handlePhotoFiles(files);
+  }
+
+  onPhotoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.isUploadingPhotos()) return;
+    this.photoDropActive.set(true);
+  }
+
+  onPhotoDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = event.currentTarget as Node | null;
+    const related = event.relatedTarget as Node | null;
+    if (target && related && target.contains(related)) return;
+    this.photoDropActive.set(false);
+  }
+
+  async onPhotoDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    this.photoDropActive.set(false);
+    if (this.isUploadingPhotos()) return;
+    const files = Array.from(event.dataTransfer?.files || []);
+    await this.handlePhotoFiles(files);
+  }
+
+  private async handlePhotoFiles(files: File[]): Promise<void> {
+    if (!files.length) return;
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    if (!imageFiles.length) {
+      this.errorMessage.set('Please choose image files only.');
       return;
     }
-    if (!files.length) return;
+    const remaining = Math.max(0, 12 - this.existingImages().length - this.selectedImages().length);
+    if (imageFiles.length > remaining) {
+      this.errorMessage.set('You can add up to 12 photos.');
+      return;
+    }
 
     this.isUploadingPhotos.set(true);
     this.errorMessage.set(null);
     try {
       const prepared = await Promise.all(
-        files.map((file) => {
-          if (!file.type.startsWith('image/')) throw new Error('not_image');
+        imageFiles.map((file) => {
           if (file.size > 15 * 1024 * 1024) throw new Error('file_too_large');
           return compressImageToFile(file, 1280, 0.72, 100_000);
         }),
@@ -988,7 +1022,6 @@ export class OwnerPropertyFormComponent implements OnInit {
       this.errorMessage.set(this.imageUploadError(error));
     } finally {
       this.isUploadingPhotos.set(false);
-      input.value = '';
     }
   }
 

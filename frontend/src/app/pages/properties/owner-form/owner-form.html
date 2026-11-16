@@ -40,6 +40,76 @@
         </div>
       </div>
 
+      <div class="space-y-3">
+        <label class="form-label">{{ bilingualLabel('ownerForm.propertyPhotos') }}</label>
+        <label
+          class="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors hover:border-primary/60"
+          [class.border-primary]="photoDropActive()"
+          [class.bg-primary-soft]="photoDropActive()"
+          [class.border-hairline]="!photoDropActive()"
+          [class.bg-surface-2]="!photoDropActive()"
+          (dragover)="onPhotoDragOver($event)"
+          (dragleave)="onPhotoDragLeave($event)"
+          (drop)="onPhotoDrop($event)"
+        >
+          <span class="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary-dark">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M12 16V4m0 0L7 9m5-5 5 5" />
+              <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+            </svg>
+          </span>
+          <span class="text-sm font-bold text-ink">{{ language.t('ownerForm.dragAndDropPhotosHereOrBrowse') }}</span>
+          <span class="text-xs text-ink-3">{{ language.t('ownerForm.selectUpTo12PhotosMax2MbEachFirstIsCover') }}</span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            (change)="onImagesSelected($event)"
+            [disabled]="isUploadingPhotos()"
+            class="sr-only"
+          />
+        </label>
+        @if (isUploadingPhotos()) {
+          <p class="text-xs text-ink-3" role="status">{{ language.t('ownerForm.uploadingPhotos') }}</p>
+        }
+        @if (existingImages().length || selectedImages().length) {
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            @for (photo of existingImages(); track photo; let i = $index) {
+              <div class="group relative aspect-square overflow-hidden rounded-xl border border-hairline bg-surface-2">
+                <img [src]="photo" alt="Property photo" class="h-full w-full object-cover" />
+                @if (i === 0) {
+                  <span class="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">{{ language.t('ownerForm.coverPhoto') }}</span>
+                }
+                <button
+                  type="button"
+                  (click)="removeExistingImage(i)"
+                  [attr.aria-label]="language.t('ownerForm.removePhoto')"
+                  class="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-danger"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </div>
+            }
+            @for (photo of selectedImages(); track $index; let i = $index) {
+              <div class="group relative aspect-square overflow-hidden rounded-xl border border-hairline bg-surface-2">
+                <img [src]="photo" alt="Selected property photo" class="h-full w-full object-cover" />
+                @if (existingImages().length === 0 && i === 0) {
+                  <span class="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">{{ language.t('ownerForm.coverPhoto') }}</span>
+                }
+                <button
+                  type="button"
+                  (click)="removeSelectedImage(i)"
+                  [attr.aria-label]="language.t('ownerForm.removePhoto')"
+                  class="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-danger"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <div>
         <label class="form-label">{{ bilingualLabel('ownerForm.monthlyRentUSD') }}</label>
         <input
@@ -193,31 +263,6 @@
           {{ language.t('ownerForm.locationLoadFailed') }}
         </p>
       }
-
-      <div>
-        <label class="form-label">{{ bilingualLabel('ownerForm.propertyPhotos') }}</label>
-        <input type="file" accept="image/*" multiple (change)="onImagesSelected($event)" [disabled]="isUploadingPhotos()" class="form-input" />
-        <p class="text-xs text-ink-3 mt-1">{{ language.t('ownerForm.selectUpTo12PhotosMax2MbEachFirstIsCover') }}</p>
-        @if (isUploadingPhotos()) {
-          <p class="mt-1 text-xs text-ink-3" role="status">Uploading photos…</p>
-        }
-        @if (existingImages().length || selectedImages().length) {
-          <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            @for (photo of existingImages(); track photo; let i = $index) {
-              <div class="relative aspect-video overflow-hidden rounded-lg border border-hairline">
-                <img [src]="photo" alt="Property photo" class="h-full w-full object-cover" />
-                <button type="button" (click)="removeExistingImage(i)" class="absolute right-1 top-1 rounded bg-white px-2 py-1 text-xs">Remove</button>
-              </div>
-            }
-            @for (photo of selectedImages(); track $index; let i = $index) {
-              <div class="relative aspect-video overflow-hidden rounded-lg border border-hairline">
-                <img [src]="photo" alt="Selected property photo" class="h-full w-full object-cover" />
-                <button type="button" (click)="removeSelectedImage(i)" class="absolute right-1 top-1 rounded bg-white px-2 py-1 text-xs">Remove</button>
-              </div>
-            }
-          </div>
-        }
-      </div>
 
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-2/60 px-4 py-3">
         <div class="min-w-0">
