@@ -199,6 +199,21 @@ export class OwnerPropertyFormComponent implements OnInit {
     return nameEn && nameKm ? `${nameEn} / ${nameKm}` : nameEn || nameKm;
   }
 
+  /** Build "village, commune, district, province" for the map location field. */
+  private formatAdministrativeAddress(parts: {
+    village?: CambodiaVillage;
+    commune?: CambodiaCommune;
+    district?: CambodiaDistrict;
+    province?: CambodiaProvince;
+  }): string {
+    const useKhmer = this.language.current() === 'km';
+    return [parts.village, parts.commune, parts.district, parts.province]
+      .filter((part): part is CambodiaVillage | CambodiaCommune | CambodiaDistrict | CambodiaProvince => !!part)
+      .map((part) => (useKhmer ? part.name_km : part.name_en) || '')
+      .filter((name) => !!name)
+      .join(', ');
+  }
+
   private normalizeLocationName(value: string): string {
     return value.trim().toLowerCase().replace(/\s+/g, ' ');
   }
@@ -607,10 +622,6 @@ export class OwnerPropertyFormComponent implements OnInit {
           );
           this.mapAddressMatched.set(outcome === 'applied');
           this.mapAddressNotFound.set(outcome === 'unmatched');
-          const fullAddress = (result.display_name || '').trim();
-          if (fullAddress) {
-            this.form.patchValue({ coordinates: fullAddress }, { emitEvent: false });
-          }
         },
         error: () => {
           if (requestId !== this.reverseGeocodeRequest) return;
@@ -855,13 +866,18 @@ export class OwnerPropertyFormComponent implements OnInit {
       return 'unmatched';
     }
 
-    const fullAddress = (displayName || '').trim();
+    const mapAddress = this.formatAdministrativeAddress({
+      village,
+      commune,
+      district,
+      province,
+    });
     this.form.patchValue(
       {
         location: district
           ? this.locationLabel(district.name_en, district.name_km)
           : '',
-        ...(fullAddress ? { coordinates: fullAddress } : {}),
+        ...(mapAddress ? { coordinates: mapAddress } : {}),
       },
       { emitEvent: false },
     );
