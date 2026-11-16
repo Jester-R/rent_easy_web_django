@@ -607,6 +607,10 @@ export class OwnerPropertyFormComponent implements OnInit {
           );
           this.mapAddressMatched.set(outcome === 'applied');
           this.mapAddressNotFound.set(outcome === 'unmatched');
+          const fullAddress = (result.display_name || '').trim();
+          if (fullAddress) {
+            this.form.patchValue({ coordinates: fullAddress }, { emitEvent: false });
+          }
         },
         error: () => {
           if (requestId !== this.reverseGeocodeRequest) return;
@@ -762,24 +766,71 @@ export class OwnerPropertyFormComponent implements OnInit {
       }
     }
 
-    // 4. Village matching
-    if (commune && this.villagesLoaded) {
-      const communeVillages = this.cambodiaVillages().filter(
-        (v) => v.commune_code === commune!.code,
-      );
-      // 4a. Exact normalized match
+    // 3b. If commune still not identified, try matching a village in district/province to deduce commune
+    if (!commune && this.villagesLoaded) {
+      const candidateVillages = this.cambodiaVillages().filter((v) => {
+        if (district && v.district_code !== district.code) return false;
+        if (province && v.province_code !== province.code) return false;
+        return true;
+      });
       for (const cand of allCandidates) {
         const norm = this.normalizeAdministrativeText(cand);
         if (!norm) continue;
-        village = communeVillages.find(
+        village = candidateVillages.find(
           (v) =>
             this.normalizeAdministrativeText(v.name_en) === norm ||
             this.normalizeAdministrativeText(v.name_km) === norm,
         );
         if (village) break;
       }
-      // 4b. Substring / partial match
       if (!village) {
+        for (const cand of allCandidates) {
+          const norm = this.normalizeAdministrativeText(cand);
+          if (!norm) continue;
+          village = candidateVillages.find((v) => {
+            const vEn = this.normalizeAdministrativeText(v.name_en);
+            const vKm = this.normalizeAdministrativeText(v.name_km);
+            return (
+              (vEn && (norm.includes(vEn) || vEn.includes(norm))) ||
+              (vKm && (norm.includes(vKm) || vKm.includes(norm)))
+            );
+          });
+          if (village) break;
+        }
+      }
+      if (village) {
+        commune = this.cambodiaCommunes().find((c) => c.code === village!.commune_code);
+        if (commune) {
+          if (!district) {
+            district = this.cambodiaDistricts().find((d) => d.code === commune!.district_code);
+          }
+          if (!province) {
+            province = this.cambodiaProvinces().find((p) => p.code === commune!.province_code);
+          }
+        }
+      }
+    }
+
+    // 4. Village matching
+    if (commune && this.villagesLoaded) {
+      const communeVillages = this.cambodiaVillages().filter(
+        (v) => v.commune_code === commune!.code,
+      );
+      if (!village) {
+        // 4a. Exact normalized match
+        for (const cand of allCandidates) {
+          const norm = this.normalizeAdministrativeText(cand);
+          if (!norm) continue;
+          village = communeVillages.find(
+            (v) =>
+              this.normalizeAdministrativeText(v.name_en) === norm ||
+              this.normalizeAdministrativeText(v.name_km) === norm,
+          );
+          if (village) break;
+        }
+      }
+      if (!village) {
+        // 4b. Substring / partial match
         for (const cand of allCandidates) {
           const norm = this.normalizeAdministrativeText(cand);
           if (!norm) continue;
@@ -804,11 +855,13 @@ export class OwnerPropertyFormComponent implements OnInit {
       return 'unmatched';
     }
 
+    const fullAddress = (displayName || '').trim();
     this.form.patchValue(
       {
         location: district
           ? this.locationLabel(district.name_en, district.name_km)
           : '',
+        ...(fullAddress ? { coordinates: fullAddress } : {}),
       },
       { emitEvent: false },
     );
@@ -866,6 +919,7 @@ export class OwnerPropertyFormComponent implements OnInit {
     s = s.replace(/siem\s*reap/gui, 'siem reab');
 
     // Common phonetic / romanization spelling differences in Khmer names
+    s = s.replace(/thnong/gui, 'thnung');
     s = s.replace(/thnaot/gui, 'tnaot');
     s = s.replace(/thmor|thmar/gui, 'tmar');
     s = s.replace(/chhouk|chhook|chuk/gui, 'chhuk');
@@ -877,6 +931,8 @@ export class OwnerPropertyFormComponent implements OnInit {
     s = s.replace(/stung/gui, 'steung');
     s = s.replace(/slaket/gui, 'sla ket');
     s = s.replace(/chamkar/gui, 'chomkar');
+    s = s.replace(/khlaing/gui, 'khleang');
+    s = s.replace(/samrong/gui, 'samraong');
 
     // Strip prefix markers before numbers like "ti 1", "lekh 1", "quarter 1", "group 1", "no 1"
     s = s.replace(/\b(?:ti|lekh|quarter|group|no\.?)\s*(\d+)\b/gui, '$1');
