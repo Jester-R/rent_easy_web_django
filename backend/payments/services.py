@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from accounts.models import PlatformSettings, Role, User
 from bookings.models import Booking, BookingStatus
@@ -99,7 +100,15 @@ class PaymentResult:
     qr: dict | None = None
 
 
+def _coerce_date(value):
+    """Normalize ISO date strings (from JSON bodies) into ``date`` objects."""
+    if isinstance(value, str):
+        return parse_date(value.strip())
+    return value
+
+
 def _date_text(value) -> str:
+    value = _coerce_date(value)
     return value.strftime("%d %b %Y") if value else "Not specified"
 
 
@@ -123,6 +132,9 @@ def create_booking(
 ):
     """Create a pending booking request, guarding the active-booking rule."""
     from listings.models import Property
+
+    move_in_date = _coerce_date(move_in_date)
+    end_date = _coerce_date(end_date)
 
     Property.objects.select_for_update().get(pk=property_obj.pk)
     if has_active_booking(renter, property_obj):

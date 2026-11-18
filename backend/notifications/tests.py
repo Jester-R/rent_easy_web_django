@@ -90,6 +90,46 @@ class NotificationChannelTests(TestCase):
         self.assertIn("01 Dec 2026", body)
         self.assertIn("I would like to move in with my cat.", body)
 
+    def test_booking_request_accepts_iso_date_strings(self):
+        owner = User.objects.create_user(
+            email="booking-owner-iso@real-domain.com",
+            username="booking-owner-iso",
+            password="secret123",
+            role=Role.OWNER,
+        )
+        renter = User.objects.create_user(
+            email="booking-renter-iso@real-domain.com",
+            username="booking-renter-iso",
+            password="secret123",
+            role=Role.RENTER,
+        )
+        property_obj = Property.objects.create(
+            owner=owner,
+            title="ISO Apartment",
+            location="Phnom Penh",
+            price_per_month=Decimal("450.00"),
+            bedrooms=2,
+            bathrooms=1,
+            description="Test",
+            category="apartment",
+        )
+
+        booking = create_booking(
+            property_obj=property_obj,
+            renter=renter,
+            move_in_date="2026-12-01",
+            end_date="2027-06-01",
+            lease_months=6,
+        )
+
+        self.assertEqual(booking.move_in_date, date(2026, 12, 1))
+        self.assertEqual(booking.end_date, date(2027, 6, 1))
+        notification = Notification.objects.get(
+            recipient=owner, kind=Notification.Kind.BOOKING_REQUEST
+        )
+        self.assertEqual(notification.params["move_in"], "01 Dec 2026")
+        self.assertEqual(notification.params["lease"], "6 months (until 01 Jun 2027)")
+
     @override_settings(FRONTEND_BASE_URL="https://renteasy.example")
     def test_telegram_message_links_to_the_notification_page(self):
         user = self._user()
