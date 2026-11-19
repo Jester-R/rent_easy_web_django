@@ -126,6 +126,16 @@ DEFAULT_NOTIFICATION_MESSAGES = [
         "body_km": "សំណើសងប្រាក់ {reference} សម្រាប់ {title} ចំនួន {amount} កំពុងរង់ចាំអ្នកគ្រប់គ្រងពិនិត្យ។",
     },
     {
+        "key": "notif_refund_message",
+        "body_key": "notif_refund_message_body",
+        "label_en": "Refund chat message",
+        "label_km": "សារក្នុងជំនួយសងប្រាក់",
+        "title_en": "Refund chat message",
+        "title_km": "សារក្នុងជំនួយសងប្រាក់",
+        "body_en": "New message about refund {reference} for {title} from {sender}.",
+        "body_km": "មានសារថ្មីអំពីការសងប្រាក់ {reference} សម្រាប់ {title} ពី {sender}។",
+    },
+    {
         "key": "notif_refund_processed",
         "body_key": "notif_refund_processed_body",
         "label_en": "Refund processed",

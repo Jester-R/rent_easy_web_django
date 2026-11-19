@@ -206,4 +206,13 @@ export class ConsolePropertiesComponent implements OnInit {
       error: () => this.error.set(this.language.t('consoleProperties.couldNotRemoveThisListing')),
     });
   }
+
+  restore(item: ConsolePropertyItem): void {
+    if (item.is_active || !confirm(this.language.t('consoleProperties.restoreToBrowsing', { title: item.title }))) return;
+
+    this.console.restoreProperty(item.id).subscribe({
+      next: () => this.load(),
+      error: () => this.error.set(this.language.t('consoleProperties.couldNotRestoreThisListing')),
+    });
+  }
 }

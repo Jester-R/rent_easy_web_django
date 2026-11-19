@@ -1,11 +1,9 @@
 import type { PageCatalog } from '../types';
 
 export const consoleUserForm: PageCatalog = {
-  editUser: ['Edit User', 'កែសម្រួលអ្នកប្រើប្រាស់'],
   newUser: ['New user', 'អ្នកប្រើប្រាស់ថ្មី'],
   users: ['Users', 'អ្នកប្រើប្រាស់'],
   back: ['Back', 'ត្រឡប់ក្រោយ'],
-  edit: ['Edit', 'កែសម្រួល'],
   fullName: ['Full Name', 'ឈ្មោះពេញ'],
   username: ['Username', 'ឈ្មោះអ្នកប្រើ'],
   use330CharsLettersNumbers: ['Use 3-30 chars: letters, numbers, ., _, -', 'ប្រើ ៣–៣០ តួអក្សរ៖ អក្សរ លេខ . _ -'],
@@ -15,17 +13,13 @@ export const consoleUserForm: PageCatalog = {
   role: ['Role', 'តួនាទី'],
   search: ['Search...', 'ស្វែងរក...'],
   password: ['Password', 'ពាក្យសម្ងាត់'],
-  leaveBlankToKeepTheCurrentPassword: ['Leave blank to keep the current password', 'ទុកចន្លោះទទេ ដើម្បីរក្សាពាក្យសម្ងាត់បច្ចុប្បន្ន'],
   required: ['Required', 'ត្រូវបញ្ចូល'],
   passwordMustBeAtLeast6Characters: ['Password must be at least 6 characters.', 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ។'],
   active: ['Active', 'សកម្ម'],
   allowSignInForThisAccount: ['Allow sign-in for this account', 'អនុញ្ញាតឱ្យគណនីនេះចូលប្រើ'],
   userID: ['User ID', 'លេខសម្គាល់អ្នកប្រើ'],
-  created: ['Created', 'បានបង្កើត'],
-  lastLogin: ['Last login', 'ចូលប្រើចុងក្រោយ'],
   cancel: ['Cancel', 'បោះបង់'],
   save: ['Save', 'រក្សាទុក'],
-  failedToLoadUser: ['Failed to load user.', 'មិនអាចផ្ទុកព័ត៌មានអ្នកប្រើប្រាស់បានទេ។'],
   failedToSaveUser: ['Failed to save user.', 'មិនអាចរក្សាទុកអ្នកប្រើប្រាស់បានទេ។'],
   emailTaken: ['Email or username already in use', 'អ៊ីមែល ឬឈ្មោះអ្នកប្រើនេះត្រូវបានប្រើរួចហើយ។'],
   usernameInvalid: ['Username must be 3-30 characters using letters, numbers, ., _ or -', 'ឈ្មោះអ្នកប្រើត្រូវមាន ៣–៣០ តួអក្សរ ដោយប្រើអក្សរ លេខ . _ ឬ -។'],
@@ -37,10 +31,6 @@ export const consoleUserForm: PageCatalog = {
   payoutDetailsHelp: [
     'The bank or mobile-money account used to send rent to this owner.',
     'គណនីធនាគារ ឬលុយតាមទូរស័ព្ទ ដែលប្រើដើម្បីផ្ទេរប្រាក់ជួលទៅម្ចាស់នេះ។',
-  ],
-  noPayoutDetails: [
-    'This owner has not added payout details yet. They cannot receive rent until these are filled in.',
-    'ម្ចាស់នេះមិនទាន់បានបន្ថែមព័ត៌មានគណនីទទួលប្រាក់ទេ។ ពួកគេមិនអាចទទួលប្រាក់ជួលបានទេ រហូតដល់បំពេញព័ត៌មាននេះ។',
   ],
   payoutMethod: ['Payout Method', 'វិធីទទួលប្រាក់'],
   selectPayoutMethod: ['Select a payout method', 'ជ្រើសរើសវិធីទទួលប្រាក់'],

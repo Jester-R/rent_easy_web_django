@@ -8,10 +8,12 @@ that the API serializers rely on.
 from __future__ import annotations
 
 import json as json_module
+from dataclasses import replace
 from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
+from django.db.models import Prefetch
 from django.test import TestCase
 
 from accounts.models import Role, User
@@ -21,7 +23,7 @@ from core.ai import (
     build_property_description_prompt,
     generate_property_description,
 )
-from core.bolt_serializers import BookingSerializer, _needs_plan_reload
+from core.bolt_serializers import BookingSerializer, PaymentSerializer, _needs_plan_reload
 from listings.models import Property
 from notifications.models import Notification
 from payments.models import Payment, Refund
@@ -122,6 +124,18 @@ class BookingSerializerPlanTests(SeededTestCase):
         ).get()
         self.assertIn("payment", reloaded._state.fields_cache)
         self.assertFalse(_needs_plan_reload(reloaded, plan))
+
+    def test_prefetch_objects_do_not_break_plan_reload_check(self):
+        booking = Booking.objects.first()
+        self.assertIsNotNone(booking)
+        plan = replace(
+            BookingSerializer.loading_plan(Booking),
+            prefetch=(Prefetch("refunds"),),
+        )
+        self.assertTrue(_needs_plan_reload(booking, plan))
+
+    def test_payment_plan_prefetches_refunds(self):
+        self.assertIn("refunds", PaymentSerializer.loading_plan(Payment).prefetch)
 
 
 class PropertyQuerySmokeTests(SeededTestCase):

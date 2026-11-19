@@ -79,14 +79,28 @@ from payments.services import (
     PayoutBlocked,
     PayoutDetailsMissing,
     PayoutNotDue,
+    RefundRequestError,
     RefundRequiresGateway,
+    accept_refund,
     backfill_missing_payouts,
     cancel_payout_for_payment,
+    ensure_refund_chat,
+    mark_refund_commission_paid,
     pay_out,
     process_refund,
     release_due_payouts,
     notify_refund_team,
     reject_refund,
+)
+
+REFUND_DETAIL_RELATIONS = (
+    "payment",
+    "payment__property",
+    "payment__property__owner",
+    "payment__user",
+    "booking",
+    "booking__owner",
+    "requested_by",
 )
 
 console_api = BoltAPI(
@@ -186,19 +200,26 @@ async def dashboard(request):
         .order_by("-revenue")[:6]
     )
 
+    user_counts = await User.objects.aaggregate(
+        users=Count("id"),
+        owners=Count("id", filter=Q(role=Role.OWNER)),
+        renters=Count("id", filter=Q(role=Role.RENTER)),
+    )
+    refund_counts = await Refund.objects.aaggregate(
+        refunds=Count("id"),
+        pending_refunds=Count("id", filter=Q(status=Refund.Status.PENDING)),
+    )
     return {
         "stats": {
-            "users": await User.objects.acount(),
-            "owners": await User.objects.filter(role=Role.OWNER).acount(),
-            "renters": await User.objects.filter(role=Role.RENTER).acount(),
+            "users": user_counts["users"],
+            "owners": user_counts["owners"],
+            "renters": user_counts["renters"],
             "properties": await Property.objects.acount(),
             "bookings": await Booking.objects.acount(),
             "payments": await Payment.objects.acount(),
             "favorites": await Favorite.objects.acount(),
-            "refunds": await Refund.objects.acount(),
-            "pending_refunds": await Refund.objects.filter(
-                status=Refund.Status.PENDING
-            ).acount(),
+            "refunds": refund_counts["refunds"],
+            "pending_refunds": refund_counts["pending_refunds"],
             "revenue": float(revenue),
             "refunded": float(refunded),
             "avg_rent": float(avg_rent),
@@ -227,7 +248,7 @@ async def dashboard(request):
         "recent_bookings": [
             await serialize_booking(b)
             async for b in Booking.objects.select_related(
-                "property", "renter", "owner", "payment", "payment__payout"
+                "property", "property__owner", "renter", "owner", "payment", "payment__payout"
             ).order_by("-created_at")[:8]
         ],
         "recent_users": [
@@ -250,25 +271,7 @@ async def dashboard(request):
 async def settings_get(request):
     await admin_required(request)
     platform, _ = await PlatformSettings.objects.aget_or_create(pk=1)
-    return {
-        "settings": {
-            "auto_approve_owners": platform.auto_approve_owners,
-            "commission_rates": _commission_rates_response(platform.commission_rates),
-            "payment_method_details": _payment_method_details_response(
-                platform.payment_method_details
-            ),
-            **_integration_settings_response(platform),
-            "property_categories": platform.property_categories
-            or DEFAULT_PROPERTY_CATEGORIES,
-            "notification_messages": merged_notification_messages(
-                platform.notification_messages
-            ),
-            "home_promotion": {
-                **DEFAULT_HOME_PROMOTION,
-                **(platform.home_promotion or {}),
-            },
-        }
-    }
+    return _settings_payload(platform)
 
 
 def _clean_property_categories(raw):
@@ -322,6 +325,16 @@ def _clean_commission_rates(raw):
                 status_code=422, detail="invalid_commission_rate"
             ) from exc
     return result
+
+
+def _clean_late_cancellation_fee(raw):
+    try:
+        amount = Decimal(str(raw if raw is not None and raw != "" else 0))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="invalid_cancellation_fee") from exc
+    if not amount.is_finite() or amount < 0:
+        raise HTTPException(status_code=422, detail="invalid_cancellation_fee")
+    return amount.quantize(Decimal("0.01"))
 
 
 _SECRET_CONFIG_FIELDS = (
@@ -403,6 +416,29 @@ def _payment_method_details_response(raw):
             field: str(item.get(field, "") or "")[:255] for field in fields
         }
     return result
+
+
+def _settings_payload(platform):
+    return {
+        "settings": {
+            "auto_approve_owners": platform.auto_approve_owners,
+            "commission_rates": _commission_rates_response(platform.commission_rates),
+            "late_cancellation_fee": float(platform.late_cancellation_fee or 0),
+            "payment_method_details": _payment_method_details_response(
+                platform.payment_method_details
+            ),
+            **_integration_settings_response(platform),
+            "property_categories": platform.property_categories
+            or DEFAULT_PROPERTY_CATEGORIES,
+            "notification_messages": merged_notification_messages(
+                platform.notification_messages
+            ),
+            "home_promotion": {
+                **DEFAULT_HOME_PROMOTION,
+                **(platform.home_promotion or {}),
+            },
+        }
+    }
 
 
 def _clean_payment_method_details(raw):
@@ -554,6 +590,10 @@ async def settings_update(request):
     if "commission_rates" in data:
         platform.commission_rates = _clean_commission_rates(data["commission_rates"])
         platform.commission_rates_updated_at = timezone.now()
+    if "late_cancellation_fee" in data:
+        platform.late_cancellation_fee = _clean_late_cancellation_fee(
+            data["late_cancellation_fee"]
+        )
     if "payment_method_details" in data:
         platform.payment_method_details = _clean_payment_method_details(
             data["payment_method_details"]
@@ -630,25 +670,31 @@ async def settings_update(request):
         platform.pk,
         "updated platform settings",
     )
-    return {
-        "settings": {
-            "auto_approve_owners": platform.auto_approve_owners,
-            "commission_rates": _commission_rates_response(platform.commission_rates),
-            "payment_method_details": _payment_method_details_response(
-                platform.payment_method_details
-            ),
-            **_integration_settings_response(platform),
-            "property_categories": platform.property_categories
-            or DEFAULT_PROPERTY_CATEGORIES,
-            "notification_messages": merged_notification_messages(
-                platform.notification_messages
-            ),
-            "home_promotion": {
-                **DEFAULT_HOME_PROMOTION,
-                **(platform.home_promotion or {}),
-            },
-        }
-    }
+    return _settings_payload(platform)
+
+
+@console_api.post("/settings/reset-notification/")
+async def notification_message_reset(request):
+    actor = await admin_required(request)
+    data = json_body(request)
+    key = body_str(data, "key")
+    defaults = {item["key"]: item for item in DEFAULT_NOTIFICATION_MESSAGES}
+    if key not in defaults:
+        raise HTTPException(status_code=422, detail="invalid_notification_message_key")
+    platform, _ = await PlatformSettings.objects.aget_or_create(pk=1)
+    configured = merged_notification_messages(platform.notification_messages)
+    platform.notification_messages = [
+        defaults[key] if item.get("key") == key else item for item in configured
+    ]
+    await platform.asave(update_fields=["notification_messages", "updated_at"])
+    await audit(
+        actor,
+        AuditLog.Action.UPDATE,
+        "settings",
+        platform.pk,
+        f"reset notification message {key}",
+    )
+    return _settings_payload(platform)
 
 
 def _create_broadcast(target, title_en, title_km, body_en, body_km):
@@ -1143,16 +1189,6 @@ async def users_list(request):
     }
 
 
-@console_api.get("/users/{pk}/")
-async def user_detail(request):
-    pk = param_int(request, "pk")
-    await superadmin_required(request)
-    user = await User.objects.filter(pk=pk).afirst()
-    if user is None:
-        raise _not_found("user")
-    return {"user": await serialize_user(user)}
-
-
 @console_api.post("/users/new/")
 async def user_create(request):
     actor = await superadmin_required(request)
@@ -1188,58 +1224,6 @@ async def user_create(request):
         apply_payout_fields(user, data)
         await user.asave()
     await audit(actor, AuditLog.Action.CREATE, "user", user.pk, f"created {user.email}")
-    return {"user": await serialize_user(user)}
-
-
-@console_api.post("/users/{pk}/edit/")
-async def user_edit(request):
-    pk = param_int(request, "pk")
-    actor = await superadmin_required(request)
-    user = await User.objects.filter(pk=pk).afirst()
-    if user is None:
-        raise _not_found("user")
-    data = json_body(request)
-
-    if "email" in data:
-        email = normalize_identity(body_str(data, "email"))
-        if await User.objects.filter(email__iexact=email).exclude(pk=user.pk).aexists():
-            raise HTTPException(status_code=409, detail="email_taken")
-        user.email = email
-    if "username" in data:
-        username = body_str(data, "username")
-        if not is_valid_username(username):
-            raise HTTPException(status_code=422, detail="username_invalid")
-        if (
-            await User.objects.filter(username__iexact=username)
-            .exclude(pk=user.pk)
-            .aexists()
-        ):
-            raise HTTPException(status_code=409, detail="username_taken")
-        user.username = username
-    if "full_name" in data:
-        user.full_name = body_str(data, "full_name")
-    if "role" in data:
-        role = body_str(data, "role")
-        if role not in dict(Role.choices):
-            raise HTTPException(status_code=422, detail="role_invalid")
-        user.role = role
-    if "is_active" in data:
-        user.is_active = body_bool(data, "is_active", user.is_active)
-    if "approval_status" in data:
-        status = body_str(data, "approval_status")
-        if status not in dict(ApprovalStatus.choices):
-            raise HTTPException(status_code=422, detail="approval_invalid")
-        user.approval_status = status
-        if status == ApprovalStatus.APPROVED and "is_active" not in data:
-            user.is_active = True
-
-    password = body_str(data, "password")
-    if password:
-        await in_thread(user.set_password, password)
-    if user.is_owner:
-        apply_payout_fields(user, data)
-    await user.asave()
-    await audit(actor, AuditLog.Action.UPDATE, "user", user.pk, f"updated {user.email}")
     return {"user": await serialize_user(user)}
 
 
@@ -1400,6 +1384,23 @@ async def property_soft_delete(request):
     return {"ok": True, "deleted": pk, "is_active": prop.is_active}
 
 
+@console_api.post("/properties/{pk}/restore/")
+async def property_restore(request):
+    pk = param_int(request, "pk")
+    actor = await superadmin_required(request)
+    prop = await Property.objects.filter(pk=pk).afirst()
+    if prop is None:
+        raise _not_found("property")
+    if not prop.is_active:
+        prop.is_active = True
+        prop.rental_closed_at = None
+        await prop.asave(update_fields=["is_active", "rental_closed_at", "updated_at"])
+        await audit(
+            actor, AuditLog.Action.STATUS, "property", pk, f"restored {prop.title}"
+        )
+    return {"ok": True, "restored": pk, "is_active": prop.is_active}
+
+
 # ---------------------------------------------------------------------------
 # Bookings
 # ---------------------------------------------------------------------------
@@ -1471,12 +1472,14 @@ async def payments_list(request):
     total = await queryset.acount()
     queryset = queryset[(page - 1) * page_size : page * page_size]
 
-    status_counts = {"all": await Payment.objects.acount()}
-    async for row in Payment.objects.values("status").annotate(n=Count("id")):
-        status_counts[row["status"]] = row["n"]
-    status_counts["Refunded"] = await Payment.objects.filter(
-        refund_status=Payment.RefundStatus.PROCESSED
-    ).acount()
+    status_counts = await Payment.objects.aaggregate(
+        all=Count("id"),
+        **{
+            value: Count("id", filter=Q(status=value))
+            for value in Payment.Status.values
+        },
+        Refunded=Count("id", filter=Q(refund_status=Payment.RefundStatus.PROCESSED)),
+    )
 
     payout_status = q(request, "payout_status", "all")
     payouts_qs = Payout.objects.select_related(
@@ -1507,22 +1510,18 @@ async def payments_list(request):
         scheduled=Sum("amount", filter=Q(status=Payout.Status.SCHEDULED)),
         eligible=Sum("amount", filter=Q(status=Payout.Status.ELIGIBLE)),
         paid=Sum("amount", filter=Q(status=Payout.Status.PAID)),
+        scheduled_count=Count("id", filter=Q(status=Payout.Status.SCHEDULED)),
+        eligible_count=Count("id", filter=Q(status=Payout.Status.ELIGIBLE)),
+        paid_count=Count("id", filter=Q(status=Payout.Status.PAID)),
     )
     payout_counts = {
-        "scheduled": await Payout.objects.filter(
-            status=Payout.Status.SCHEDULED
-        ).acount(),
-        "eligible": await Payout.objects.filter(status=Payout.Status.ELIGIBLE).acount(),
-        "paid": await Payout.objects.filter(status=Payout.Status.PAID).acount(),
+        "scheduled": payout_agg["scheduled_count"],
+        "eligible": payout_agg["eligible_count"],
+        "paid": payout_agg["paid_count"],
     }
-    refund_qs = Refund.objects.select_related(
-        "payment",
-        "booking",
-        "payment__property",
-        "payment__property__owner",
-        "payment__user",
-        "requested_by",
-    ).order_by("-created_at", "-pk")
+    refund_qs = Refund.objects.select_related(*REFUND_DETAIL_RELATIONS).order_by(
+        "-created_at", "-pk"
+    )
     refund_status = q(request, "refund_status", "all")
     if refund_status in Refund.Status.values:
         refund_qs = refund_qs.filter(status=refund_status)
@@ -1618,6 +1617,90 @@ async def payout_pay(request):
     return {"ok": True, "payout": await serialize_payout(payout)}
 
 
+@console_api.post("/refunds/{pk}/chat/")
+async def refund_chat(request):
+    actor = await admin_required(request)
+    pk = param_int(request, "pk")
+    data = json_body(request)
+    party = body_str(data, "party")
+    if party not in ("renter", "owner"):
+        raise HTTPException(status_code=422, detail="invalid_refund_party")
+    refund = await Refund.objects.select_related("booking", "payment").filter(pk=pk).afirst()
+    if refund is None:
+        raise _not_found("refund")
+    if refund.status not in (Refund.Status.ACCEPTED, Refund.Status.PROCESSED):
+        raise HTTPException(status_code=409, detail="refund_not_accepted")
+    conversation = await in_thread(
+        ensure_refund_chat, refund, party=party, admin=actor
+    )
+    await audit(
+        actor,
+        AuditLog.Action.REFUND,
+        "refund",
+        refund.pk,
+        f"opened {party} refund chat",
+    )
+    return {
+        "ok": True,
+        "conversation_id": conversation.pk,
+        "url": conversation.get_absolute_url(),
+    }
+
+
+@console_api.post("/refunds/{pk}/accept/")
+async def refund_accept(request):
+    pk = param_int(request, "pk")
+    actor = await admin_required(request)
+    refund = await Refund.objects.filter(pk=pk).afirst()
+    if refund is None:
+        raise _not_found("refund")
+    data = json_body(request)
+    try:
+        ok = await in_thread(
+            accept_refund,
+            refund,
+            actor=actor,
+            note=body_str(data, "note"),
+            commission_paid=body_bool(data, "commission_paid"),
+        )
+    except RefundRequestError as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    if not ok:
+        raise HTTPException(status_code=409, detail="refund_not_pending")
+    await audit(actor, AuditLog.Action.REFUND, "refund", refund.pk, f"accepted {refund.reference}")
+    refund = await (
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
+        .filter(pk=pk)
+        .afirst()
+    )
+    return {"ok": True, "refund": await serialize_refund(refund)}
+
+
+@console_api.post("/refunds/{pk}/commission-paid/")
+async def refund_commission_paid(request):
+    pk = param_int(request, "pk")
+    actor = await admin_required(request)
+    refund = await Refund.objects.filter(pk=pk).afirst()
+    if refund is None:
+        raise _not_found("refund")
+    ok = await in_thread(mark_refund_commission_paid, refund, actor=actor)
+    if not ok:
+        raise HTTPException(status_code=409, detail="commission_not_due")
+    await audit(
+        actor,
+        AuditLog.Action.REFUND,
+        "refund",
+        refund.pk,
+        f"commission paid {refund.reference}",
+    )
+    refund = await (
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
+        .filter(pk=pk)
+        .afirst()
+    )
+    return {"ok": True, "refund": await serialize_refund(refund)}
+
+
 @console_api.post("/refunds/{pk}/process/")
 async def refund_process(request):
     pk = param_int(request, "pk")
@@ -1640,14 +1723,7 @@ async def refund_process(request):
         raise HTTPException(status_code=409, detail="refund_already_processed")
     await audit(actor, AuditLog.Action.REFUND, "refund", refund.pk, refund.reference)
     refund = await (
-        Refund.objects.select_related(
-            "payment",
-            "payment__property",
-            "payment__property__owner",
-            "payment__user",
-            "booking",
-            "requested_by",
-        )
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
         .filter(pk=pk)
         .afirst()
     )
@@ -1675,7 +1751,7 @@ async def refund_reject(request):
         f"rejected {refund.reference}",
     )
     refund = await (
-        Refund.objects.select_related("payment", "booking", "requested_by")
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
         .filter(pk=pk)
         .afirst()
     )
@@ -1684,7 +1760,7 @@ async def refund_reject(request):
 
 @console_api.post("/refunds/new/")
 async def refund_create(request):
-    actor = await superadmin_required(request)
+    actor = await admin_required(request)
     data = json_body(request)
     payment = await Payment.objects.filter(pk=_optional_id(data, "payment")).afirst()
     if payment is None:

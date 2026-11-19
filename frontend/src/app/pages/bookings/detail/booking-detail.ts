@@ -9,9 +9,15 @@ import {
 } from '../../../components/searchable-select/searchable-select';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
+import { ChatService } from '../../../services/chat.service';
 import { PaymentService } from '../../../services/payment.service';
+import { PropertyCategoryService } from '../../../services/property-category.service';
 import { LanguageService } from '../../../services/language.service';
-import { propertyLocation, propertyTitle } from '../../../shared/property-text';
+import {
+  propertyDescription,
+  propertyLocation,
+  propertyTitle,
+} from '../../../shared/property-text';
 import type { Property } from '../../../models';
 import { Booking, UserBrief } from '../../../models';
 import type { PaymentMethodDetail } from '../../../models';
@@ -26,7 +32,7 @@ import {
 } from '../../../shared/ui';
 
 type Party = UserBrief & { avatar_hue?: number };
-type BookingExt = Booking & { can_approve?: boolean; can_cancel?: boolean; can_reject?: boolean };
+type BookingExt = Booking & { can_cancel?: boolean; can_owner_cancel?: boolean };
 
 @Component({
   selector: 'app-booking-detail',
@@ -43,10 +49,21 @@ export class BookingDetailComponent implements OnInit {
   location(property: Property | null | undefined): string {
     return propertyLocation(property, this.language.current());
   }
+
+  description(property: Property | null | undefined): string {
+    return propertyDescription(property, this.language.current());
+  }
+
+  categoryLabel(value: string | null | undefined): string {
+    return this.categories.label(value, this.language.current());
+  }
+
   readonly id = input<string>();
 
   private readonly bookingService = inject(BookingService);
+  private readonly chat = inject(ChatService);
   private readonly paymentService = inject(PaymentService);
+  private readonly categories = inject(PropertyCategoryService);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
@@ -56,6 +73,43 @@ export class BookingDetailComponent implements OnInit {
   readonly isLoading = signal(true);
   readonly isBusy = signal(false);
   readonly actionError = signal<string | null>(null);
+  readonly activePropertyImage = signal(0);
+  readonly propertyImageCount = computed(
+    () => this.booking()?.property.images?.length ?? 0
+  );
+  readonly visiblePropertyImageIndexes = computed<number[]>(() => {
+    const total = this.propertyImageCount();
+    if (!total) return [];
+    const active = Math.min(this.activePropertyImage(), total - 1);
+    const limit = 5;
+    if (total <= limit) return Array.from({ length: total }, (_, i) => i);
+    const start = Math.min(Math.max(0, active - 2), total - limit);
+    return Array.from({ length: limit }, (_, i) => start + i);
+  });
+
+  readonly statusBadge = computed(() => {
+    const booking = this.booking();
+    if (!booking) return { label: '', pill: 'pill-neutral' };
+    const status = this.language.valueLabel(booking.status);
+    if (booking.refund_state) {
+      return {
+        label: this.language.valueLabel(booking.refund_state),
+        pill:
+          booking.refund_state === 'Refunded'
+            ? 'pill-refunded'
+            : booking.refund_state === 'Refund failed'
+              ? 'pill-rejected'
+              : 'pill-pending',
+      };
+    }
+    const payment = this.language.t(
+      booking.is_paid ? 'bookingDetail.paid' : 'bookingDetail.unpaid'
+    );
+    const label = ['Pending', 'Approved', 'Confirmed'].includes(booking.status)
+      ? `${status} ${payment}`
+      : status;
+    return { label, pill: bookingPill(booking.status) };
+  });
 
   readonly payOpen = signal(false);
   readonly isPaying = signal(false);
@@ -102,6 +156,18 @@ export class BookingDetailComponent implements OnInit {
     return this.paymentMethodDetails()[this.selectedMethod] || null;
   }
 
+  selectPropertyImage(index: number): void {
+    this.activePropertyImage.set(index);
+  }
+
+  stepPropertyImage(delta: number): void {
+    const total = this.propertyImageCount();
+    if (!total) return;
+    this.activePropertyImage.update(
+      (index) => (index + delta + total) % total
+    );
+  }
+
   load(): void {
     const rawId = this.id()?.trim() ?? '';
     const idMatch = rawId.match(/^(?:#?BK-)?(\d+)$/i);
@@ -120,12 +186,32 @@ export class BookingDetailComponent implements OnInit {
       next: (res) => {
         this.booking.set(res.booking as BookingExt);
         this.audience.set(res.audience === 'owner' ? 'owner' : 'renter');
+        this.activePropertyImage.set(0);
         this.isLoading.set(false);
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
         this.loadError.set(err.status === 404 ? `Booking not found: ${rawId.startsWith('#') ? rawId.slice(1) : rawId}` : 'Could not load this booking.');
         this.onError(err);
+      },
+    });
+  }
+
+  openRefundChat(refundId: number): void {
+    if (!refundId || this.isBusy()) return;
+    this.actionError.set(null);
+    this.isBusy.set(true);
+    this.chat.openRefundChat(refundId).subscribe({
+      next: (res) => {
+        this.isBusy.set(false);
+        void this.router.navigateByUrl(res.url);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isBusy.set(false);
+        this.onError(err);
+        if (!this.actionError()) {
+          this.actionError.set('Could not open the refund chat. Please try again.');
+        }
       },
     });
   }
@@ -159,50 +245,21 @@ export class BookingDetailComponent implements OnInit {
     return `hsl(${this.hue(p)} 55% 28%)`;
   }
 
-  approve(): void {
-    const b = this.booking();
-    if (!b) return;
-    if (!confirm(`Approve Booking Request?\n${b.renter.display_name} · ${b.property?.title}`)) return;
-    this.isBusy.set(true);
-    this.bookingService.approveBooking(b.id).subscribe({
-      next: () => {
-        this.isBusy.set(false);
-        this.load();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isBusy.set(false);
-        this.onError(err);
-      },
-    });
-  }
-
-  reject(): void {
-    const b = this.booking();
-    if (!b) return;
-    if (!confirm(`Reject Booking Request?\n${b.renter.display_name} · ${b.property?.title}`)) return;
-    this.isBusy.set(true);
-    this.bookingService.rejectBooking(b.id).subscribe({
-      next: () => {
-        this.isBusy.set(false);
-        this.load();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isBusy.set(false);
-        this.onError(err);
-      },
-    });
-  }
-
   cancel(): void {
     const b = this.booking();
     if (!b) return;
-    const paidWarning = b.payment_id
-      ? '\n\nA refund request will be sent to the admin team for review.'
+    const message = b.payment_id
+      ? window.prompt(this.language.t('bookingDetail.refundMessagePrompt'), '')
       : '';
-    if (!confirm(`Cancel this booking request?\n${b.property?.title}${paidWarning}`)) return;
+    if (message === null) return;
+    if (b.payment_id && !message.trim()) {
+      alert(this.language.t('bookingDetail.refundMessageRequired'));
+      return;
+    }
+    if (!b.payment_id && !confirm(`Cancel this booking request?\n${b.property?.title}`)) return;
     this.actionError.set(null);
     this.isBusy.set(true);
-    this.bookingService.cancelBooking(b.id).subscribe({
+    this.bookingService.cancelBooking(b.id, message).subscribe({
       next: () => {
         this.isBusy.set(false);
         this.load();
@@ -217,15 +274,18 @@ export class BookingDetailComponent implements OnInit {
   ownerCancel(): void {
     const b = this.booking();
     if (!b) return;
-    if (
-      !confirm(
-        `Cancel this paid booking?\n${b.renter.display_name} · ${b.property?.title}\n\nA refund request will be sent to the admin team for review.`
-      )
-    )
+    const message = window.prompt(
+      this.language.t('bookingDetail.refundMessagePrompt'),
+      ''
+    );
+    if (message === null) return;
+    if (!message.trim()) {
+      alert(this.language.t('bookingDetail.refundMessageRequired'));
       return;
+    }
     this.actionError.set(null);
     this.isBusy.set(true);
-    this.bookingService.ownerCancelBooking(b.id).subscribe({
+    this.bookingService.ownerCancelBooking(b.id, message).subscribe({
       next: () => {
         this.isBusy.set(false);
         this.load();

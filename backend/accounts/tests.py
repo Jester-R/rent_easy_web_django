@@ -17,6 +17,7 @@ from accounts.telegram_login import (
     verify_telegram_login_code,
 )
 from accounts.console_api import _integration_settings_response
+from accounts.payouts import apply_payout_fields
 from accounts.integration_config import (
     aba_payway_api_key,
     google_oauth_client_id,
@@ -1029,6 +1030,52 @@ class IntegrationConfigTests(TestCase):
         self.assertEqual(telegram_webhook_url(), "https://env.example/webhook/")
         self.assertEqual(telegram_chat_id(), "env-chat")
         self.assertEqual(telegram_login_auth_url(), "https://env.example/login/")
+
+
+class OwnerPayoutMethodTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            email="owner@example.com",
+            username="owner",
+            password="testpass123",
+            role=Role.OWNER,
+        )
+
+    def test_stripe_payout_account_is_saved_and_selected(self):
+        apply_payout_fields(
+            self.owner,
+            {
+                "payout_method": "stripe",
+                "payout_account_name": "Owner Stripe",
+                "payout_account_number": "acct_123",
+            },
+        )
+
+        self.assertEqual(self.owner.payout_method, "stripe")
+        self.assertTrue(self.owner.has_payout_details)
+        self.assertEqual(
+            self.owner.get_payout_account(),
+            {
+                "account_name": "Owner Stripe",
+                "account_number": "acct_123",
+                "bank_name": "Stripe",
+                "phone": "",
+                "note": "",
+            },
+        )
+
+    def test_old_clients_can_still_submit_flat_aba_fields(self):
+        apply_payout_fields(
+            self.owner,
+            {
+                "payout_method": "aba",
+                "payout_account_name": "Owner Bank",
+                "payout_account_number": "000123",
+            },
+        )
+
+        self.assertEqual(self.owner.payout_method, "aba")
+        self.assertEqual(self.owner.get_payout_account()["bank_name"], "ABA Bank")
 
 
 class IntegrationSettingsResponseTests(TestCase):

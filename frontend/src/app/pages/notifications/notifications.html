@@ -5,9 +5,14 @@
       <p class="text-xs text-ink-3 mt-1">{{ language.t('notifications.activityAlertsBookingUpdatesAndMessages') }}</p>
     </div>
     @if (notifications().length > 0) {
-      <button (click)="markAllRead()" class="btn btn-outline btn-sm self-start">
-        {{ language.t('notifications.markAllAsRead') }}
-      </button>
+      <div class="flex gap-2 self-start">
+        <button (click)="markAllRead()" class="btn btn-outline btn-sm">
+          {{ language.t('notifications.markAllAsRead') }}
+        </button>
+        <button (click)="clearAll()" class="btn btn-danger-soft btn-sm">
+          {{ language.t('notifications.clearAll') }}
+        </button>
+      </div>
     }
   </div>
 
@@ -59,12 +64,20 @@
             </div>
           </div>
 
-          <button
-            (click)="$event.stopPropagation(); toggleRead(n.id)"
-            class="shrink-0 self-end rounded-lg px-2 py-1 text-xs font-medium text-ink-3 hover:text-primary sm:self-start"
-          >
-            {{ n.read ? language.t('notifications.markUnread') : language.t('notifications.markRead') }}
-          </button>
+          <div class="flex shrink-0 items-center gap-2 self-end sm:self-start">
+            <button
+              (click)="$event.stopPropagation(); toggleRead(n.id)"
+              class="rounded-lg px-2 py-1 text-xs font-medium text-ink-3 hover:text-primary"
+            >
+              {{ n.read ? language.t('notifications.markUnread') : language.t('notifications.markRead') }}
+            </button>
+            <button
+              (click)="clearOne(n.id, $event)"
+              class="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:text-rose-800"
+            >
+              {{ language.t('notifications.clear') }}
+            </button>
+          </div>
         </div>
       }
     </div>

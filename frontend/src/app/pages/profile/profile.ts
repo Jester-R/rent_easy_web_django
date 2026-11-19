@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
 import { compressImageToFile } from '../../shared/image';
+import { PAYOUT_METHODS, payoutMethodLabel } from '../../shared/ui';
 import type { PayoutAccountDetails } from '../../models';
 
 @Component({
@@ -16,7 +17,11 @@ export class ProfileComponent implements OnInit {
   readonly language = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
+  readonly payoutMethods = PAYOUT_METHODS;
+  readonly payoutMethodLabel = payoutMethodLabel;
   payoutAccounts = signal<Record<string, PayoutAccountDetails>>({});
+  payoutMethod = signal('aba');
+  revealPaymentDetails = signal(false);
 
   successMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
@@ -40,12 +45,15 @@ export class ProfileComponent implements OnInit {
     const user = this.auth.currentUser();
     if (user) {
       const payoutAccounts: Record<string, PayoutAccountDetails> = {};
-      const abaAccount = user.payout_accounts?.['aba'];
-      if (abaAccount) {
-        payoutAccounts['aba'] = { ...abaAccount };
+      for (const method of this.payoutMethods) {
+        const savedAccount = user.payout_accounts?.[method.value];
+        if (savedAccount) {
+          payoutAccounts[method.value] = { ...savedAccount };
+        }
       }
-      if (user.payout_method === 'aba' && !payoutAccounts['aba']) {
-        payoutAccounts[user.payout_method] = {
+      const currentMethod = user.payout_method || 'aba';
+      if (currentMethod && !payoutAccounts[currentMethod]) {
+        payoutAccounts[currentMethod] = {
           account_name: user.payout_account_name || '',
           account_number: user.payout_account_number || '',
           bank_name: user.payout_bank_name || '',
@@ -54,6 +62,11 @@ export class ProfileComponent implements OnInit {
         };
       }
       this.payoutAccounts.set(payoutAccounts);
+      this.payoutMethod.set(
+        this.payoutMethods.some((method) => method.value === currentMethod)
+          ? currentMethod
+          : 'aba',
+      );
       this.form.patchValue({
         full_name: user.full_name,
         username: user.username,
@@ -143,7 +156,7 @@ export class ProfileComponent implements OnInit {
       payload.payment_phone = val.payment_phone || '';
     }
     if (this.auth.isOwner()) {
-      payload['payout_method'] = 'aba';
+      payload['payout_method'] = this.payoutMethod();
       payload['payout_accounts'] = this.payoutAccounts();
     }
     this.auth
@@ -169,11 +182,24 @@ export class ProfileComponent implements OnInit {
       });
   }
 
-  updatePayoutAccount(method: string, field: keyof PayoutAccountDetails, value: string): void {
-    const empty: PayoutAccountDetails = { account_name: '', account_number: '', bank_name: '', phone: '', note: '' };
+  setPayoutMethod(method: string): void {
+    if (!this.payoutMethods.some((option) => option.value === method)) return;
+    this.payoutMethod.set(method);
+    const bankName = method === 'stripe' ? 'Stripe' : 'ABA Bank';
     this.payoutAccounts.update((accounts) => ({
       ...accounts,
-      [method]: { ...(accounts[method] || empty), [field]: value },
+      [method]: { ...(accounts[method] || this.emptyPayoutAccount()), bank_name: bankName },
+    }));
+  }
+
+  private emptyPayoutAccount(): PayoutAccountDetails {
+    return { account_name: '', account_number: '', bank_name: '', phone: '', note: '' };
+  }
+
+  updatePayoutAccount(method: string, field: keyof PayoutAccountDetails, value: string): void {
+    this.payoutAccounts.update((accounts) => ({
+      ...accounts,
+      [method]: { ...(accounts[method] || this.emptyPayoutAccount()), [field]: value },
     }));
   }
 

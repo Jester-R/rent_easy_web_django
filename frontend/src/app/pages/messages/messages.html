@@ -2,6 +2,45 @@
   <div class="mb-4">
     <h1 class="text-2xl font-black text-ink">{{ language.t('messages.messages') }}</h1>
     <p class="text-xs text-ink-3 mt-1">{{ language.t('messages.chatWithRentersAndOwnersAboutAProperty') }}</p>
+    <div class="mt-3 flex flex-wrap gap-2" role="group" [attr.aria-label]="language.t('messages.filterChats')">
+      <button type="button" class="btn btn-xs" [class.btn-primary]="chatType() === 'all'" [class.btn-outline]="chatType() !== 'all'" (click)="changeChatType('all')">
+        {{ language.t('messages.allChats') }}
+      </button>
+      <button type="button" class="btn btn-xs" [class.btn-primary]="chatType() === 'general'" [class.btn-outline]="chatType() !== 'general'" (click)="changeChatType('general')">
+        {{ language.t('messages.generalChats') }}
+      </button>
+      <button type="button" class="btn btn-xs" [class.btn-primary]="chatType() === 'refund'" [class.btn-outline]="chatType() !== 'refund'" (click)="changeChatType('refund')">
+        {{ language.t('messages.refundChats') }}
+      </button>
+    </div>
+    <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <label class="block">
+        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('messages.participant') }}</span>
+        <select class="form-input !h-9 text-xs" [value]="participant()" (change)="changeParticipant($any($event.target).value)">
+          <option value="all">{{ language.t('messages.allParticipants') }}</option>
+          <option value="renter">{{ language.t('messages.renterUser') }}</option>
+          <option value="owner">{{ language.t('messages.owner') }}</option>
+          <option value="admin">{{ language.t('messages.admin') }}</option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('messages.property') }}</span>
+        <input type="text" class="form-input !h-9 text-xs" [value]="propertyQuery()" (change)="propertyQuery.set($any($event.target).value); applyFilters()" [placeholder]="language.t('messages.propertyPlaceholder')" />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('messages.fromDate') }}</span>
+        <input type="date" class="form-input !h-9 text-xs" [value]="dateFrom()" (change)="dateFrom.set($any($event.target).value); applyFilters()" />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('messages.toDate') }}</span>
+        <input type="date" class="form-input !h-9 text-xs" [value]="dateTo()" (change)="dateTo.set($any($event.target).value); applyFilters()" />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ink-3">{{ language.t('messages.search') }}</span>
+        <input type="text" class="form-input !h-9 text-xs" [value]="search()" (change)="search.set($any($event.target).value); applyFilters()" [placeholder]="language.t('messages.searchPlaceholder')" />
+      </label>
+    </div>
+    <button type="button" class="btn btn-ghost btn-xs mt-2" (click)="resetFilters()">{{ language.t('messages.resetFilters') }}</button>
   </div>
 
   @if (isLoading()) {
@@ -34,10 +73,15 @@
           }
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-2">
-              <p class="truncate text-sm font-bold text-ink">{{ c.other_party?.display_name || 'User' }}</p>
+              <p class="truncate text-sm font-bold text-ink">{{ conversationTitle(c) }}</p>
               <span class="shrink-0 text-[10px] text-ink-3">{{ prettyDate(c.last_message_at) }}</span>
             </div>
-            <p class="truncate text-xs text-ink-3">{{ c.property_title }}</p>
+            <p class="truncate text-xs text-ink-3">
+              @if (c.is_refund_support) {
+                <span class="pill pill-pending mr-1.5 !px-2 !py-0.5 !text-[10px]">{{ language.t('messages.refundSupport') }}</span>
+              }
+              {{ c.property_title }}
+            </p>
             <p class="truncate text-xs text-ink-2 mt-0.5">{{ c.last_message || '…' }}</p>
           </div>
           @if (c.unread > 0) {

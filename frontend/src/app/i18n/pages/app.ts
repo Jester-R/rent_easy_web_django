@@ -30,4 +30,6 @@ export const app: PageCatalog = {
   profile: ['Profile', 'ប្រវត្តិរូប'],
   logOut: ['Log out', 'ចាកចេញ'],
   saved: ['Saved', 'បានរក្សាទុក'],
+  alreadyBooked: ['Already Booked', 'បានកក់ហើយ'],
+  paid: ['Paid', 'បានបង់ប្រាក់'],
 };

@@ -46,6 +46,11 @@
           <li class="px-3 py-2 text-[13px] text-ink-3">—</li>
         }
       </ul>
+      @if (hasMoreOptions()) {
+        <div class="border-t border-hairline px-3 py-2 text-[12px] text-ink-3">
+          Type to narrow the list
+        </div>
+      }
     </div>
   }
 </div>

@@ -22,9 +22,18 @@
       @if (messagesSaved()) {
         <p class="toast toast-success" role="status">{{ language.t('consoleNotifications.messagesSaved') }}</p>
       }
+      @if (messagesReset()) {
+        <p class="toast toast-success" role="status">{{ language.t('consoleNotifications.messagesReset') }}</p>
+      }
       @for (message of notificationMessages(); track message.key) {
         <div class="space-y-3 rounded-xl border border-hairline p-3">
-          <h3 class="text-[12px] font-bold">{{ language.current() === 'km' ? message.label_km : message.label_en }}</h3>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-[12px] font-bold">{{ language.current() === 'km' ? message.label_km : message.label_en }}</h3>
+            <button type="button" class="btn btn-ghost btn-sm" [disabled]="isSaving()" (click)="resetNotificationMessage(message.key)" [title]="language.t('consoleNotifications.resetMessage')">
+              <app-icon name="refresh" [size]="14" />
+              <span>{{ language.t('consoleNotifications.resetMessage') }}</span>
+            </button>
+          </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.titleEnglish') }}
               <input class="form-input mt-1" [(ngModel)]="message.title_en" maxlength="500" />

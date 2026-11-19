@@ -1,39 +1,5 @@
 import { Routes } from '@angular/router';
 import { LandingComponent } from './pages/landing/landing';
-import { BrowsePropertiesComponent } from './pages/properties/browse/browse';
-import { PropertyDetailComponent } from './pages/properties/detail/detail';
-import { LoginComponent } from './pages/auth/login/login';
-import { RegisterComponent } from './pages/auth/register/register';
-import { RoleSelectComponent } from './pages/auth/role-select/role-select';
-import { GoogleCallbackComponent } from './pages/auth/google-callback/google-callback';
-import { ProfileComponent } from './pages/profile/profile';
-import { SettingsComponent } from './pages/settings/settings';
-import { MessagesComponent } from './pages/messages/messages';
-import { ChatThreadComponent } from './pages/messages/thread';
-import { RenterDashboardComponent } from './pages/dashboards/renter/renter-dashboard';
-import { RenterBookingsComponent } from './pages/bookings/renter-bookings/renter-bookings';
-import { RenterFavoritesComponent } from './pages/favorites/favorites';
-import { RenterPaymentsComponent } from './pages/payments/renter-payments/renter-payments';
-import { OwnerDashboardComponent } from './pages/dashboards/owner/owner-dashboard';
-import { OwnerPropertiesComponent } from './pages/properties/owner-list/owner-list';
-import { OwnerPropertyFormComponent } from './pages/properties/owner-form/owner-form';
-import { OwnerBookingsComponent } from './pages/bookings/owner-bookings/owner-bookings';
-import { BookingDetailComponent } from './pages/bookings/detail/booking-detail';
-import { OwnerPaymentsComponent } from './pages/payments/owner-payments/owner-payments';
-import { NotificationsComponent } from './pages/notifications/notifications';
-import { ConsoleDashboardComponent } from './pages/console/console-dashboard';
-import { ConsoleUsersComponent } from './pages/console/users/console-users';
-import { ConsoleUserFormComponent } from './pages/console/user-form/console-user-form';
-import { ConsolePropertiesComponent } from './pages/console/properties/console-properties';
-import { ConsoleBookingsComponent } from './pages/console/bookings/console-bookings';
-import { ConsolePaymentsComponent } from './pages/console/payments/console-payments';
-import { ConsoleSettingsComponent } from './pages/console/settings/console-settings';
-import { ConsoleNotificationsComponent } from './pages/console/notifications/console-notifications';
-import { ConsoleSessionsComponent } from './pages/console/sessions/console-sessions';
-import { ConsoleAuditComponent } from './pages/console/audit/console-audit';
-import { PaymentDetailComponent } from './pages/payments/detail/payment-detail';
-import { DeniedComponent } from './pages/auth/denied/denied';
-import { NotFoundComponent } from './pages/errors/not-found/not-found';
 import {
   adminGuard,
   authGuard,
@@ -45,54 +11,227 @@ import {
 
 export const routes: Routes = [
   { path: '', component: LandingComponent, pathMatch: 'full' },
-  { path: 'browse', component: BrowsePropertiesComponent },
-  { path: 'properties/:id', component: PropertyDetailComponent },
-  { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
-  { path: 'register', component: RegisterComponent, canActivate: [guestGuard] },
-  { path: 'role-select', component: RoleSelectComponent, canActivate: [guestGuard] },
-  { path: 'auth/google/callback', component: GoogleCallbackComponent },
-  { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
-  { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
-  { path: 'messages', component: MessagesComponent, canActivate: [authGuard] },
-  { path: 'messages/:id', component: ChatThreadComponent, canActivate: [authGuard] },
-  { path: 'denied', component: DeniedComponent },
-  { path: 'not-found', component: NotFoundComponent },
+  {
+    path: 'browse',
+    loadComponent: () => import('./pages/properties/browse/browse').then((m) => m.BrowsePropertiesComponent),
+  },
+  {
+    path: 'properties/:id',
+    loadComponent: () => import('./pages/properties/detail/detail').then((m) => m.PropertyDetailComponent),
+  },
+  {
+    path: 'login',
+    loadComponent: () => import('./pages/auth/login/login').then((m) => m.LoginComponent),
+    canActivate: [guestGuard],
+  },
+  {
+    path: 'register',
+    loadComponent: () => import('./pages/auth/register/register').then((m) => m.RegisterComponent),
+    canActivate: [guestGuard],
+  },
+  {
+    path: 'role-select',
+    loadComponent: () => import('./pages/auth/role-select/role-select').then((m) => m.RoleSelectComponent),
+    canActivate: [guestGuard],
+  },
+  {
+    path: 'auth/google/callback',
+    loadComponent: () => import('./pages/auth/google-callback/google-callback').then((m) => m.GoogleCallbackComponent),
+  },
+  {
+    path: 'profile',
+    loadComponent: () => import('./pages/profile/profile').then((m) => m.ProfileComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'settings',
+    loadComponent: () => import('./pages/settings/settings').then((m) => m.SettingsComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'messages',
+    loadComponent: () => import('./pages/messages/messages').then((m) => m.MessagesComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'messages/:id',
+    loadComponent: () => import('./pages/messages/thread').then((m) => m.ChatThreadComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'denied',
+    loadComponent: () => import('./pages/auth/denied/denied').then((m) => m.DeniedComponent),
+  },
+  {
+    path: 'not-found',
+    loadComponent: () => import('./pages/errors/not-found/not-found').then((m) => m.NotFoundComponent),
+  },
 
   // Renter
-  { path: 'renter', component: RenterDashboardComponent, canActivate: [renterGuard] },
-  { path: 'rent', component: RenterDashboardComponent, canActivate: [renterGuard] },
-  { path: 'bookings', component: RenterBookingsComponent, canActivate: [renterGuard] },
-  { path: 'rent/bookings', component: RenterBookingsComponent, canActivate: [renterGuard] },
-  { path: 'bookings/:id', component: BookingDetailComponent, canActivate: [renterGuard] },
-  { path: 'rent/bookings/:id', component: BookingDetailComponent, canActivate: [renterGuard] },
-  { path: 'favorites', component: RenterFavoritesComponent, canActivate: [renterGuard] },
-  { path: 'payments', component: RenterPaymentsComponent, canActivate: [renterGuard] },
+  {
+    path: 'renter',
+    loadComponent: () => import('./pages/dashboards/renter/renter-dashboard').then((m) => m.RenterDashboardComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'rent',
+    loadComponent: () => import('./pages/dashboards/renter/renter-dashboard').then((m) => m.RenterDashboardComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'bookings',
+    loadComponent: () => import('./pages/bookings/renter-bookings/renter-bookings').then((m) => m.RenterBookingsComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'rent/bookings',
+    loadComponent: () => import('./pages/bookings/renter-bookings/renter-bookings').then((m) => m.RenterBookingsComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'bookings/:id',
+    loadComponent: () => import('./pages/bookings/detail/booking-detail').then((m) => m.BookingDetailComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'rent/bookings/:id',
+    loadComponent: () => import('./pages/bookings/detail/booking-detail').then((m) => m.BookingDetailComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'favorites',
+    loadComponent: () => import('./pages/favorites/favorites').then((m) => m.RenterFavoritesComponent),
+    canActivate: [renterGuard],
+  },
+  {
+    path: 'payments',
+    loadComponent: () => import('./pages/payments/renter-payments/renter-payments').then((m) => m.RenterPaymentsComponent),
+    canActivate: [renterGuard],
+  },
 
   // Owner
-  { path: 'owner', component: OwnerDashboardComponent, canActivate: [ownerGuard] },
-  { path: 'owner/properties', component: OwnerPropertiesComponent, canActivate: [ownerGuard] },
-  { path: 'owner/properties/new', component: OwnerPropertyFormComponent, canActivate: [ownerGuard] },
-  { path: 'owner/properties/:id/edit', component: OwnerPropertyFormComponent, canActivate: [ownerGuard] },
-  { path: 'owner/bookings', component: OwnerBookingsComponent, canActivate: [ownerGuard] },
-  { path: 'owner/bookings/:id', component: BookingDetailComponent, canActivate: [ownerGuard] },
-  { path: 'owner/payments', component: OwnerPaymentsComponent, canActivate: [ownerGuard] },
+  {
+    path: 'owner',
+    loadComponent: () => import('./pages/dashboards/owner/owner-dashboard').then((m) => m.OwnerDashboardComponent),
+    canActivate: [ownerGuard],
+  },
+  {
+    path: 'owner/properties',
+    loadComponent: () => import('./pages/properties/owner-list/owner-list').then((m) => m.OwnerPropertiesComponent),
+    canActivate: [ownerGuard],
+  },
+  {
+    path: 'owner/properties/new',
+    loadComponent: () => import('./pages/properties/owner-form/owner-form').then((m) => m.OwnerPropertyFormComponent),
+    canActivate: [ownerGuard],
+  },
+  {
+    path: 'owner/properties/:id/edit',
+    loadComponent: () => import('./pages/properties/owner-form/owner-form').then((m) => m.OwnerPropertyFormComponent),
+    canActivate: [ownerGuard],
+  },
+  {
+    path: 'owner/bookings',
+    loadComponent: () => import('./pages/bookings/owner-bookings/owner-bookings').then((m) => m.OwnerBookingsComponent),
+    canActivate: [ownerGuard],
+  },
+  {
+    path: 'owner/bookings/:id',
+    loadComponent: () => import('./pages/bookings/detail/booking-detail').then((m) => m.BookingDetailComponent),
+    canActivate: [ownerGuard],
+  },
+  {
+    path: 'owner/payments',
+    loadComponent: () => import('./pages/payments/owner-payments/owner-payments').then((m) => m.OwnerPaymentsComponent),
+    canActivate: [ownerGuard],
+  },
 
   // Shared payment detail (renter or owner audience)
-  { path: 'payments/:id', component: PaymentDetailComponent, canActivate: [authGuard] },
+  {
+    path: 'payments/:id',
+    loadComponent: () => import('./pages/payments/detail/payment-detail').then((m) => m.PaymentDetailComponent),
+    canActivate: [authGuard],
+  },
 
   // Notifications & Console
-  { path: 'notifications', component: NotificationsComponent, canActivate: [authGuard] },
-  { path: 'console', component: ConsoleDashboardComponent, canActivate: [adminGuard] },
-  { path: 'console/users', component: ConsoleUsersComponent, canActivate: [adminGuard] },
-  { path: 'console/users/new', component: ConsoleUserFormComponent, canActivate: [adminGuard] },
-  { path: 'console/users/:id/edit', component: ConsoleUserFormComponent, canActivate: [adminGuard] },
-  { path: 'console/properties', component: ConsolePropertiesComponent, canActivate: [adminGuard] },
-  { path: 'console/bookings', component: ConsoleBookingsComponent, canActivate: [adminGuard] },
-  { path: 'console/payments', component: ConsolePaymentsComponent, canActivate: [adminGuard] },
-  { path: 'console/notifications', component: ConsoleNotificationsComponent, canActivate: [adminGuard] },
-  { path: 'console/settings', component: ConsoleSettingsComponent, canActivate: [adminGuard] },
-  { path: 'console/sessions', component: ConsoleSessionsComponent, canActivate: [superadminGuard] },
-  { path: 'console/audit-logs', component: ConsoleAuditComponent, canActivate: [superadminGuard] },
+  {
+    path: 'notifications',
+    loadComponent: () => import('./pages/notifications/notifications').then((m) => m.NotificationsComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'console',
+    loadComponent: () => import('./pages/console/console-dashboard').then((m) => m.ConsoleDashboardComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/users',
+    loadComponent: () => import('./pages/console/users/console-users').then((m) => m.ConsoleUsersComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/users/new',
+    loadComponent: () => import('./pages/console/user-form/console-user-form').then((m) => m.ConsoleUserFormComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/properties',
+    loadComponent: () => import('./pages/console/properties/console-properties').then((m) => m.ConsolePropertiesComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/bookings',
+    loadComponent: () => import('./pages/console/bookings/console-bookings').then((m) => m.ConsoleBookingsComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/payments/payouts',
+    loadComponent: () => import('./pages/console/payments/console-payments').then((m) => m.ConsolePaymentsComponent),
+    data: { section: 'payouts' },
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/payments/refunds',
+    loadComponent: () => import('./pages/console/payments/console-payments').then((m) => m.ConsolePaymentsComponent),
+    data: { section: 'refunds' },
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/payments/settings',
+    loadComponent: () => import('./pages/console/payments/console-payments').then((m) => m.ConsolePaymentsComponent),
+    data: { section: 'settings' },
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/payments',
+    loadComponent: () => import('./pages/console/payments/console-payments').then((m) => m.ConsolePaymentsComponent),
+    data: { section: 'payments' },
+    pathMatch: 'full',
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/notifications',
+    loadComponent: () => import('./pages/console/notifications/console-notifications').then((m) => m.ConsoleNotificationsComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/settings',
+    loadComponent: () => import('./pages/console/settings/console-settings').then((m) => m.ConsoleSettingsComponent),
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'console/sessions',
+    loadComponent: () => import('./pages/console/sessions/console-sessions').then((m) => m.ConsoleSessionsComponent),
+    canActivate: [superadminGuard],
+  },
+  {
+    path: 'console/audit-logs',
+    loadComponent: () => import('./pages/console/audit/console-audit').then((m) => m.ConsoleAuditComponent),
+    canActivate: [superadminGuard],
+  },
 
-  { path: '**', component: NotFoundComponent },
+  {
+    path: '**',
+    loadComponent: () => import('./pages/errors/not-found/not-found').then((m) => m.NotFoundComponent),
+  },
 ];

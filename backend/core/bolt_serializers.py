@@ -15,11 +15,13 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from django.db.models import Prefetch
 from django.utils import timezone
 from django_bolt.serializers import Serializer, computed_field, field, field_validator
 from django_bolt.serializers.loading import LoadingPlan
 
-from bookings.models import ACTIVE_STATUSES, VALID_TRANSITIONS
+from bookings.models import ACTIVE_STATUSES
+from payments.models import Refund
 
 
 def _iso(value):
@@ -113,6 +115,8 @@ class UserSerializer(UserBriefSerializer):
 class PropertySerializer(Serializer):
     id: int
     is_active: bool
+    owner_status: str = "available"
+    rental_closed_at: str | None = None
     title: str
     title_km: str = ""
     province: str = ""
@@ -140,6 +144,8 @@ class PropertySerializer(Serializer):
     owner_id: int
     created_at: str
     updated_at: str
+    has_active_booking: bool = False
+    has_paid_booking: bool = False
 
     @field_validator("price_per_month")
     def _price(cls, value):
@@ -151,6 +157,10 @@ class PropertySerializer(Serializer):
 
     @field_validator("updated_at")
     def _update(cls, value):
+        return _iso(value)
+
+    @field_validator("rental_closed_at")
+    def _rental_closed(cls, value):
         return _iso(value)
 
 
@@ -179,6 +189,12 @@ class BookingSerializer(Serializer):
     payment_id: int | None = None
     payout_status: str = ""
     payout_available_at: str | None = None
+    refund_state: str = ""
+    refund_id: int | None = None
+    refund_status: str = ""
+    refund_conversation_id: int | None = None
+    renter_refund_conversation_id: int | None = None
+    owner_refund_conversation_id: int | None = None
     created_at: str
     approved_at: str | None = None
     rejected_at: str | None = None
@@ -198,7 +214,12 @@ class BookingSerializer(Serializer):
         )
         return LoadingPlan(
             select_related=select_related,
-            prefetch=plan.prefetch,
+            prefetch=(
+                *plan.prefetch,
+                Prefetch(
+                    "refunds", queryset=Refund.objects.prefetch_related("conversations")
+                ),
+            ),
             annotations=plan.annotations,
         )
 
@@ -213,6 +234,11 @@ class BookingSerializer(Serializer):
             super()
             ._prepare_queryset(queryset)
             .select_related("payment", "payment__payout")
+            .prefetch_related(
+                Prefetch(
+                    "refunds", queryset=Refund.objects.prefetch_related("conversations")
+                )
+            )
         )
 
     @field_validator("monthly_rent")
@@ -252,20 +278,6 @@ class BookingSerializer(Serializer):
         return self.status in ACTIVE_STATUSES
 
     @computed_field
-    def can_approve(self) -> bool:
-        return "Approved" in VALID_TRANSITIONS.get(self.status, ())
-
-    @computed_field
-    def can_reject(self) -> bool:
-        if "Rejected" not in VALID_TRANSITIONS.get(self.status, ()):
-            return False
-        if self.payment_id and self.payout_status == "Scheduled":
-            return not _past(self.payout_available_at)
-        if self.payment_id:
-            return self.payout_status in ("", "Scheduled")
-        return True
-
-    @computed_field
     def can_cancel(self) -> bool:
         if self.status == "Pending" and not self.payment_id:
             return True
@@ -273,6 +285,22 @@ class BookingSerializer(Serializer):
             self.status not in ("Pending", "Approved", "Confirmed")
             or not self.payment_id
         ):
+            return False
+        if self.refund_state == "Refunding":
+            return False
+        if not self.payout_status:
+            return True  # legacy payment row without a payout
+        return self.payout_status == "Scheduled" and not _past(self.payout_available_at)
+
+    @computed_field
+    def can_owner_cancel(self) -> bool:
+        """Owners can only cancel after the renter has paid."""
+        if (
+            not self.payment_id
+            or self.status not in ("Pending", "Approved", "Confirmed")
+        ):
+            return False
+        if self.refund_state == "Refunding":
             return False
         if not self.payout_status:
             return True  # legacy payment row without a payout
@@ -293,6 +321,8 @@ class PaymentSerializer(Serializer):
     refunded_display: str
     method: str
     status: str
+    display_status: str = ""
+    refund_state: str = ""
     provider: str = "mock"
     provider_ref: str = ""
     paid_at: str | None = None
@@ -308,6 +338,19 @@ class PaymentSerializer(Serializer):
     user_id: int
     created_at: str
     refunded_at: str | None = None
+
+    @classmethod
+    def loading_plan(cls, model_cls):
+        plan = super().loading_plan(model_cls)
+        return LoadingPlan(
+            select_related=plan.select_related,
+            prefetch=(*plan.prefetch, "refunds"),
+            annotations=plan.annotations,
+        )
+
+    @classmethod
+    def _prepare_queryset(cls, queryset):
+        return super()._prepare_queryset(queryset).prefetch_related("refunds")
 
     @field_validator("amount")
     def _amount(cls, value):
@@ -330,6 +373,20 @@ class PaymentSerializer(Serializer):
         return _iso(value)
 
 
+class RefundMessageSerializer(Serializer):
+    id: int
+    refund_id: int
+    sender: UserBriefSerializer | None = None
+    sender_id: int | None = None
+    body: str
+    created_at: str
+    is_from_admin: bool = False
+
+    @field_validator("created_at")
+    def _create(cls, value):
+        return _iso(value)
+
+
 class RefundSerializer(Serializer):
     id: int
     reference: str
@@ -340,6 +397,14 @@ class RefundSerializer(Serializer):
     note: str
     request_note: str = ""
     requested_by: UserBriefSerializer | None = None
+    commission_rate: float = 0
+    commission_due: float = 0
+    commission_due_display: str = ""
+    commission_paid: bool = False
+    messages: list[RefundMessageSerializer] = []
+    conversation_id: int | None = field(source="chat_conversation_id", default=None)
+    renter_conversation_id: int | None = None
+    owner_conversation_id: int | None = None
     payment_id: int
     booking_id: int
     payment: PaymentSerializer
@@ -349,6 +414,36 @@ class RefundSerializer(Serializer):
     @field_validator("amount")
     def _amount(cls, value):
         return _num(value)
+
+    @field_validator("commission_rate")
+    def _commission_rate(cls, value):
+        return _num(value)
+
+    @field_validator("commission_due")
+    def _commission_due(cls, value):
+        return _num(value)
+
+    @classmethod
+    def loading_plan(cls, model_cls):
+        plan = super().loading_plan(model_cls)
+        return LoadingPlan(
+            select_related=plan.select_related,
+            prefetch=(
+                *plan.prefetch,
+                "conversations",
+                "messages",
+                "messages__sender",
+            ),
+            annotations=plan.annotations,
+        )
+
+    @classmethod
+    def _prepare_queryset(cls, queryset):
+        return (
+            super()
+            ._prepare_queryset(queryset)
+            .prefetch_related("conversations", "messages", "messages__sender")
+        )
 
     @field_validator("created_at")
     def _create(cls, value):
@@ -425,10 +520,52 @@ class ConversationSerializer(Serializer):
     property_id: int
     property_title: str = ""
     property_cover: str = ""
+    property_is_active: bool = False
     renter_id: int
     owner_id: int
+    renter: UserBriefSerializer | None = None
+    owner: UserBriefSerializer | None = None
+    refund_id: int | None = None
+    refund_reference: str = ""
+    refund_status: str = ""
+    refund_party: str = ""
+    refund_label: str = ""
+    refund_payment_id: int | None = None
+    is_refund_support: bool = False
     created_at: str
     updated_at: str
+
+    @classmethod
+    def loading_plan(cls, model_cls):
+        plan = super().loading_plan(model_cls)
+        return LoadingPlan(
+            select_related=tuple(
+                dict.fromkeys(
+                    (
+                        *plan.select_related,
+                        "property",
+                        "renter",
+                        "owner",
+                        "refund",
+                        "refund_participant",
+                        "support_admin",
+                    )
+                )
+            ),
+            prefetch=plan.prefetch,
+            annotations=plan.annotations,
+        )
+
+    @classmethod
+    def _prepare_queryset(cls, queryset):
+        return super()._prepare_queryset(queryset).select_related(
+            "property",
+            "renter",
+            "owner",
+            "refund",
+            "refund_participant",
+            "support_admin",
+        )
 
     @field_validator("created_at")
     def _create(cls, value):
@@ -535,6 +672,18 @@ def _needs_plan_reload(instance, plan) -> bool:
             if not _hop_loaded(cur, part):
                 return True
             cur = _hop_value(cur, part)
+    prefetch_cache = getattr(instance, "_prefetched_objects_cache", None) or {}
+    for lookup in plan.prefetch:
+        path = (
+            lookup
+            if isinstance(lookup, str)
+            else str(
+                getattr(lookup, "prefetch_through", None)
+                or getattr(lookup, "lookup", "")
+            )
+        )
+        if not path or path.split("__", 1)[0] not in prefetch_cache:
+            return True
     for name in plan.annotations:
         if name not in instance.__dict__:
             return True

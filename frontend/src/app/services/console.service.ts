@@ -44,6 +44,14 @@ export class ConsoleService {
     );
   }
 
+  resetNotificationMessage(key: string): Observable<{ settings: ConsoleSettings }> {
+    return this.http.post<{ settings: ConsoleSettings }>(
+      `${this.base}/settings/reset-notification/`,
+      { key },
+      this.opts
+    );
+  }
+
   registerTelegramWebhook(): Observable<{
     ok: boolean;
     url: string;
@@ -93,16 +101,8 @@ export class ConsoleService {
     return this.http.post<{ user: User }>(`${this.base}/users/${id}/reject/`, {}, this.opts);
   }
 
-  getUser(id: number): Observable<{ user: User }> {
-    return this.http.get<{ user: User }>(`${this.base}/users/${id}/`, this.opts);
-  }
-
   createUser(data: Record<string, unknown>): Observable<{ user: User }> {
     return this.http.post<{ user: User }>(`${this.base}/users/new/`, data, this.opts);
-  }
-
-  updateUser(id: number, data: Record<string, unknown>): Observable<{ user: User }> {
-    return this.http.post<{ user: User }>(`${this.base}/users/${id}/edit/`, data, this.opts);
   }
 
   deleteUser(id: number): Observable<{ ok: boolean; deleted: number }> {
@@ -216,6 +216,14 @@ export class ConsoleService {
     );
   }
 
+  restoreProperty(id: number): Observable<{ ok: boolean; restored: number; is_active: boolean }> {
+    return this.http.post<{ ok: boolean; restored: number; is_active: boolean }>(
+      `${this.base}/properties/${id}/restore/`,
+      {},
+      this.opts
+    );
+  }
+
   /* ------------------------------- bookings ------------------------------- */
 
   getBookings(filters?: { q?: string; status?: string; page?: number; page_size?: number }): Observable<ConsoleBookingsResponse> {
@@ -261,6 +269,27 @@ export class ConsoleService {
 
   createRefund(data: { payment: number; reason?: string }): Observable<{ refund: Refund }> {
     return this.http.post<{ refund: Refund }>(`${this.base}/refunds/new/`, data, this.opts);
+  }
+
+  acceptRefund(
+    id: number,
+    options?: { note?: string; commission_paid?: boolean }
+  ): Observable<{ ok: boolean; refund: Refund }> {
+    return this.http.post<{ ok: boolean; refund: Refund }>(
+      `${this.base}/refunds/${id}/accept/`,
+      options ?? {},
+      this.opts
+    );
+  }
+
+  markRefundCommissionPaid(
+    id: number
+  ): Observable<{ ok: boolean; refund: Refund }> {
+    return this.http.post<{ ok: boolean; refund: Refund }>(
+      `${this.base}/refunds/${id}/commission-paid/`,
+      {},
+      this.opts
+    );
   }
 
   processRefund(

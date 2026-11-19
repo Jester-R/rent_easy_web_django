@@ -7,7 +7,7 @@ from django_bolt.exceptions import HTTPException
 
 from core.bolt import body_str
 
-PAYOUT_METHOD_VALUES = {"aba"}
+PAYOUT_METHOD_VALUES = {"aba", "stripe"}
 
 PAYOUT_KEYS = (
     "payout_method",
@@ -82,6 +82,8 @@ def apply_payout_fields(user, data: dict) -> None:
     if user.payout_method:
         if user.payout_method == "aba":
             account["bank_name"] = "ABA Bank"
+        elif user.payout_method == "stripe":
+            account["bank_name"] = "Stripe"
         user.payout_accounts = {
             **(user.payout_accounts if isinstance(user.payout_accounts, dict) else {}),
             user.payout_method: account,

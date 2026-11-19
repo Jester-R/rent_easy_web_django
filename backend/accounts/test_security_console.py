@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -9,10 +10,17 @@ from django.utils import timezone
 from accounts.console_api import (
     audit_logs_export,
     audit_logs_list,
+    notification_message_reset,
+    property_restore,
+    refund_create,
     sessions_export,
     sessions_list,
 )
-from accounts.models import AuditLog, LoginSession, Role, User
+from accounts.models import AuditLog, LoginSession, PlatformSettings, Role, User
+from bookings.models import Booking
+from notifications.default_messages import DEFAULT_NOTIFICATION_MESSAGES
+from listings.models import Property
+from payments.models import Payment, Refund
 from accounts.session_tracking import (
     end_login_session,
     extract_client_ip,
@@ -250,3 +258,169 @@ class SecurityConsoleEndpointTests(TestCase):
         self.assertIn("Time,Actor,Actor email,Action", body)
         self.assertIn("status changed", body)
         self.assertIn("booking", body)
+
+
+class ConsolePropertyRestoreTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="admin-restore@example.com",
+            username="adminrestore",
+            password="secret123",
+            role=Role.SUPERADMIN,
+        )
+        self.owner = User.objects.create_user(
+            email="owner-restore@example.com",
+            username="ownerrestore",
+            password="secret123",
+            role=Role.OWNER,
+        )
+        self.property = Property.objects.create(
+            owner=self.owner,
+            title="Restorable villa",
+            location="Siem Reap",
+            price_per_month=500,
+            is_active=False,
+        )
+
+    async def test_restore_returns_removed_property_to_browsing(self):
+        request = MockRequest()
+        request.user = self.admin
+        request.params = {"pk": str(self.property.pk)}
+
+        response = await property_restore(request)
+
+        self.assertEqual(response, {"ok": True, "restored": self.property.pk, "is_active": True})
+        await self.property.arefresh_from_db()
+        self.assertTrue(self.property.is_active)
+        self.assertTrue(
+            await AuditLog.objects.filter(
+                actor=self.admin,
+                action=AuditLog.Action.STATUS,
+                entity="property",
+                entity_id=str(self.property.pk),
+                summary__contains="restored",
+            ).aexists()
+        )
+
+    async def test_restore_is_idempotent_for_active_property(self):
+        self.property.is_active = True
+        await self.property.asave(update_fields=["is_active"])
+        request = MockRequest()
+        request.user = self.admin
+        request.params = {"pk": str(self.property.pk)}
+
+        response = await property_restore(request)
+
+        self.assertEqual(response, {"ok": True, "restored": self.property.pk, "is_active": True})
+        self.assertEqual(
+            await AuditLog.objects.filter(entity="property", entity_id=str(self.property.pk)).acount(),
+            0,
+        )
+
+
+class ConsoleNotificationMessageResetTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="admin-notifications@example.com",
+            username="adminnotifications",
+            password="secret123",
+            role=Role.SUPERADMIN,
+        )
+
+    async def test_reset_restores_only_the_requested_message(self):
+        configured = deepcopy(DEFAULT_NOTIFICATION_MESSAGES)
+        configured[0]["body_en"] = "Broken message without parameters"
+        configured[1]["title_en"] = "Custom second title"
+        platform, _ = await PlatformSettings.objects.aget_or_create(pk=1)
+        platform.notification_messages = configured
+        await platform.asave(update_fields=["notification_messages"])
+
+        request = MockRequest()
+        request.user = self.admin
+        request.body = b'{"key": "notif_new_request"}'
+
+        response = await notification_message_reset(request)
+
+        messages = response["settings"]["notification_messages"]
+        self.assertEqual(messages[0], DEFAULT_NOTIFICATION_MESSAGES[0])
+        self.assertEqual(messages[1]["title_en"], "Custom second title")
+        await platform.arefresh_from_db()
+        self.assertEqual(platform.notification_messages[0], DEFAULT_NOTIFICATION_MESSAGES[0])
+        self.assertEqual(platform.notification_messages[1]["title_en"], "Custom second title")
+        self.assertTrue(
+            await AuditLog.objects.filter(
+                actor=self.admin,
+                action=AuditLog.Action.UPDATE,
+                entity="settings",
+                summary__contains="notif_new_request",
+            ).aexists()
+        )
+
+    async def test_reset_rejects_unknown_key(self):
+        request = MockRequest()
+        request.user = self.admin
+        request.body = b'{"key": "not_a_real_key"}'
+
+        with self.assertRaises(Exception) as context:
+            await notification_message_reset(request)
+
+        self.assertEqual(getattr(context.exception, "status_code", None), 422)
+
+
+class ConsoleRefundCreateTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="staff-admin@example.com",
+            username="staffadmin",
+            password="secret123",
+            role=Role.RENTER,
+            is_staff=True,
+        )
+        self.owner = User.objects.create_user(
+            email="refund-owner@example.com",
+            username="refundowner",
+            password="secret123",
+            role=Role.OWNER,
+        )
+        self.renter = User.objects.create_user(
+            email="refund-renter@example.com",
+            username="refundrenter",
+            password="secret123",
+            role=Role.RENTER,
+        )
+        self.property = Property.objects.create(
+            owner=self.owner,
+            title="Refundable villa",
+            location="Phnom Penh",
+            price_per_month=400,
+        )
+        self.booking = Booking.objects.create(
+            property=self.property,
+            renter=self.renter,
+            owner=self.owner,
+            monthly_rent=400,
+        )
+        self.payment = Payment.objects.create(
+            property=self.property,
+            user=self.renter,
+            booking=self.booking,
+            amount=400,
+        )
+
+    async def test_staff_admin_can_issue_refund(self):
+        request = MockRequest()
+        request.user = self.admin
+        request.body = f'{{"payment": {self.payment.pk}, "reason": "other"}}'.encode()
+
+        with (
+            patch("accounts.console_api.notify_refund_team", return_value=None),
+            patch("accounts.console_api.cancel_payout_for_payment", return_value=None),
+        ):
+            response = await refund_create(request)
+
+        self.assertEqual(response["refund"]["status"], Refund.Status.PENDING)
+        await self.payment.arefresh_from_db()
+        self.assertEqual(self.payment.refund_status, Payment.RefundStatus.PENDING)
+        self.assertTrue(
+            await Refund.objects.filter(payment=self.payment, requested_by=self.admin).aexists()
+        )

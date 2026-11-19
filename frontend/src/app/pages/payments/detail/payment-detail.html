@@ -45,20 +45,15 @@
           <div class="flex items-start gap-2.5">
             <app-icon name="user" [size]="16" />
             <dt class="w-28 shrink-0 text-ink-3">{{ language.t('paymentDetail.user') }}</dt>
-            <dd class="flex-1 truncate font-bold">{{ p.user.display_name }} <span class="font-normal text-ink-3">#{{ p.user_id }}</span></dd>
+            <dd class="flex-1 truncate font-bold">{{ p.user.display_name }}</dd>
           </div>
           @if (p.property) {
             <div class="flex items-start gap-2.5">
               <app-icon name="store" [size]="16" />
               <dt class="w-28 shrink-0 text-ink-3">{{ language.t('paymentDetail.owner') }}</dt>
-              <dd class="flex-1 truncate font-bold">{{ p.property.owner.display_name }} <span class="font-normal text-ink-3">#{{ p.property.owner_id }}</span></dd>
+              <dd class="flex-1 truncate font-bold">{{ p.property.owner.display_name }}</dd>
             </div>
           }
-          <div class="flex items-start gap-2.5">
-            <app-icon name="clipboard" [size]="16" />
-            <dt class="w-28 shrink-0 text-ink-3">{{ language.t('paymentDetail.booking') }}</dt>
-            <dd class="flex-1 font-bold">{{ p.booking_id ? '#' + p.booking_id : language.t('paymentDetail.notSet') }}</dd>
-          </div>
           <div class="flex items-start gap-2.5">
             <app-icon name="clock" [size]="16" />
             <dt class="w-28 shrink-0 text-ink-3">{{ language.t('paymentDetail.created') }}</dt>
@@ -180,6 +175,35 @@
             }
             @if (audience() === 'owner' && refund()?.status === 'Pending') {
               <p class="mt-2.5 text-[12px] text-ink-3">{{ language.t('ownerPayments.adminWillNotifyYouWhenReviewed') }}</p>
+            }
+            @if (refund(); as r) {
+              @if (r.status === 'Accepted' || r.status === 'Processed') {
+                @if (audience() === 'owner') {
+                  @if (r.owner_conversation_id) {
+                    <a [routerLink]="['/messages', r.owner_conversation_id]" class="btn btn-outline btn-xs mt-3">
+                      <app-icon name="chat" [size]="14" />
+                      <span>{{ language.t('paymentDetail.openRefundChat') }}</span>
+                    </a>
+                  } @else {
+                    <button type="button" class="btn btn-outline btn-xs mt-3" [disabled]="isOpeningChat()" (click)="openRefundChat(r.id)">
+                      <app-icon name="chat" [size]="14" />
+                      <span>{{ language.t('paymentDetail.openRefundChat') }}</span>
+                    </button>
+                  }
+                } @else {
+                  @if (r.renter_conversation_id) {
+                    <a [routerLink]="['/messages', r.renter_conversation_id]" class="btn btn-outline btn-xs mt-3">
+                      <app-icon name="chat" [size]="14" />
+                      <span>{{ language.t('paymentDetail.openRefundChat') }}</span>
+                    </a>
+                  } @else {
+                    <button type="button" class="btn btn-outline btn-xs mt-3" [disabled]="isOpeningChat()" (click)="openRefundChat(r.id)">
+                      <app-icon name="chat" [size]="14" />
+                      <span>{{ language.t('paymentDetail.openRefundChat') }}</span>
+                    </button>
+                  }
+                }
+              }
             }
           </div>
         </section>

@@ -53,4 +53,9 @@ export const paymentDetail: PageCatalog = {
     'Could not submit the refund request. Please try again.',
     'មិនអាចដាក់សំណើសងប្រាក់វិញបានទេ។ សូមព្យាយាមម្តងទៀត។',
   ],
+  messageAdmin: ['Message admin', 'ផ្ញើសារទៅអ្នកគ្រប់គ្រង'],
+  refundMessagePrompt: ['Message about this refund request:', 'សារអំពីសំណើសងប្រាក់នេះ:'],
+  refundMessages: ['Conversation', 'ការសន្ទនា'],
+  noRefundMessages: ['No messages yet', 'មិនទាន់មានសារទេ'],
+  openRefundChat: ['Chat admin', 'ជជែកជាមួយអ្នកគ្រប់គ្រង'],
 };

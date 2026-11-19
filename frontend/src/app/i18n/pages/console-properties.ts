@@ -37,8 +37,10 @@ export const consoleProperties: PageCatalog = {
   view: ['View', 'មើល'],
   viewProperty: ['View property', 'មើលអចលនទ្រព្យ'],
   removeListing: ['Remove listing', 'លាក់ការចុះផ្សាយ'],
-  retained: ['Retained', 'បានរក្សាទុក'],
-  removeFromBrowsing: ['Remove “{title}” from renter browsing? The record will be retained.', 'តើលាក់ “{title}” ពីអ្នកជួលមែនទេ? ទិន្នន័យនឹងនៅតែរក្សាទុក។'],
+  restoreListing: ['Restore listing', 'ស្តារការចុះផ្សាយឡើងវិញ'],
+  removeFromBrowsing: ['Remove “{title}” from renter browsing? The record will be retained and can be restored.', 'តើលាក់ “{title}” ពីអ្នកជួលមែនទេ? ទិន្នន័យនឹងនៅតែរក្សាទុក និងអាចស្តារឡើងវិញបាន។'],
+  restoreToBrowsing: ['Restore “{title}” to renter browsing?', 'តើស្តារ “{title}” ទៅកាន់ការជួលឡើងវិញទេ?'],
   couldNotLoadProperties: ['Could not load properties.', 'មិនអាចផ្ទុកបញ្ជីអចលនទ្រព្យបានទេ។'],
   couldNotRemoveThisListing: ['Could not remove this listing.', 'មិនអាចលាក់ការចុះផ្សាយនេះបានទេ។'],
+  couldNotRestoreThisListing: ['Could not restore this listing.', 'មិនអាចស្តារការចុះផ្សាយនេះបានទេ។'],
 };

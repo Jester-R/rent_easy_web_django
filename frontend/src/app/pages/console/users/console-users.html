@@ -127,12 +127,12 @@
                     {{ initials(item.display_name) }}
                   </span>
                   <span class="min-w-0">
-                    <a [routerLink]="['/console/users', item.id, 'edit']" class="block truncate font-bold hover:text-primary">
+                    <span class="block truncate font-bold">
                       {{ item.display_name }}
                       @if (!item.is_active) {
                         <span class="pill pill-rejected ms-1">{{ language.t('consoleUsers.failed') }}</span>
                       }
-                    </a>
+                    </span>
                     <span class="block truncate text-[11px] text-ink-3">{{ item.email }} · &#64;{{ item.username }}</span>
                   </span>
                 </div>
@@ -161,9 +161,6 @@
                       {{ language.t('consoleUsers.reject') }}
                     </button>
                   }
-                  <a [routerLink]="['/console/users', item.id, 'edit']" class="btn btn-ghost btn-icon" [title]="language.t('consoleUsers.edit')">
-                    <app-icon name="edit" [size]="16" />
-                  </a>
                   @if (item.id !== auth.currentUser()?.id) {
                     <button type="button" class="btn btn-ghost btn-icon text-danger" [title]="language.t('consoleUsers.delete')" (click)="remove(item)">
                       <app-icon name="trash" [size]="16" />

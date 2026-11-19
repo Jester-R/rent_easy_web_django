@@ -1,8 +1,10 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BookingService, BookingListResponse } from '../../../services/booking.service';
+import { ChatService } from '../../../services/chat.service';
 import { PaymentService } from '../../../services/payment.service';
 import { Booking } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
@@ -15,7 +17,7 @@ import { LanguageService } from '../../../services/language.service';
 import { propertyLocation, propertyTitle } from '../../../shared/property-text';
 import type { Property } from '../../../models';
 import type { PaymentMethodDetail } from '../../../models';
-import { PAYMENT_METHOD_OPTIONS } from '../../../shared/ui';
+import { bookingPill, PAYMENT_METHOD_OPTIONS } from '../../../shared/ui';
 
 @Component({
   selector: 'app-renter-bookings',
@@ -33,7 +35,9 @@ export class RenterBookingsComponent implements OnInit {
     return propertyLocation(property, this.language.current());
   }
   private readonly bookingService = inject(BookingService);
+  private readonly chat = inject(ChatService);
   private readonly paymentService = inject(PaymentService);
+  private readonly router = inject(Router);
 
   bookings = signal<Booking[]>([]);
   counts = signal<Record<string, number>>({});
@@ -42,9 +46,75 @@ export class RenterBookingsComponent implements OnInit {
   readonly pageSize = 25;
   activeTab = signal<string>('all');
   isLoading = signal(true);
+  isOpeningChatId = signal<number | null>(null);
+  isOpeningOwnerChatId = signal<number | null>(null);
+  chatError = signal<string | null>(null);
 
   label(value: string): string {
     return this.language.valueLabel(value);
+  }
+
+  refundStatePill(state: string): string {
+    if (state === 'Refunded') return 'pill-refunded';
+    if (state === 'Refund failed') return 'pill-rejected';
+    return 'pill-pending';
+  }
+
+  bookingState(b: Booking): { label: string; pill: string } {
+    const status = this.label(b.status);
+    if (b.refund_state) {
+      return {
+        label: this.label(b.refund_state),
+        pill: this.refundStatePill(b.refund_state),
+      };
+    }
+    if (b.is_paid && b.status !== 'Confirmed') {
+      return {
+        label: `${status} · ${this.language.t('renterBookings.paid')}`,
+        pill: bookingPill(b.status),
+      };
+    }
+    return { label: status, pill: bookingPill(b.status) };
+  }
+
+  openOwnerChat(b: Booking): void {
+    if (this.isOpeningOwnerChatId() !== null) return;
+    this.chatError.set(null);
+    this.isOpeningOwnerChatId.set(b.id);
+    this.chat.openBookingChat(b.id).subscribe({
+      next: (res) => {
+        this.isOpeningOwnerChatId.set(null);
+        void this.router.navigateByUrl(`/messages/${res.conversation.id}`);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isOpeningOwnerChatId.set(null);
+        this.chatError.set(
+          err.error?.detail || this.language.t('renterBookings.ownerChatUnavailable')
+        );
+      },
+    });
+  }
+
+  canOpenRefundChat(b: Booking): boolean {
+    return !!b.refund_id && ['Accepted', 'Processed'].includes(b.refund_status || '');
+  }
+
+  openRefundChat(b: Booking): void {
+    if (!b.refund_id || !this.canOpenRefundChat(b) || this.isOpeningChatId() !== null) return;
+    this.chatError.set(null);
+    this.isOpeningChatId.set(b.id);
+    this.chat.openRefundChat(b.refund_id).subscribe({
+      next: (res) => {
+        this.isOpeningChatId.set(null);
+        void this.router.navigateByUrl(res.url);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isOpeningChatId.set(null);
+        this.chatError.set(
+          err.error?.detail || this.language.t('renterBookings.refundChatUnavailable')
+        );
+      },
+    });
   }
 
   // Pay modal state
@@ -92,10 +162,18 @@ export class RenterBookingsComponent implements OnInit {
     this.loadBookings();
   }
 
-  cancelBooking(id: number): void {
-    if (!confirm('Are you sure you want to cancel this booking request?')) return;
+  cancelBooking(booking: Booking): void {
+    const message = booking.is_paid
+      ? window.prompt(this.language.t('renterBookings.refundMessagePrompt'), '')
+      : '';
+    if (message === null) return;
+    if (booking.is_paid && !message.trim()) {
+      alert(this.language.t('renterBookings.refundMessageRequired'));
+      return;
+    }
+    if (!booking.is_paid && !confirm('Are you sure you want to cancel this booking request?')) return;
 
-    this.bookingService.cancelBooking(id).subscribe({
+    this.bookingService.cancelBooking(booking.id, message).subscribe({
       next: () => {
         this.loadBookings();
       },

@@ -6,4 +6,7 @@ export const thread: PageCatalog = {
   couldNotSendMessageTryAgain: ['Could not send message. Try again.', 'មិនអាចផ្ញើសារបានទេ។ ព្យាយាមម្តងទៀត។'],
   typeAMessage: ['Type a message...', 'វាយសារ...'],
   send: ['Send', 'ផ្ញើ'],
+  refundSupport: ['Refund support chat', 'ការសន្ទនាជំនួយសងប្រាក់'],
+  refundDetails: ['Refund details', 'ព័ត៌មានសងប្រាក់'],
+  adminReplyLocked: ['Admin replies unlock after accepting the refund request.', 'អ្នកគ្រប់គ្រងអាចឆ្លើយបានបន្ទាប់ពីទទួលសំណើសងប្រាក់។'],
 };

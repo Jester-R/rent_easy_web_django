@@ -60,6 +60,27 @@ export class NotificationsComponent implements OnInit {
     });
   }
 
+  clearAll(): void {
+    if (!confirm(this.language.t('notifications.clearAllConfirm'))) return;
+    this.notificationService.clearAll().subscribe({
+      next: () => {
+        this.notifications.set([]);
+        this.total.set(0);
+      },
+    });
+  }
+
+  clearOne(id: number, event: Event): void {
+    event.stopPropagation();
+    this.notificationService.clear(id).subscribe({
+      next: (res) => {
+        if (!res.ok) return;
+        this.notifications.update((list) => list.filter((n) => n.id !== id));
+        this.total.update((count) => Math.max(0, count - 1));
+      },
+    });
+  }
+
   openNotification(notification: AppNotification): void {
     if (!notification.read) {
       this.notificationService.toggleRead(notification.id).subscribe({

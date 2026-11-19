@@ -104,9 +104,16 @@ export class PropertyService {
           map((pages) => [firstPage, ...pages].flatMap((page) => this.parseCambodiaDistricts(page))),
         );
       }),
-      map((districts) => districts.filter(
-        (district, index, all) => all.findIndex((candidate) => candidate.code === district.code) === index,
-      ).sort((a, b) => a.name_en.localeCompare(b.name_en))),
+      map((districts) => {
+        const seen = new Set<string>();
+        return districts
+          .filter((district) => {
+            if (seen.has(district.code)) return false;
+            seen.add(district.code);
+            return true;
+          })
+          .sort((a, b) => a.name_en.localeCompare(b.name_en));
+      }),
       catchError((error) => {
         this.districtsCache = undefined;
         return throwError(() => error);
@@ -346,8 +353,8 @@ export class PropertyService {
 
   getRenterProperty(
     id: number
-  ): Observable<{ property: Property; active_booking_id: number | null }> {
-    return this.http.get<{ property: Property; active_booking_id: number | null }>(
+  ): Observable<{ property: Property; has_active_booking: boolean; active_booking_id: number | null; owner_status?: string }> {
+    return this.http.get<{ property: Property; has_active_booking: boolean; active_booking_id: number | null; owner_status?: string }>(
       `${this.baseUrl}/rent/property/${id}/`,
       { withCredentials: true }
     );
@@ -391,15 +398,6 @@ export class PropertyService {
     );
   }
 
-  getOwnerProperties(page = 1, pageSize = 25): Observable<{ properties: Property[]; total: number; page: number; page_size: number }> {
-    const params = new HttpParams().set('page', String(page)).set('page_size', String(pageSize));
-    return this.http.get<{ properties: Property[]; total: number; page: number; page_size: number }>(
-      `${this.baseUrl}/owner/properties/`,
-      { params,
-        withCredentials: true }
-    );
-  }
-
   generateDescription(data: {
     prompt?: string;
     locations?: string[];
@@ -417,6 +415,15 @@ export class PropertyService {
       `${this.baseUrl}/ai/property-description/`,
       data,
       { withCredentials: true }
+    );
+  }
+
+  getOwnerProperties(page = 1, pageSize = 25): Observable<{ properties: Property[]; total: number; page: number; page_size: number }> {
+    const params = new HttpParams().set('page', String(page)).set('page_size', String(pageSize));
+    return this.http.get<{ properties: Property[]; total: number; page: number; page_size: number }>(
+      `${this.baseUrl}/owner/properties/`,
+      { params,
+        withCredentials: true }
     );
   }
 
@@ -451,6 +458,25 @@ export class PropertyService {
   deleteProperty(id: number): Observable<{ ok: boolean; deleted: number; refunds_requested: number }> {
     return this.http.post<{ ok: boolean; deleted: number; refunds_requested: number }>(
       `${this.baseUrl}/owner/properties/${id}/delete/`,
+      {},
+      { withCredentials: true }
+    );
+  }
+
+  setAvailability(
+    id: number,
+    unavailable: boolean
+  ): Observable<{ ok: boolean; property: Property }> {
+    return this.http.post<{ ok: boolean; property: Property }>(
+      `${this.baseUrl}/owner/properties/${id}/availability/`,
+      { unavailable },
+      { withCredentials: true }
+    );
+  }
+
+  reopenProperty(id: number): Observable<{ ok: boolean; property: Property }> {
+    return this.http.post<{ ok: boolean; property: Property }>(
+      `${this.baseUrl}/owner/properties/${id}/reopen/`,
       {},
       { withCredentials: true }
     );

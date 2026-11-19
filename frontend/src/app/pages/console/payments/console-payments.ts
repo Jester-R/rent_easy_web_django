@@ -1,6 +1,9 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
+import { ChatService } from '../../../services/chat.service';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { IconComponent } from '../../../components/icon/icon';
@@ -26,12 +29,17 @@ import {
 
 @Component({
   selector: 'app-console-payments',
-  imports: [CommonModule, FormsModule, IconComponent, SearchableSelectComponent, DataPaginationComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, SearchableSelectComponent, DataPaginationComponent],
   templateUrl: './console-payments.html',
 })
 export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   readonly language = inject(LanguageService);
+  private readonly chat = inject(ChatService);
   private readonly console = inject(ConsoleService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  readonly section = signal<'payments' | 'payouts' | 'refunds' | 'settings'>('payments');
 
   readonly methodIcon = methodIcon;
   readonly methodLabel = methodLabel;
@@ -47,6 +55,19 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
 
   statusText(value: string): string {
     return this.language.valueLabel(value);
+  }
+
+  sectionTitle(): string {
+    switch (this.section()) {
+      case 'payouts':
+        return this.language.t('consolePayments.ownerPayouts');
+      case 'refunds':
+        return this.language.t('consolePayments.recentRefunds');
+      case 'settings':
+        return this.language.t('consoleSettings.paymentCommissions');
+      default:
+        return this.language.t('consolePayments.payments');
+    }
   }
 
   payments = signal<Payment[]>([]);
@@ -72,11 +93,13 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   isSaving = signal(false);
   commissionRates = signal<Record<string, number>>({});
+  lateCancellationFee = signal(0);
   commissionSaving = signal(false);
   commissionError = signal<string | null>(null);
   commissionSaved = signal(false);
 
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly routeSub = new Subscription();
 
   pendingRefunds = computed(() => this.refunds().filter((r) => r.status === 'Pending').length);
   eligiblePayouts = computed(() => this.payouts().filter((p) => p.status === 'Eligible'));
@@ -100,9 +123,36 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   );
 
   ngOnInit(): void {
-    this.load();
+    let initial = true;
+    this.routeSub.add(
+      this.route.data.subscribe((data) => {
+        const routeSection = data['section'];
+        const section =
+          routeSection === 'payouts' || routeSection === 'refunds' || routeSection === 'settings'
+            ? routeSection
+            : 'payments';
+        const changed = section !== this.section();
+        this.section.set(section);
+        if (initial) {
+          initial = false;
+          this.load();
+          if (section === 'settings') this.loadSettings();
+          return;
+        }
+        if (changed) {
+          this.load();
+          if (section === 'settings') this.loadSettings();
+        }
+      }),
+    );
+  }
+
+  private loadSettings(): void {
     this.console.getSettings().subscribe({
-      next: (res) => this.commissionRates.set(res.settings.commission_rates || {}),
+      next: (res) => {
+        this.commissionRates.set(res.settings.commission_rates || {});
+        this.lateCancellationFee.set(Number(res.settings.late_cancellation_fee || 0));
+      },
       error: () => this.commissionError.set(this.language.t('consoleSettings.failedToLoadSettings')),
     });
   }
@@ -113,24 +163,37 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
     this.commissionSaved.set(false);
   }
 
+  updateLateCancellationFee(value: string): void {
+    const fee = Number(value);
+    this.lateCancellationFee.set(Number.isFinite(fee) && fee >= 0 ? fee : 0);
+    this.commissionSaved.set(false);
+  }
+
   saveCommissionRate(): void {
     this.commissionSaving.set(true);
     this.commissionError.set(null);
     this.commissionSaved.set(false);
-    this.console.updateSettings({ commission_rates: this.commissionRates() }).subscribe({
-      next: (res) => {
-        this.commissionRates.set(res.settings.commission_rates || {});
-        this.commissionSaving.set(false);
-        this.commissionSaved.set(true);
-      },
-      error: (err) => {
-        this.commissionSaving.set(false);
-        this.commissionError.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
-      },
-    });
+    this.console
+      .updateSettings({
+        commission_rates: this.commissionRates(),
+        late_cancellation_fee: this.lateCancellationFee(),
+      })
+      .subscribe({
+        next: (res) => {
+          this.commissionRates.set(res.settings.commission_rates || {});
+          this.lateCancellationFee.set(Number(res.settings.late_cancellation_fee || 0));
+          this.commissionSaving.set(false);
+          this.commissionSaved.set(true);
+        },
+        error: (err) => {
+          this.commissionSaving.set(false);
+          this.commissionError.set(err?.error?.detail || this.language.t('consoleSettings.failedToSaveSettings'));
+        },
+      });
   }
 
   ngOnDestroy(): void {
+    this.routeSub.unsubscribe();
     if (this.timer) clearTimeout(this.timer);
   }
 
@@ -223,7 +286,14 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
     if (!confirm(`Issue a refund?\n\n${p.reference} — ${usd(p.amount)}`)) return;
     this.console.createRefund({ payment: p.id, reason: 'other' }).subscribe({
       next: () => this.load(),
-      error: (err) => this.setError(err, 'Failed to issue refund.'),
+      error: (err) => {
+        const detail = (err as { error?: { detail?: string } }).error?.detail;
+        this.error.set(
+          detail === 'payment_not_refundable'
+            ? 'Only successful payments can be refunded.'
+            : detail || 'Failed to issue refund.',
+        );
+      },
     });
   }
 
@@ -270,6 +340,63 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
           payout_already_paid: 'This payout was already recorded as paid.',
         };
         this.setError(err, messages[detail || ''] || 'Failed to record payout.');
+      },
+    });
+  }
+
+  openRefundChat(refund: Refund, party: 'renter' | 'owner'): void {
+    this.isSaving.set(true);
+    this.error.set(null);
+    this.chat.openConsoleRefundChat(refund.id, party).subscribe({
+      next: (res) => {
+        this.isSaving.set(false);
+        void this.router.navigateByUrl(res.url);
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        this.setError(err, 'Failed to open the refund chat.');
+      },
+    });
+  }
+
+  accept(r: Refund): void {
+    const cancellationFee = Number(r.commission_due || 0);
+    const note = prompt('Admin review note (optional):', '') ?? '';
+    let commissionPaid = false;
+    if (cancellationFee > 0 && !r.commission_paid) {
+      if (
+        !confirm(
+          `This cancellation is after the 5-day free window. The renter must pay the ${this.usd(cancellationFee)} cancellation fee separately. Confirm payment was received before accepting.`
+        )
+      )
+        return;
+      commissionPaid = true;
+    }
+    if (!confirm(`Accept refund request ${r.reference}? The refund will be approved.`)) return;
+    this.isSaving.set(true);
+    this.console.acceptRefund(r.id, { note, commission_paid: commissionPaid }).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.load();
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        this.setError(err, 'Failed to accept refund request.');
+      },
+    });
+  }
+
+  markCommissionPaid(r: Refund): void {
+    if (!confirm(`Confirm the renter paid the ${this.usd(r.commission_due)} cancellation fee separately?`)) return;
+    this.isSaving.set(true);
+    this.console.markRefundCommissionPaid(r.id).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.load();
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        this.setError(err, 'Failed to record cancellation fee payment.');
       },
     });
   }

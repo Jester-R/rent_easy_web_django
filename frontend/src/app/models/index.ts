@@ -51,6 +51,8 @@ export interface PayoutAccountDetails {
 export interface Property {
   id: number;
   is_active: boolean;
+  owner_status?: 'available' | 'unavailable' | 'removed';
+  rental_closed_at?: string | null;
   title: string;
   title_km?: string;
   province?: string;
@@ -80,7 +82,7 @@ export interface Property {
   updated_at: string;
   is_favorite?: boolean;
   has_active_booking?: boolean;
-  approved_bookings?: number;
+  has_paid_booking?: boolean;
   booking_count?: number;
   favorite_count?: number;
 }
@@ -103,15 +105,20 @@ export interface Booking {
   owner: UserBrief;
   owner_id: number;
   payment_id?: number | null;
+  refund_state?: string;
+  refund_id?: number | null;
+  refund_status?: string;
+  refund_conversation_id?: number | null;
+  renter_refund_conversation_id?: number | null;
+  owner_refund_conversation_id?: number | null;
   payout_status?: string;
   payout_available_at?: string | null;
   created_at: string;
   approved_at?: string | null;
   rejected_at?: string | null;
   cancelled_at?: string | null;
-  can_approve?: boolean;
-  can_reject?: boolean;
   can_cancel?: boolean;
+  can_owner_cancel?: boolean;
 }
 
 export interface Payment {
@@ -122,7 +129,9 @@ export interface Payment {
   refunded_amount: number;
   refunded_display: string;
   method: string;
-  status: 'Pending' | 'Success' | 'Failed' | 'Refunded' | string;
+  status: 'Pending' | 'Success' | 'Failed' | 'Cancelled' | 'Refunded' | string;
+  display_status?: string;
+  refund_state?: string;
   provider?: 'mock' | 'aba_payway' | 'stripe' | string;
   provider_ref?: string;
   paid_at?: string | null;
@@ -154,6 +163,16 @@ export interface StripeCheckout {
   url: string;
 }
 
+export interface RefundMessage {
+  id: number;
+  refund_id: number;
+  sender?: UserBrief | null;
+  sender_id?: number | null;
+  body: string;
+  created_at: string;
+  is_from_admin?: boolean;
+}
+
 export interface Refund {
   id: number;
   reference: string;
@@ -164,6 +183,14 @@ export interface Refund {
   note: string;
   request_note: string;
   requested_by?: UserBrief | null;
+  commission_rate?: number;
+  commission_due?: number;
+  commission_due_display?: string;
+  commission_paid?: boolean;
+  messages?: RefundMessage[];
+  conversation_id?: number | null;
+  renter_conversation_id?: number | null;
+  owner_conversation_id?: number | null;
   payment_id: number;
   booking_id: number;
   payment?: Payment;
@@ -220,8 +247,18 @@ export interface ConversationSummary {
   property_id: number;
   property_title: string;
   property_cover: string;
+  property_is_active?: boolean;
   renter_id: number;
   owner_id: number;
+  renter?: UserBrief | null;
+  owner?: UserBrief | null;
+  refund_id?: number | null;
+  refund_reference?: string;
+  refund_status?: string;
+  refund_party?: string;
+  refund_label?: string;
+  refund_payment_id?: number | null;
+  is_refund_support?: boolean;
   other_party: UserBrief;
   last_message: string;
   last_message_at: string;
@@ -464,6 +501,7 @@ export interface ConsoleUsersResponse {
 export interface ConsoleSettings {
   auto_approve_owners: boolean;
   commission_rates: Record<string, number>;
+  late_cancellation_fee: number;
   payment_method_details: Record<string, PaymentMethodDetail>;
   aba_payway_merchant_id: string;
   aba_payway_api_key_configured: boolean;

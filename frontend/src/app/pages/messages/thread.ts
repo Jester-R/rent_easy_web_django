@@ -4,6 +4,7 @@ import {
   OnDestroy,
   OnInit,
   PLATFORM_ID,
+  computed,
   inject,
   input,
   signal,
@@ -40,6 +41,13 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
   isLoading = signal(true);
   isSending = signal(false);
   sendError = signal(false);
+  readonly isAdmin = this.auth.isAdmin;
+  readonly isRefundChat = computed(() => !!this.conversation()?.is_refund_support);
+  readonly adminCanSend = computed(() => {
+    const conversation = this.conversation();
+    if (!conversation?.is_refund_support || !this.auth.isAdmin()) return true;
+    return ['Accepted', 'Processed'].includes(conversation.refund_status || '');
+  });
   page = signal(1);
   total = signal(0);
   readonly pageSize = 50;
@@ -50,7 +58,7 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.load();
-      this.timer = setInterval(() => this.refresh(), 8000);
+      this.timer = setInterval(() => this.refresh(), 15_000);
     }
   }
 
@@ -77,13 +85,17 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
   }
 
   refresh(): void {
-    if (this.isSending()) return;
+    if (this.isSending() || document.hidden) return;
     this.chat.getMessages(this.conversationId, this.page(), this.pageSize).subscribe({
       next: (res) => {
-        this.messages.set(res.messages);
+        const current = this.messages();
+        const unchanged =
+          current.length === res.messages.length &&
+          current[0]?.id === res.messages[0]?.id &&
+          current[current.length - 1]?.id === res.messages[res.messages.length - 1]?.id;
+        if (!unchanged) this.messages.set(res.messages);
         this.otherParty.set(res.other_party);
         this.total.set(res.total);
-        this.scrollToBottom();
       },
     });
   }
@@ -94,9 +106,20 @@ export class ChatThreadComponent implements OnInit, OnDestroy {
     return message.sender_id === this.auth.currentUser()?.id;
   }
 
+  threadTitle(): string {
+    const conversation = this.conversation();
+    if (!conversation) return 'Conversation';
+    if (!conversation.is_refund_support) {
+      return this.otherParty()?.display_name || 'Conversation';
+    }
+    return conversation.refund_label || [conversation.renter?.display_name, conversation.owner?.display_name]
+      .filter(Boolean)
+      .join(' · ') || this.language.t('thread.refundSupport');
+  }
+
   send(): void {
     const body = this.draft.trim();
-    if (!body || this.isSending()) return;
+    if (!body || this.isSending() || !this.adminCanSend()) return;
     this.isSending.set(true);
     this.sendError.set(false);
     this.chat.sendMessage(this.conversationId, body).subscribe({

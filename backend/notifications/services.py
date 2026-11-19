@@ -100,3 +100,17 @@ def recent_for(user, limit: int = 12):
     if not user or not user.is_authenticated:
         return Notification.objects.none()
     return Notification.objects.filter(recipient=user)[:limit]
+
+
+def clear_all_notifications(user) -> int:
+    if not user or not user.is_authenticated:
+        return 0
+    deleted, _ = Notification.objects.filter(recipient=user).delete()
+    return deleted
+
+
+def clear_notification(user, pk: int) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    deleted, _ = Notification.objects.filter(pk=pk, recipient=user).delete()
+    return deleted > 0

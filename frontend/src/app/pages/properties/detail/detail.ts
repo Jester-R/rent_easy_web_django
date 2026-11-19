@@ -50,7 +50,7 @@ export class PropertyDetailComponent implements OnInit {
   private readonly router = inject(Router);
 
   property = signal<Property | null>(null);
-  activeBookingId = signal<number | null>(null);
+  ownerStatus = signal<string>('available');
   isLoading = signal(true);
   isFavoritePending = signal(false);
   favoriteError = signal(false);
@@ -63,13 +63,17 @@ export class PropertyDetailComponent implements OnInit {
   bookingForm = this.fb.group({
     move_in_date: ['', [Validators.required]],
     end_date: [''],
-    lease_months: [1, [Validators.required, Validators.min(1)]],
+    lease_months: [
+      '1',
+      [
+        Validators.required,
+        Validators.min(1),
+        Validators.max(60),
+        Validators.pattern(/^\d+$/),
+      ],
+    ],
     note: [''],
   });
-
-  constructor() {
-    this.categories.load();
-  }
 
   categoryLabel(value?: string | null): string {
     return this.categories.label(value, this.language.current());
@@ -81,26 +85,42 @@ export class PropertyDetailComponent implements OnInit {
 
   loadDetail(): void {
     const propId = Number(this.id());
+    if (!Number.isSafeInteger(propId) || propId <= 0) {
+      this.isLoading.set(false);
+      return;
+    }
     if (this.auth.isRenter()) {
       this.propertyService.getRenterProperty(propId).subscribe({
         next: (res) => {
-          this.property.set(res.property);
-          this.activeBookingId.set(res.active_booking_id);
+          this.property.set({
+            ...res.property,
+            has_active_booking:
+              res.has_active_booking || Boolean(res.active_booking_id),
+          });
+          this.ownerStatus.set(res.owner_status || res.property.owner_status || 'available');
           this.activeImage.set(0);
           this.isLoading.set(false);
         },
-        error: () => this.isLoading.set(false),
+        error: () => this.loadPublicDetail(propId),
       });
-    } else {
-      this.propertyService.getPublicProperty(propId).subscribe({
-        next: (res) => {
-          this.property.set(res.property);
-          this.activeImage.set(0);
-          this.isLoading.set(false);
-        },
-        error: () => this.isLoading.set(false),
-      });
+      return;
     }
+    this.loadPublicDetail(propId);
+  }
+
+  private loadPublicDetail(propId: number): void {
+    this.propertyService.getPublicProperty(propId).subscribe({
+      next: (res) => {
+        this.property.set({
+          ...res.property,
+          is_favorite: res.is_favorite,
+        });
+        this.ownerStatus.set(res.property.owner_status || 'available');
+        this.activeImage.set(0);
+        this.isLoading.set(false);
+      },
+      error: () => this.isLoading.set(false),
+    });
   }
 
   toggleFavorite(): void {
@@ -140,26 +160,55 @@ export class PropertyDetailComponent implements OnInit {
     });
   }
 
+  onLeaseMonthsInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = input.value.replace(/\D/g, '');
+    if (cleaned !== input.value) {
+      input.value = cleaned;
+    }
+    this.bookingForm.get('lease_months')?.setValue(cleaned || null);
+    this.recalcEndDate();
+  }
+
+  onLeaseMonthsKeydown(event: KeyboardEvent): void {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key.length === 1 && !/^\d$/.test(event.key)) {
+      event.preventDefault();
+    }
+  }
+
+  onLeaseMonthsPaste(event: ClipboardEvent): void {
+    const text = event.clipboardData?.getData('text') ?? '';
+    if (/\D/.test(text)) {
+      event.preventDefault();
+    }
+  }
+
   /** Derive the move-out date from the move-in date + lease duration. */
   recalcEndDate(): void {
     const { move_in_date, lease_months } = this.bookingForm.value;
-    const months = Number(lease_months) || 0;
-    if (!move_in_date || months <= 0) return;
+    const months = Number(lease_months);
+    if (!move_in_date || !Number.isInteger(months) || months < 1) return;
     const [year, month, day] = move_in_date.split('-').map(Number);
     if (!year || !month || !day) return;
     const targetMonth = month - 1 + months;
     const targetYear = year + Math.floor(targetMonth / 12);
-    const normalizedMonth = targetMonth % 12;
+    const normalizedMonth = ((targetMonth % 12) + 12) % 12;
     const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
     const moveOutDay = Math.min(day, lastDay);
+    const endDate = new Date(targetYear, normalizedMonth, moveOutDay);
     const pad = (n: number) => String(n).padStart(2, '0');
-    const iso = `${targetYear}-${pad(normalizedMonth + 1)}-${pad(moveOutDay)}`;
+    const iso = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}`;
     if (this.bookingForm.get('end_date')?.value !== iso) {
       this.bookingForm.patchValue({ end_date: iso });
     }
   }
 
   onRequestBooking(): void {
+    if (this.bookingForm.get("lease_months")?.invalid) {
+      this.bookingError.set(this.language.t('propertyDetail.leaseDurationWholeNumber'));
+      return;
+    }
     if (this.bookingForm.invalid) return;
     const prop = this.property();
     if (!prop) return;
@@ -169,24 +218,27 @@ export class PropertyDetailComponent implements OnInit {
     this.bookingSuccess.set(null);
 
     const val = this.bookingForm.value;
+    const months = Number(String(val.lease_months ?? '').replace(/\D/g, ''));
     this.propertyService
       .requestBooking(prop.id, {
         move_in_date: val.move_in_date || undefined,
         end_date: val.end_date || undefined,
-        lease_months: val.lease_months || 1,
+        lease_months: months,
         note: val.note || undefined,
       })
       .subscribe({
         next: (res) => {
           this.isBookingSubmitting.set(false);
           this.bookingSuccess.set(`Booking request created (Ref: ${res.reference})`);
-          this.activeBookingId.set(res.booking_id);
+          this.property.update((prop) =>
+            prop ? { ...prop, has_active_booking: true } : prop,
+          );
         },
         error: (err) => {
           this.isBookingSubmitting.set(false);
           const detail = err.error?.detail || '';
           if (detail === 'active_booking_exists') {
-            this.bookingError.set('You already have an active booking on this property.');
+            this.bookingError.set(this.language.t('propertyDetail.propertyAlreadyBooked'));
           } else {
             this.bookingError.set('Failed to submit booking request.');
           }

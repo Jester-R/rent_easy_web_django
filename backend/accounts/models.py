@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 
 from django.contrib.auth.models import (
     AbstractBaseUser,
@@ -39,6 +40,7 @@ class PayoutMethod(models.TextChoices):
     """Where an owner wants the platform to send collected rent."""
 
     ABA = "aba", "ABA Bank"
+    STRIPE = "stripe", "Stripe"
     WING = "wing", "Wing Bank"
     ACLEDA = "acleda", "ACLEDA Bank"
     OTHER = "other", "Other"
@@ -56,6 +58,9 @@ class PlatformSettings(models.Model):
     )
     commission_rates = models.JSONField(default=dict, blank=True)
     commission_rates_updated_at = models.DateTimeField(null=True, blank=True)
+    late_cancellation_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
+    )
     payment_method_details = models.JSONField(default=dict, blank=True)
     aba_payway_merchant_id = models.CharField(max_length=30, blank=True)
     aba_payway_api_key = models.CharField(max_length=255, blank=True)

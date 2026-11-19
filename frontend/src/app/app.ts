@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './services/auth.service';
@@ -19,6 +19,17 @@ export class App {
   readonly language = inject(LanguageService);
   private readonly router = inject(Router);
   readonly adminMoreOpen = signal(false);
+  readonly paymentsMenuOpen = signal(false);
+
+  constructor() {
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.paymentsMenuOpen.set(
+          event.urlAfterRedirects.startsWith('/console/payments'),
+        );
+      }
+    });
+  }
 
   closeAdminMore(): void {
     this.adminMoreOpen.set(false);

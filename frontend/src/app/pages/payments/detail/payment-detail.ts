@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../../components/icon/icon';
 import { AuthService } from '../../../services/auth.service';
 import { LanguageService } from '../../../services/language.service';
+import { ChatService } from '../../../services/chat.service';
 import { PaymentService } from '../../../services/payment.service';
 import { Payment, Refund } from '../../../models';
 import {
@@ -25,6 +26,7 @@ import {
 export class PaymentDetailComponent implements OnInit, OnDestroy {
   readonly id = input<string>();
 
+  private readonly chat = inject(ChatService);
   private readonly paymentService = inject(PaymentService);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
@@ -37,6 +39,7 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
   readonly refundReason = signal('other');
   readonly refundRequestNote = signal('');
   readonly isRequestingRefund = signal(false);
+  readonly isOpeningChat = signal(false);
   readonly refundRequestMessage = signal<string | null>(null);
   readonly refundRequestError = signal<string | null>(null);
   readonly isLoading = signal(true);
@@ -64,13 +67,21 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(payment: Payment): string {
-    if (payment.refund_status === 'Processed') {
+    const refund = this.refund();
+    if (refund?.status === 'Processed' || payment.refund_status === 'Processed') {
       return this.language.valueLabel('Refunded');
     }
-    if (payment.refund_status === 'Pending') {
-      return this.language.valueLabel('Refund Pending');
+    if (refund?.status === 'Rejected') {
+      return this.language.valueLabel('Refund failed');
     }
-    return this.language.valueLabel(paymentStatusLabel(payment.status));
+    if (
+      refund?.status === 'Accepted' ||
+      refund?.status === 'Pending' ||
+      payment.refund_status === 'Pending'
+    ) {
+      return this.language.valueLabel('Refunding');
+    }
+    return this.language.valueLabel(payment.display_status || paymentStatusLabel(payment.status));
   }
 
   ngOnInit(): void {
@@ -104,6 +115,24 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
         this.onError(err);
+      },
+    });
+  }
+
+  openRefundChat(refundId: number): void {
+    if (!refundId || this.isOpeningChat()) return;
+    this.isOpeningChat.set(true);
+    this.refundRequestError.set(null);
+    this.chat.openRefundChat(refundId).subscribe({
+      next: (res) => {
+        this.isOpeningChat.set(false);
+        void this.router.navigateByUrl(res.url);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isOpeningChat.set(false);
+        this.refundRequestError.set(
+          err.error?.detail || 'Could not open the refund chat. Please try again.'
+        );
       },
     });
   }
@@ -209,6 +238,7 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
           refund_already_processed: this.language.t('paymentDetail.refundAlreadyProcessed'),
           payment_not_refundable: this.language.t('paymentDetail.paymentNotRefundable'),
           refund_window_closed: this.language.t('paymentDetail.refundWindowClosed'),
+          cancellation_window_closed: this.language.t('paymentDetail.refundWindowClosed'),
         };
         this.refundRequestError.set(messages[detail] || this.language.t('paymentDetail.refundSubmitFailed'));
         this.isRequestingRefund.set(false);

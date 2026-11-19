@@ -11,7 +11,12 @@ import {
   viewChild,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { loadLeaflet } from '../../shared/leaflet';
+import {
+  OSM_ATTRIBUTION,
+  OSM_TILES,
+  PHNOM_PENH,
+  loadLeaflet,
+} from '../../shared/leaflet';
 
 @Component({
   selector: 'app-leaflet-map',
@@ -84,7 +89,7 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
     const lat = this.latitude();
     const lng = this.longitude();
     const hasCoords = typeof lat === 'number' && typeof lng === 'number';
-    const center: [number, number] = hasCoords ? [lat!, lng!] : [11.5564, 104.9282];
+    const center: [number, number] = hasCoords ? [lat!, lng!] : PHNOM_PENH;
     const initialZoom = hasCoords ? Math.max(this.zoom(), 16) : this.zoom();
 
     this.map = L.map(this.host().nativeElement, {
@@ -93,9 +98,9 @@ export class LeafletMapComponent implements AfterViewInit, OnDestroy {
       scrollWheelZoom: this.interactive(),
     }).setView(center, initialZoom);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(OSM_TILES, {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
+      attribution: OSM_ATTRIBUTION,
     }).addTo(this.map);
 
     if (hasCoords) {

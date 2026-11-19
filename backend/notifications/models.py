@@ -58,6 +58,11 @@ class Notification(models.Model):
             self.read_at = timezone.now()
             self.save(update_fields=["read_at"])
 
+    def mark_unread(self) -> None:
+        if self.read_at is not None:
+            self.read_at = None
+            self.save(update_fields=["read_at"])
+
     def get_absolute_url(self) -> str:
         return self.link or "/notifications/"
 

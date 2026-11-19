@@ -17,6 +17,7 @@ from django_bolt.exceptions import HTTPException
 from django_bolt.params import File
 
 from core.bolt import (
+    body_bool,
     body_float,
     body_int,
     body_str,
@@ -33,7 +34,7 @@ from core.bolt import (
 from core.bolt_serializers import property as serialize_property
 from core.uploads import MAX_IMAGE_BYTES, save_image
 from listings.category_config import DEFAULT_PROPERTY_CATEGORIES
-from listings.models import Favorite, Property
+from listings.models import Favorite, Property, active_paid_property_ids
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -75,17 +76,28 @@ def _counts(queryset):
     )
 
 
-async def _distinct_location_names(*fields: str) -> list[str]:
-    values: set[str] = set()
-    for field in fields:
-        values |= {
-            value
-            async for value in Property.objects.exclude(**{field: ""})
-            .values_list(field, flat=True)
-            .distinct()
-            if value
-        }
-    return sorted(values)
+async def _location_filter_options() -> dict[str, list[str]]:
+    fields = (
+        "province",
+        "province_km",
+        "location",
+        "location_km",
+        "commune",
+        "commune_km",
+        "village",
+        "village_km",
+    )
+    values: dict[str, set[str]] = {field: set() for field in fields}
+    async for row in Property.objects.values_list(*fields).distinct():
+        for field, value in zip(fields, row):
+            if value:
+                values[field].add(value)
+    return {
+        "provinces": sorted(values["province"] | values["province_km"]),
+        "locations": sorted(values["location"] | values["location_km"]),
+        "communes": sorted(values["commune"] | values["commune_km"]),
+        "villages": sorted(values["village"] | values["village_km"]),
+    }
 
 
 def _apply_location_filter(queryset, request, field: str, field_km: str, token: str):
@@ -221,7 +233,7 @@ def _validate_property_payload(data: dict) -> dict:
 @api.get("/rent/properties/")
 async def renter_browse(request):
     from accounts.models import Role
-    from bookings.models import Booking, BookingStatus
+    from bookings.models import ACTIVE_STATUSES, Booking
 
     user = await get_user(request)
     renter = user if user is not None and user.is_renter else None
@@ -294,6 +306,7 @@ async def renter_browse(request):
     ids = [p.pk for p in properties]
     favorite_ids = set()
     active_ids = set()
+    paid_ids = {v async for v in active_paid_property_ids(ids)}
     if renter is not None:
         favorite_ids = {
             v
@@ -304,9 +317,8 @@ async def renter_browse(request):
         active_ids = {
             v
             async for v in Booking.objects.filter(
-                renter=renter,
                 property_id__in=ids,
-                status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+                status__in=ACTIVE_STATUSES,
             ).values_list("property_id", flat=True)
         }
 
@@ -319,20 +331,19 @@ async def renter_browse(request):
         else 0.0
     )
 
+    location_options = await _location_filter_options()
     return {
         "properties": [
             await serialize_property(
                 p,
                 is_favorite=p.pk in favorite_ids,
                 has_active_booking=p.pk in active_ids,
+                has_paid_booking=p.pk in paid_ids,
             )
             for p in properties
         ],
         "meta": {
-            "provinces": await _distinct_location_names("province", "province_km"),
-            "locations": await _distinct_location_names("location", "location_km"),
-            "communes": await _distinct_location_names("commune", "commune_km"),
-            "villages": await _distinct_location_names("village", "village_km"),
+            **location_options,
             "avg_price": avg_price,
             "price_floor": float(bounds["lo"] or MIN_PRICE_FLOOR),
             "price_ceiling": float(bounds["hi"] or MAX_PRICE_CEILING),
@@ -360,34 +371,24 @@ async def renter_browse(request):
 @api.get("/rent/property/{pk}/")
 async def renter_detail(request):
     pk = param_int(request, "pk")
-    from bookings.models import Booking, BookingStatus
+    from bookings.models import ACTIVE_STATUSES, Booking
 
     user = await renter_required(request)
     prop = await _get_property(pk)
-    if await Booking.objects.filter(
-        property=prop, status=BookingStatus.CONFIRMED
-    ).aexists():
-        raise HTTPException(status_code=404, detail="property_not_found")
-    is_favorite = await Favorite.objects.filter(user=user, property=prop).aexists()
-    active_booking = await (
-        Booking.objects.filter(
-            renter=user,
-            property=prop,
-            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
-        )
-        .order_by("-created_at")
-        .afirst()
+    active_bookings = Booking.objects.filter(
+        property=prop, status__in=ACTIVE_STATUSES
     )
-    approved_count = await Booking.objects.filter(
-        property=prop, status=BookingStatus.APPROVED
-    ).acount()
+    has_active_booking = await active_bookings.aexists()
+    is_favorite = await Favorite.objects.filter(user=user, property=prop).aexists()
+    viewer_booking = await active_bookings.filter(renter=user).order_by("-created_at").afirst()
     return {
         "property": await serialize_property(
             prop,
             is_favorite=is_favorite,
-            approved_bookings=approved_count,
         ),
-        "active_booking_id": active_booking.pk if active_booking else None,
+        "has_active_booking": has_active_booking,
+        "active_booking_id": viewer_booking.pk if viewer_booking else None,
+        "owner_status": prop.owner_status,
     }
 
 
@@ -427,6 +428,28 @@ async def toggle_favorite(request):
     }
 
 
+def _lease_months_from_body(data: dict) -> int:
+    value = data.get("lease_months", 1)
+    if value in (None, ""):
+        return 1
+    if isinstance(value, bool):
+        raise HTTPException(status_code=422, detail="lease_months_must_be_whole_number")
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise HTTPException(status_code=422, detail="lease_months_must_be_whole_number")
+        value = int(value)
+    elif isinstance(value, str):
+        value = value.strip()
+        if not value.isdigit():
+            raise HTTPException(status_code=422, detail="lease_months_must_be_whole_number")
+        value = int(value)
+    if not isinstance(value, int):
+        raise HTTPException(status_code=422, detail="lease_months_must_be_whole_number")
+    if value < 1:
+        raise HTTPException(status_code=422, detail="lease_months_must_be_at_least_one")
+    return value
+
+
 @api.post("/rent/property/{pk}/request/")
 async def booking_request(request):
     pk = param_int(request, "pk")
@@ -442,7 +465,7 @@ async def booking_request(request):
         renter=user,
         move_in_date=body_str(data, "move_in_date") or None,
         end_date=body_str(data, "end_date") or None,
-        lease_months=body_int(data, "lease_months", 1) or 1,
+        lease_months=_lease_months_from_body(data),
         note=body_str(data, "note"),
     )
     if booking is None:
@@ -458,12 +481,15 @@ async def booking_request(request):
 @api.get("/owner/properties/")
 async def owner_list(request):
     user = await owner_required(request)
-    properties = _counts(Property.objects.filter(owner=user)).order_by("-created_at")
+    properties = Property.objects.filter(owner=user).select_related("owner").order_by("-created_at")
     page, page_size = pagination(request)
     total = await properties.acount()
-    properties = properties[(page - 1) * page_size : page * page_size]
+    rows = list(properties[(page - 1) * page_size : page * page_size])
+    paid_ids = {v async for v in active_paid_property_ids([p.pk for p in rows])}
     return {
-        "properties": [await serialize_property(p) async for p in properties],
+        "properties": [
+            await serialize_property(p, has_paid_booking=p.pk in paid_ids) for p in rows
+        ],
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -524,9 +550,12 @@ async def owner_edit(request):
 async def owner_delete(request):
     pk = param_int(request, "pk")
     user = await owner_required(request)
-    from listings.services import soft_delete_owner_property
+    from listings.services import OwnerActionRateLimited, soft_delete_owner_property
 
-    prop, refunds_requested = await in_thread(soft_delete_owner_property, pk, user)
+    try:
+        prop, refunds_requested = await in_thread(soft_delete_owner_property, pk, user)
+    except OwnerActionRateLimited as exc:
+        raise HTTPException(status_code=429, detail=exc.code) from exc
     if prop is None:
         raise HTTPException(status_code=404, detail="property_not_found")
     return {
@@ -535,6 +564,47 @@ async def owner_delete(request):
         "is_active": prop.is_active,
         "refunds_requested": refunds_requested,
     }
+
+
+@api.post("/owner/properties/{pk}/availability/")
+async def owner_availability(request):
+    pk = param_int(request, "pk")
+    user = await owner_required(request)
+    from listings.services import (
+        OwnerActionBlocked,
+        OwnerActionRateLimited,
+        set_owner_property_availability,
+    )
+
+    data = json_body(request)
+    unavailable = body_bool(data, "unavailable")
+    try:
+        prop, ok = await in_thread(
+            set_owner_property_availability, pk, user, unavailable
+        )
+    except OwnerActionRateLimited as exc:
+        raise HTTPException(status_code=429, detail=exc.code) from exc
+    except OwnerActionBlocked as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    if prop is None:
+        raise HTTPException(status_code=404, detail="property_not_found")
+    if not ok:
+        raise HTTPException(status_code=409, detail="availability_not_changed")
+    return {"ok": True, "property": await serialize_property(prop)}
+
+
+@api.post("/owner/properties/{pk}/reopen/")
+async def owner_reopen(request):
+    pk = param_int(request, "pk")
+    user = await owner_required(request)
+    from listings.services import reopen_owner_property
+
+    prop, ok = await in_thread(reopen_owner_property, pk, user)
+    if prop is None:
+        raise HTTPException(status_code=404, detail="property_not_found")
+    if not ok:
+        raise HTTPException(status_code=409, detail="property_not_reopenable")
+    return {"ok": True, "property": await serialize_property(prop)}
 
 
 # ---------------------------------------------------------------------------

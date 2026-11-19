@@ -1,4 +1,4 @@
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
@@ -8,8 +8,7 @@ import {
 } from '../../../components/searchable-select/searchable-select';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
-import { User } from '../../../models';
-import { prettyDate, roleLabel } from '../../../shared/ui';
+import { PAYOUT_METHODS, payoutMethodLabel, roleLabel } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-user-form',
@@ -17,26 +16,24 @@ import { prettyDate, roleLabel } from '../../../shared/ui';
   templateUrl: './console-user-form.html',
 })
 export class ConsoleUserFormComponent implements OnInit {
-  readonly id = input<string>();
   readonly language = inject(LanguageService);
 
   private readonly fb = inject(FormBuilder);
   private readonly console = inject(ConsoleService);
   private readonly router = inject(Router);
 
-  readonly prettyDate = prettyDate;
   readonly roleLabel = roleLabel;
+  readonly payoutMethods = PAYOUT_METHODS;
+  readonly payoutMethodLabel = payoutMethodLabel;
 
   roleLabelTranslated(role: string): string {
     return this.language.valueLabel(roleLabel(role));
   }
 
-  isEdit = signal(false);
   isLoading = signal(true);
   isSaving = signal(false);
   submitted = signal(false);
   errorMessage = signal<string | null>(null);
-  user = signal<User | null>(null);
 
   form = this.fb.group({
     full_name: ['', [Validators.maxLength(120)]],
@@ -45,6 +42,7 @@ export class ConsoleUserFormComponent implements OnInit {
     role: ['renter', [Validators.required]],
     password: [''],
     is_active: [true],
+    payout_method: ['aba'],
     payout_account_name: [''],
     payout_account_number: [''],
     payout_phone: [''],
@@ -63,40 +61,9 @@ export class ConsoleUserFormComponent implements OnInit {
   }));
 
   ngOnInit(): void {
-    const editId = this.id();
-    if (editId) {
-      this.isEdit.set(true);
-      this.loadUser(Number(editId));
-    } else {
-      this.form.get('password')?.setValidators([Validators.required]);
-      this.form.get('password')?.updateValueAndValidity();
-      this.isLoading.set(false);
-    }
-  }
-
-  loadUser(id: number): void {
-    this.isLoading.set(true);
-    this.console.getUser(id).subscribe({
-      next: (res) => {
-        this.isLoading.set(false);
-        this.user.set(res.user);
-        this.form.patchValue({
-          full_name: res.user.full_name,
-          username: res.user.username,
-          email: res.user.email,
-          role: res.user.role,
-          is_active: res.user.is_active,
-          payout_account_name: res.user.payout_account_name || '',
-          payout_account_number: res.user.payout_account_number || '',
-          payout_phone: res.user.payout_phone || '',
-          payout_note: res.user.payout_note || '',
-        });
-      },
-      error: (err) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(this.friendlyError(err, 'consoleUserForm.failedToLoadUser'));
-      },
-    });
+    this.form.get('password')?.setValidators([Validators.required]);
+    this.form.get('password')?.updateValueAndValidity();
+    this.isLoading.set(false);
   }
 
   showError(name: string): boolean {
@@ -117,23 +84,17 @@ export class ConsoleUserFormComponent implements OnInit {
       email: value.email || '',
       role: value.role || 'renter',
       is_active: !!value.is_active,
+      password: value.password || '',
     };
-    const password = value.password || '';
-    if (password) payload['password'] = password;
     if (value.role === 'owner') {
-      payload['payout_method'] = 'aba';
+      payload['payout_method'] = value.payout_method || 'aba';
       payload['payout_account_name'] = value.payout_account_name || '';
       payload['payout_account_number'] = value.payout_account_number || '';
       payload['payout_phone'] = value.payout_phone || '';
       payload['payout_note'] = value.payout_note || '';
     }
 
-    const editId = this.id();
-    const request = editId
-      ? this.console.updateUser(Number(editId), payload)
-      : this.console.createUser(payload);
-
-    request.subscribe({
+    this.console.createUser(payload).subscribe({
       next: () => {
         this.isSaving.set(false);
         this.router.navigate(['/console/users']);

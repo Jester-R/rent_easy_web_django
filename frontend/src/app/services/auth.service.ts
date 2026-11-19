@@ -170,27 +170,6 @@ export class AuthService {
       );
   }
 
-  getGoogleOAuthConfig(): Observable<{ enabled: boolean; client_id: string }> {
-    return this.http.get<{ enabled: boolean; client_id: string }>(
-      `${this.baseUrl}/auth/google/config/`,
-      { withCredentials: true }
-    );
-  }
-
-  getGoogleAuthUrl(
-    role: string = '',
-    nextUrl: string = ''
-  ): Observable<{ enabled: boolean; url: string }> {
-    const params: string[] = [];
-    if (role) params.push(`role=${encodeURIComponent(role)}`);
-    if (nextUrl) params.push(`next=${encodeURIComponent(nextUrl)}`);
-    const query = params.length ? `?${params.join('&')}` : '';
-    return this.http.get<{ enabled: boolean; url: string }>(
-      `${this.baseUrl}/auth/google/url/${query}`,
-      { withCredentials: true }
-    );
-  }
-
   loginWithGoogle(
     role: string = '',
     nextUrl: string = ''
