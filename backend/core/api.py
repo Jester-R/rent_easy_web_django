@@ -43,7 +43,7 @@ async def _landing_payload(request, limit: int = 6) -> dict:
     from accounts.default_promotion import DEFAULT_HOME_PROMOTION
     from accounts.models import PlatformSettings
     from bookings.models import Booking, BookingStatus
-    from listings.models import Favorite, Property
+    from listings.models import Favorite, Property, active_paid_property_ids
     from payments.models import Payment
 
     confirmed_property_ids = Booking.objects.filter(
@@ -52,6 +52,7 @@ async def _landing_payload(request, limit: int = 6) -> dict:
     properties = (
         Property.objects.select_related("owner")
         .exclude(pk__in=confirmed_property_ids)
+        .exclude(pk__in=active_paid_property_ids())
         .order_by("-created_at")
     )
     featured_properties = [p async for p in properties[:limit]]

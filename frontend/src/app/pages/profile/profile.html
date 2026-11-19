@@ -95,60 +95,88 @@
 
         @if (auth.isOwner()) {
           <section class="mt-2 space-y-4 rounded-2xl border border-hairline bg-surface-2 p-4 sm:p-5">
-            <div>
-              <h2 class="text-[15px] font-extrabold">{{ language.t('profile.payoutAccount') }}</h2>
-              <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.payoutAccountHelp') }}</p>
-              <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.payoutAccountsPerMethodHelp') }}</p>
-              @if (!auth.currentUser()?.has_payout_details) {
-                <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700">
-                  {{ language.t('profile.payoutAccountMissing') }}
-                </p>
-              }
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h2 class="text-[15px] font-extrabold">{{ language.t('profile.payoutAccount') }}</h2>
+                <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.payoutAccountHelp') }}</p>
+                <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.payoutAccountsPerMethodHelp') }}</p>
+                @if (!auth.currentUser()?.has_payout_details) {
+                  <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700">
+                    {{ language.t('profile.payoutAccountMissing') }}
+                  </p>
+                }
+              </div>
+              <button type="button" class="btn btn-ghost btn-xs" (click)="revealPaymentDetails.set(!revealPaymentDetails())">
+                {{ revealPaymentDetails() ? language.t('profile.hideSensitive') : language.t('profile.revealSensitive') }}
+              </button>
             </div>
 
             <div class="max-w-sm">
-              <span class="form-label">{{ language.t('profile.payoutMethod') }}</span>
-              <p class="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm font-semibold">ABA Bank</p>
+              <label class="form-label" for="payout_method">{{ language.t('profile.payoutMethod') }}</label>
+              <select
+                id="payout_method"
+                class="form-input"
+                [value]="payoutMethod()"
+                (change)="setPayoutMethod($any($event.target).value)"
+              >
+                @for (method of payoutMethods; track method.value) {
+                  <option [value]="method.value">{{ payoutMethodLabel(method.value) }}</option>
+                }
+              </select>
             </div>
 
             <div class="space-y-3">
-              <fieldset class="space-y-3 rounded-xl border border-hairline p-3 sm:p-4">
-                  <legend class="px-1 text-sm font-bold">ABA Bank</legend>
-                  <div class="grid gap-3 sm:grid-cols-2">
-                    <label class="text-[11px] text-ink-3">{{ language.t('profile.accountHolderName') }}
-                      <input type="text" class="form-input mt-1" [value]="payoutAccounts()['aba']?.account_name || ''" (input)="updatePayoutAccount('aba', 'account_name', $any($event.target).value)" maxlength="120" />
-                    </label>
-                    <label class="text-[11px] text-ink-3">{{ language.t('profile.accountNumber') }}
-                      <input type="text" class="form-input mt-1" [value]="payoutAccounts()['aba']?.account_number || ''" (input)="updatePayoutAccount('aba', 'account_number', $any($event.target).value)" maxlength="64" />
-                    </label>
-                    <label class="text-[11px] text-ink-3">{{ language.t('profile.phoneNumber') }}
-                      <input type="tel" class="form-input mt-1" [value]="payoutAccounts()['aba']?.phone || ''" (input)="updatePayoutAccount('aba', 'phone', $any($event.target).value)" maxlength="32" />
-                    </label>
-                    <label class="text-[11px] text-ink-3 sm:col-span-2">{{ language.t('profile.payoutNote') }}
-                      <input type="text" class="form-input mt-1" [value]="payoutAccounts()['aba']?.note || ''" (input)="updatePayoutAccount('aba', 'note', $any($event.target).value)" maxlength="255" />
-                    </label>
-                  </div>
-              </fieldset>
+              @for (method of payoutMethods; track method.value) {
+                @if (payoutMethod() === method.value) {
+                  <fieldset class="space-y-3 rounded-xl border border-hairline p-3 sm:p-4">
+                    <legend class="px-1 text-sm font-bold">{{ payoutMethodLabel(method.value) }}</legend>
+                    <p class="text-xs text-ink-3">
+                      {{ method.value === 'stripe' ? language.t('profile.stripePayoutHelp') : language.t('profile.abaPayoutHelp') }}
+                    </p>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                      <label class="text-[11px] text-ink-3">{{ method.value === 'stripe' ? language.t('profile.stripeAccountHolderName') : language.t('profile.accountHolderName') }}
+                        <input [type]="revealPaymentDetails() ? 'text' : 'password'" class="form-input mt-1" [value]="payoutAccounts()[method.value]?.account_name || ''" (input)="updatePayoutAccount(method.value, 'account_name', $any($event.target).value)" maxlength="120" />
+                      </label>
+                      <label class="text-[11px] text-ink-3">{{ method.value === 'stripe' ? language.t('profile.stripeAccountId') : language.t('profile.accountNumber') }}
+                        <input [type]="revealPaymentDetails() ? 'text' : 'password'" class="form-input mt-1" [value]="payoutAccounts()[method.value]?.account_number || ''" (input)="updatePayoutAccount(method.value, 'account_number', $any($event.target).value)" maxlength="64" />
+                      </label>
+                      @if (method.value !== 'stripe') {
+                        <label class="text-[11px] text-ink-3">{{ language.t('profile.phoneNumber') }}
+                          <input [type]="revealPaymentDetails() ? 'tel' : 'password'" class="form-input mt-1" [value]="payoutAccounts()[method.value]?.phone || ''" (input)="updatePayoutAccount(method.value, 'phone', $any($event.target).value)" maxlength="32" />
+                        </label>
+                      }
+                      <label class="text-[11px] text-ink-3 sm:col-span-2">{{ language.t('profile.payoutNote') }}
+                        <input type="text" class="form-input mt-1" [value]="payoutAccounts()[method.value]?.note || ''" (input)="updatePayoutAccount(method.value, 'note', $any($event.target).value)" maxlength="255" />
+                      </label>
+                    </div>
+                  </fieldset>
+                }
+              }
             </div>
           </section>
         }
 
         @if (auth.isRenter()) {
           <section class="mt-2 max-w-xl space-y-3 rounded-2xl border border-hairline bg-surface-2 p-4 sm:p-5">
-            <div>
-              <h2 class="text-[15px] font-extrabold">{{ language.t('profile.renterPaymentMethod') }}</h2>
-              <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.renterPaymentMethodHelp') }}</p>
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h2 class="text-[15px] font-extrabold">{{ language.t('profile.renterPaymentMethod') }}</h2>
+                <p class="mt-1 text-xs text-ink-3">{{ language.t('profile.renterPaymentMethodHelp') }}</p>
+              </div>
+              <button type="button" class="btn btn-ghost btn-xs" (click)="revealPaymentDetails.set(!revealPaymentDetails())">
+                {{ revealPaymentDetails() ? language.t('profile.hideSensitive') : language.t('profile.revealSensitive') }}
+              </button>
             </div>
             <p class="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm font-semibold">ABA PayWay</p>
             <div class="grid gap-3 sm:grid-cols-2">
               <label class="text-[11px] text-ink-3">{{ language.t('profile.abaAccountHolderName') }}
-                <input type="text" formControlName="payment_account_name" class="form-input mt-1" maxlength="120" autocomplete="name" />
+                <input [type]="revealPaymentDetails() ? 'text' : 'password'" formControlName="payment_account_name" class="form-input mt-1" maxlength="120" autocomplete="name" />
               </label>
               <label class="text-[11px] text-ink-3">{{ language.t('profile.abaAccountNumber') }}
-                <input type="text" formControlName="payment_account_number" class="form-input mt-1" maxlength="64" inputmode="numeric" autocomplete="off" />
+                <input [type]="revealPaymentDetails() ? 'text' : 'password'" formControlName="payment_account_number" class="form-input mt-1" maxlength="64" inputmode="numeric" autocomplete="off" />
               </label>
               <label class="text-[11px] text-ink-3 sm:col-span-2">{{ language.t('profile.phoneNumber') }}
-                <input type="tel" formControlName="payment_phone" class="form-input mt-1" maxlength="32" autocomplete="tel" />
+                <input [type]="revealPaymentDetails() ? 'tel' : 'password'" formControlName="payment_phone" class="form-input mt-1" maxlength="32" autocomplete="tel" />
               </label>
             </div>
           </section>

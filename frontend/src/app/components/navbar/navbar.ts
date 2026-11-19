@@ -27,7 +27,6 @@ export class NavbarComponent implements OnDestroy {
   isMobileMenuOpen = signal(false);
   isProfileMenuOpen = signal(false);
   isNotifMenuOpen = signal(false);
-  notifications = signal<AppNotification[]>([]);
 
   constructor() {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -37,25 +36,11 @@ export class NavbarComponent implements OnDestroy {
       const user = this.auth.currentUser();
       if (user) {
         this.notifService.connect();
-        this.fetchNotificationsPreview();
       } else {
         this.notifService.disconnect();
         this.notifService.unreadCount.set(0);
         this.notifService.preview.set([]);
-        this.notifications.set([]);
       }
-    });
-
-    // Keep the preview current from the live notification stream, whether or
-    // not the dropdown is open. Opening it only reveals the already loaded rows.
-    effect(() => {
-      const incoming = this.notifService.incoming();
-      if (!incoming) return;
-      this.fetchNotificationsPreview();
-    });
-
-    effect(() => {
-      this.notifications.set(this.notifService.preview());
     });
   }
 
@@ -78,23 +63,15 @@ export class NavbarComponent implements OnDestroy {
     this.isNotifMenuOpen.update((v) => !v);
     if (this.isNotifMenuOpen()) {
       this.isProfileMenuOpen.set(false);
-      // Refresh on open as well as preloading after sign-in. This covers a
-      // slow initial session check and keeps the visible dropdown current.
-      this.fetchNotificationsPreview();
+      // Refresh on open as well as on live SSE events. This covers a slow
+      // initial session check and keeps the visible dropdown current.
+      this.notifService.refreshPreview();
     }
-  }
-
-  fetchNotificationsPreview(): void {
-    this.notifService.getPreview().subscribe({
-      next: (res) => {
-        this.notifications.set(res.items || []);
-      },
-    });
   }
 
   markAllRead(): void {
     this.notifService.readAll().subscribe({
-      next: () => this.fetchNotificationsPreview(),
+      next: () => this.notifService.refreshPreview(),
     });
   }
 
@@ -115,10 +92,10 @@ export class NavbarComponent implements OnDestroy {
     if (!notification.read) {
       this.notifService.toggleRead(notification.id).subscribe({
         next: () => {
-          this.notifications.update((list) =>
+          this.notifService.preview.update((list) =>
             list.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
           );
-          this.fetchNotificationsPreview();
+          this.notifService.refreshPreview();
         },
         error: () => undefined,
       });

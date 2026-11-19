@@ -50,24 +50,12 @@
 
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-xs font-mono text-ink-3">#{{ b.reference }}</span>
-                  <span class="pill shrink-0"
-                    [ngClass]="{
-                      'pill-pending': b.status === 'Pending',
-                      'pill-approved': b.status === 'Approved' || b.status === 'Confirmed',
-                      'pill-rejected': b.status === 'Rejected',
-                      'pill-cancelled': b.status === 'Cancelled'
-                    }">
-                    {{ label(b.status) }}
+                  <span class="pill shrink-0" [ngClass]="bookingState(b).pill">
+                    {{ bookingState(b).label }}
                   </span>
-                  @if (b.is_paid && b.status !== 'Confirmed') {
-                    <span class="pill pill-approved">
-                      {{ language.t('renterBookings.paid') }}
-                    </span>
-                  }
                 </div>
 
-                <a [routerLink]="['/properties', b.property.id]" class="text-base font-bold text-ink hover:text-primary transition-colors block mt-1">
+                <a [routerLink]="['/bookings', b.id]" class="text-base font-bold text-ink hover:text-primary transition-colors block mt-1">
                   {{ title(b.property) }}
                 </a>
 
@@ -105,9 +93,28 @@
                   </a>
                 }
 
+                <button type="button" class="btn btn-outline btn-sm" [disabled]="isOpeningOwnerChatId() === b.id" (click)="openOwnerChat(b)">
+                  <app-icon name="chat" [size]="14" />
+                  <span>{{ language.t('renterBookings.ownerChat') }}</span>
+                </button>
+
+                @if (canOpenRefundChat(b)) {
+                  @if (b.renter_refund_conversation_id) {
+                    <a [routerLink]="['/messages', b.renter_refund_conversation_id]" class="btn btn-outline btn-sm">
+                      <app-icon name="chat" [size]="14" />
+                      <span>{{ language.t('renterBookings.refundChat') }}</span>
+                    </a>
+                  } @else {
+                    <button type="button" class="btn btn-outline btn-sm" [disabled]="isOpeningChatId() === b.id" (click)="openRefundChat(b)">
+                      <app-icon name="chat" [size]="14" />
+                      <span>{{ language.t('renterBookings.refundChat') }}</span>
+                    </button>
+                  }
+                }
+
                 @if (b.can_cancel) {
                   <button
-                    (click)="cancelBooking(b.id)"
+                    (click)="cancelBooking(b)"
                     class="btn btn-ghost btn-sm text-danger hover:bg-rose-50"
                   >
                     {{ b.is_paid ? language.t('renterBookings.cancelAndRefund') : language.t('renterBookings.cancel') }}
@@ -116,6 +123,9 @@
               </div>
             </div>
           </div>
+          @if (chatError(); as message) {
+            <p class="toast toast-error mt-3" role="alert">{{ message }}</p>
+          }
         </div>
       }
     </div>

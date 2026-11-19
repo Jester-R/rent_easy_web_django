@@ -7,6 +7,12 @@ from django.db.models import Count
 from django.utils import timezone
 
 
+class PropertyOwnerStatus(models.TextChoices):
+    AVAILABLE = "available", "Available"
+    UNAVAILABLE = "unavailable", "Unavailable"
+    REMOVED = "removed", "Removed"
+
+
 class PropertyCategory(models.TextChoices):
     APARTMENT = "apartment", "Apartment"
     HOUSE = "house", "House"
@@ -18,15 +24,42 @@ class PropertyCategory(models.TextChoices):
     LAND = "land", "Land"
 
 
+def active_paid_property_ids(property_ids=None):
+    """Property IDs with an active, unreimbursed successful booking payment."""
+    from bookings.models import ACTIVE_STATUSES, Booking
+    from payments.models import Payment, Refund
+
+    queryset = (
+        Booking.objects.filter(
+            status__in=ACTIVE_STATUSES,
+            payment__status=Payment.Status.SUCCESS,
+        )
+        .exclude(
+            payment__refunds__status__in=(
+                Refund.Status.ACCEPTED,
+                Refund.Status.PROCESSED,
+            )
+        )
+        .exclude(end_date__lt=timezone.localdate())
+    )
+    if property_ids is not None:
+        queryset = queryset.filter(property_id__in=property_ids)
+    return queryset.values_list("property_id", flat=True)
+
+
 class PropertyQuerySet(models.QuerySet):
     def for_renter(self, user):
-        """Hide confirmed rentals and the renter's existing active requests."""
+        """Hide confirmed/paid rentals and the renter's existing active requests."""
         from bookings.models import Booking, BookingStatus
 
         confirmed = Booking.objects.filter(
             property__isnull=False, status=BookingStatus.CONFIRMED
         ).values_list("property_id", flat=True)
-        queryset = self.filter(is_active=True).exclude(id__in=confirmed)
+        queryset = (
+            self.filter(is_active=True)
+            .exclude(id__in=confirmed)
+            .exclude(id__in=active_paid_property_ids())
+        )
         if not user or not user.is_authenticated:
             return queryset
         blocked = Booking.objects.filter(
@@ -52,6 +85,13 @@ class PropertyQuerySet(models.QuerySet):
 
 class Property(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
+    owner_status = models.CharField(
+        max_length=16,
+        choices=PropertyOwnerStatus.choices,
+        default=PropertyOwnerStatus.AVAILABLE,
+        db_index=True,
+    )
+    rental_closed_at = models.DateTimeField(null=True, blank=True)
     title = models.CharField(max_length=160)
     title_km = models.CharField(max_length=160, blank=True, default="")
     province = models.CharField(max_length=160, blank=True, default="", db_index=True)
@@ -129,6 +169,27 @@ class Favorite(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["user", "property"], name="unique_favorite")
         ]
+
+
+class OwnerPropertyAction(models.Model):
+    class Action(models.TextChoices):
+        UNAVAILABLE = "unavailable", "Marked unavailable"
+        REMOVE = "remove", "Removed listing"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="property_actions",
+    )
+    property = models.ForeignKey(
+        Property, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    action = models.CharField(max_length=16, choices=Action.choices)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["owner", "action", "-created_at"])]
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.property_id}"

@@ -13,7 +13,10 @@
       <h2 class="text-[16px] font-extrabold">{{ language.t('consoleProperties.propertyCategories') }}</h2>
       <p class="mt-1 text-[12px] text-ink-3">{{ language.t('consoleProperties.manageCategoryNamesInEnglishAndKhmer') }}</p>
     </div>
-    <button type="button" class="btn btn-secondary" (click)="openCategoryModal()">{{ language.t('consoleProperties.manageCategories') }} ({{ categories().length }})</button>
+    <button type="button" class="btn btn-primary" (click)="openCategoryModal()">
+      <app-icon name="settings" [size]="16" />
+      <span>{{ language.t('consoleProperties.manageCategories') }} ({{ categories().length }})</span>
+    </button>
   </section>
 
   @if (showCategoryModal()) {
@@ -113,7 +116,11 @@
           @for (item of properties(); track item.id) {
             <tr>
               <td class="min-w-[14rem]">
-                <a [routerLink]="['/properties', item.id]" class="font-bold hover:text-primary">{{ title(item) }}</a>
+                @if (item.is_active) {
+                  <a [routerLink]="['/properties', item.id]" class="font-bold hover:text-primary">{{ title(item) }}</a>
+                } @else {
+                  <span class="font-bold">{{ title(item) }}</span>
+                }
                 <span class="block text-[11px] text-ink-3">{{ location(item) }} · {{ item.bedrooms }}bd/{{ item.bathrooms }}ba</span>
               </td>
               <td class="text-ink-2">{{ item.owner.display_name }}</td>
@@ -134,7 +141,9 @@
                     <app-icon name="trash" [size]="16" />
                   </button>
                 } @else {
-                  <span class="text-[11px] text-ink-3">{{ language.t('consoleProperties.retained') }}</span>
+                  <button type="button" class="btn btn-outline btn-icon" [title]="language.t('consoleProperties.restoreListing')" [attr.aria-label]="language.t('consoleProperties.restoreListing')" (click)="restore(item)">
+                    <app-icon name="rotate-ccw" [size]="16" />
+                  </button>
                 }
               </td>
             </tr>

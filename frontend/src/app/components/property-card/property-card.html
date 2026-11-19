@@ -1,4 +1,4 @@
-<div class="property-card group" [class.opacity-75]="property().has_active_booking">
+<div class="property-card group" [class.opacity-75]="property().has_active_booking || property().has_paid_booking">
   <span class="property-thumb overflow-hidden">
     @if (property().cover_image) {
       <img [src]="property().cover_image" [alt]="titleLabel" class="h-full w-full object-cover" loading="lazy" />
@@ -53,8 +53,10 @@
         <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 12.5h18"/><path d="M4.5 12.5V6A2 2 0 0 1 6.5 4h.5a1.5 1.5 0 0 1 1.5 1.5V8"/><path d="M4.5 12.5V16a4 4 0 0 0 4 4h7a4 4 0 0 0 4-4v-3.5"/></svg>
         {{ property().bathrooms }}{{ property().bathrooms === 1 ? ' bath' : ' baths' }}
       </span>
-      @if (property().has_active_booking) {
-        <span class="pill pill-pending">Already Booked</span>
+      @if (property().has_paid_booking) {
+        <span class="pill pill-approved">{{ language.t('app.paid') }}</span>
+      } @else if (property().has_active_booking) {
+        <span class="pill pill-pending">{{ language.t('app.alreadyBooked') }}</span>
       }
     </span>
     @if (favoriteError()) {

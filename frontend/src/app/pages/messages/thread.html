@@ -9,10 +9,29 @@
         <img [src]="conversation()?.property_cover" [alt]="conversation()?.property_title" class="h-10 w-10 rounded-lg object-cover" />
       }
       <div class="min-w-0 flex-1">
-        <p class="truncate text-sm font-bold text-ink">{{ otherParty()?.display_name || 'Conversation' }}</p>
-        @if (conversation(); as conv) {
-          <a [routerLink]="['/properties', conversation()?.property_id]" class="truncate text-xs text-primary hover:underline">{{ conversation()?.property_title }}</a>
-        }
+        <p class="truncate text-sm font-bold text-ink">
+          @if (isRefundChat()) {
+            <span class="pill pill-pending mr-1.5 !px-2 !py-0.5 !text-[10px]">{{ language.t('thread.refundSupport') }}</span>
+          }
+          {{ threadTitle() }}
+        </p>
+          @if (conversation(); as conv) {
+            @if (conv.property_is_active) {
+              <a [routerLink]="['/properties', conv.property_id]" class="truncate text-xs text-primary hover:underline">{{ conv.property_title }}</a>
+            } @else {
+              <span class="truncate text-xs text-ink-3">{{ conv.property_title }}</span>
+            }
+            @if (conv.is_refund_support) {
+              <span class="mt-0.5 block text-[10px] text-ink-3">
+                @if (auth.isAdmin()) {
+                  <a routerLink="/console/payments/refunds" class="text-primary hover:underline">{{ language.t('thread.refundDetails') }}</a>
+                } @else if (conv.refund_payment_id) {
+                  <a [routerLink]="['/payments', conv.refund_payment_id]" class="text-primary hover:underline">{{ language.t('thread.refundDetails') }}</a>
+                }
+              </span>
+            }
+          }
+
       </div>
     </div>
 
@@ -49,18 +68,22 @@
       @if (sendError()) {
         <p class="mb-2 text-xs text-danger">{{ language.t('thread.couldNotSendMessageTryAgain') }}</p>
       }
+      @if (!adminCanSend()) {
+        <p class="mb-2 text-xs text-ink-3">{{ language.t('thread.adminReplyLocked') }}</p>
+      }
       <div class="flex items-end gap-2">
         <textarea
           [(ngModel)]="draft"
           (keydown.enter)="$event.preventDefault(); send()"
           rows="1"
           [placeholder]="language.t('thread.typeAMessage')"
+          [disabled]="!adminCanSend()"
           class="form-input flex-1 resize-none"
         ></textarea>
         <button
           type="button"
           (click)="send()"
-          [disabled]="!draft.trim() || isSending()"
+          [disabled]="!draft.trim() || isSending() || !adminCanSend()"
           class="btn btn-primary"
         >
           {{ language.t('thread.send') }}

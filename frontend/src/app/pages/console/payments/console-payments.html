@@ -1,7 +1,7 @@
 <div class="space-y-5">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consolePayments.payments') }}</h1>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ sectionTitle() }}</h1>
     </div>
   </div>
 
@@ -15,6 +15,7 @@
     </div>
   }
 
+  @if (section() === 'payments') {
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
     <div class="stat-card">
       <span class="stat-icon"><app-icon name="dollar" [size]="20" /></span>
@@ -47,7 +48,9 @@
       </span>
     </div>
   </div>
+  }
 
+  @if (section() === 'settings') {
   <section class="app-card space-y-3 p-4">
     <div>
       <h2 class="text-sm font-bold">{{ language.t('consoleSettings.paymentCommissions') }}</h2>
@@ -63,6 +66,13 @@
           <span class="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-xs">%</span>
         </div>
       </label>
+      <label class="min-w-48 flex-1 text-[11px] text-ink-3">{{ language.t('consoleSettings.lateCancellationFee') }}
+        <div class="relative mt-1">
+          <span class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-xs">$</span>
+          <input type="number" class="form-input ps-7" min="0" step="0.01" [value]="lateCancellationFee()" (input)="updateLateCancellationFee($any($event.target).value)" />
+        </div>
+        <span class="mt-1 block text-[10px] text-ink-3">{{ language.t('consoleSettings.lateCancellationFeeHelp') }}</span>
+      </label>
       <button type="button" class="btn btn-primary btn-sm" [disabled]="commissionSaving()" (click)="saveCommissionRate()">
         {{ commissionSaving() ? language.t('profile.savingChanges') : language.t('consoleSettings.saveCommissionRates') }}
       </button>
@@ -71,7 +81,9 @@
       }
     </div>
   </section>
+  }
 
+  @if (section() === 'payments') {
   <div class="space-y-4">
     <section class="app-card p-4">
       <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
@@ -116,7 +128,8 @@
               <th class="text-start">{{ language.t('consolePayments.user') }}</th>
               <th class="text-end">{{ language.t('consolePayments.amount') }}</th>
               <th class="text-start">{{ language.t('consolePayments.method') }}</th>
-              <th class="text-start">{{ language.t('consolePayments.status') }}</th>
+              <th class="text-start">{{ language.t('consolePayments.paymentStatus') }}</th>
+              <th class="text-start">{{ language.t('consolePayments.refundStatus') }}</th>
               <th class="text-end w-px">{{ language.t('consolePayments.actions') }}</th>
             </tr>
           </thead>
@@ -132,17 +145,15 @@
                     <app-icon [name]="methodIcon(p.method)" [size]="14" /> {{ methodLabel(p.method) }}
                   </span>
                 </td>
-                <td class="min-w-[8.5rem]">
-                  <div class="inline-flex flex-col items-start gap-1">
-                    <span class="pill whitespace-nowrap {{ paymentPill(p.status, p.refund_status) }}">{{ statusText(paymentStatusLabel(p.status)) }}</span>
-                  @if (p.refund_status !== 'None') {
-                    <span class="pill whitespace-nowrap {{ refundPill(p.refund_status) }}">{{ statusText(refundStatusLabel(p.refund_status)) }}</span>
-                  }
-                  </div>
+                <td class="whitespace-nowrap">
+                  <span class="pill {{ paymentPill(p.display_status || p.status) }}">{{ statusText(p.display_status || paymentStatusLabel(p.status)) }}</span>
+                </td>
+                <td class="whitespace-nowrap">
+                  <span class="pill {{ refundPill(p.refund_status) }}">{{ statusText(refundStatusLabel(p.refund_status)) }}</span>
                 </td>
                 <td class="w-px">
                   <div class="flex items-center justify-end gap-1">
-                    @if (p.refund_status === 'None') {
+                    @if (p.status === 'Success' && p.refund_status === 'None') {
                       <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-amber-700" [title]="language.t('consolePayments.issueRefund')" (click)="refund(p)">
                         <app-icon name="rotate-ccw" [size]="14" /><span>{{ language.t('consolePayments.issueRefund') }}</span>
                       </button>
@@ -163,7 +174,9 @@
       </div>
     }
   </div>
+  }
 
+  @if (section() === 'payouts') {
   <section class="app-card p-5">
     <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
       <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
@@ -247,7 +260,9 @@
     }
     <app-data-pagination [page]="payoutPage()" [pageSize]="payoutPageSize" [total]="payoutsTotal()" (pageChange)="changePayoutPage($event)" />
   </section>
+  }
 
+  @if (section() === 'refunds') {
   <section class="app-card p-5">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 class="flex items-center gap-2 text-[15px] font-extrabold tracking-tight">
@@ -258,6 +273,7 @@
         <select class="form-input !w-auto" [value]="refundStatus()" (change)="onRefundStatusChange($any($event.target).value)">
           <option value="all">{{ language.t('consolePayments.allRefundStatuses') }}</option>
           <option value="Pending">{{ language.t('consolePayments.refundPending') }}</option>
+          <option value="Accepted">{{ language.t('consolePayments.refundAccepted') }}</option>
           <option value="Processed">{{ language.t('consolePayments.refundProcessed') }}</option>
           <option value="Rejected">{{ language.t('consolePayments.refundCancelled') }}</option>
         </select>
@@ -271,6 +287,7 @@
               <th class="text-start">{{ language.t('consolePayments.paymentRef2') }}</th>
               <th class="text-start">Property / renter</th>
               <th class="text-end">{{ language.t('consolePayments.amount') }}</th>
+              <th class="text-end">{{ language.t('consolePayments.commissionDue') }}</th>
               <th class="text-start">{{ language.t('consolePayments.reason') }}</th>
               <th class="text-start">Request details</th>
               <th class="text-start">Requested by</th>
@@ -295,16 +312,68 @@
                   </div>
                 </td>
                 <td class="whitespace-nowrap text-end font-bold">{{ usd(r.amount) }}</td>
+                <td class="whitespace-nowrap text-end">
+                  @if ((r.commission_due || 0) > 0) {
+                    <span class="block font-bold text-amber-700">{{ usd(r.commission_due) }}</span>
+                    <span class="block text-[10px] text-ink-3">
+                      {{ r.commission_paid ? language.t('consolePayments.commissionPaid') : language.t('consolePayments.commissionDue') }}
+                    </span>
+                  } @else {
+                    <span class="text-ink-3">{{ usd(0) }}</span>
+                  }
+                </td>
                 <td class="whitespace-nowrap text-ink-2">{{ refundReasonLabel(r.reason) }}</td>
-                <td class="min-w-64 max-w-md whitespace-pre-wrap text-[12px] text-ink-2">{{ r.request_note || '—' }}</td>
+                <td class="min-w-64 max-w-md whitespace-pre-wrap text-[12px] text-ink-2">
+                  <span>{{ r.request_note || '—' }}</span>
+                  @for (message of r.messages || []; track message.id) {
+                    <span class="mt-1 block rounded bg-surface-2 px-2 py-1 text-[11px]">
+                      <strong>{{ message.sender?.display_name || (message.is_from_admin ? 'Admin' : 'User') }}:</strong> {{ message.body }}
+                    </span>
+                  }
+                </td>
                 <td class="whitespace-nowrap text-ink-2">{{ r.requested_by?.display_name || r.requested_by?.email || 'Automatic booking refund' }}</td>
                 <td>
-                  <span class="pill {{ refundPill(r.status) }}">{{ r.status }}</span>
+                  <span class="pill {{ refundPill(r.status) }}">{{ statusText(refundStatusLabel(r.status)) }}</span>
                 </td>
                 <td class="whitespace-nowrap text-ink-2">{{ shortDate(r.created_at) }}</td>
                 <td class="text-end">
-                  @if (r.status === 'Pending') {
-                    <div class="flex min-w-max items-center justify-end gap-2">
+                  <div class="flex min-w-max items-center justify-end gap-2">
+                    @if (r.status === 'Accepted' || r.status === 'Processed') {
+                      @if (r.owner_conversation_id) {
+                        <a [routerLink]="['/messages', r.owner_conversation_id]" class="btn btn-outline btn-xs whitespace-nowrap" [attr.aria-label]="language.t('consolePayments.chatOwner')">
+                          <app-icon name="chat" [size]="14" />
+                          <span>{{ language.t('consolePayments.chatOwner') }}</span>
+                        </a>
+                      } @else {
+                        <button type="button" class="btn btn-outline btn-xs whitespace-nowrap" [disabled]="isSaving()" (click)="openRefundChat(r, 'owner')">
+                          <app-icon name="chat" [size]="14" />
+                          <span>{{ language.t('consolePayments.chatOwner') }}</span>
+                        </button>
+                      }
+                      @if (r.renter_conversation_id) {
+                        <a [routerLink]="['/messages', r.renter_conversation_id]" class="btn btn-outline btn-xs whitespace-nowrap" [attr.aria-label]="language.t('consolePayments.chatRenter')">
+                          <app-icon name="chat" [size]="14" />
+                          <span>{{ language.t('consolePayments.chatRenter') }}</span>
+                        </a>
+                      } @else {
+                        <button type="button" class="btn btn-outline btn-xs whitespace-nowrap" [disabled]="isSaving()" (click)="openRefundChat(r, 'renter')">
+                          <app-icon name="chat" [size]="14" />
+                          <span>{{ language.t('consolePayments.chatRenter') }}</span>
+                        </button>
+                      }
+                    }
+                    @if (r.status === 'Pending') {
+                      <button type="button" class="btn btn-primary btn-xs whitespace-nowrap" [disabled]="isSaving()" (click)="accept(r)">
+                        <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.acceptRequest') }}</span>
+                      </button>
+                      <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-rose-700" (click)="reject(r)">Cancel request</button>
+                    }
+                    @if (r.status === 'Accepted') {
+                      @if ((r.commission_due || 0) > 0 && !r.commission_paid) {
+                        <button type="button" class="btn btn-outline btn-xs whitespace-nowrap" [disabled]="isSaving()" (click)="markCommissionPaid(r)">
+                          {{ language.t('consolePayments.markCommissionPaid') }}
+                        </button>
+                      }
                       @if (r.payment?.can_refund_locally === false) {
                         <button type="button" class="btn btn-outline btn-xs whitespace-nowrap" (click)="process(r, true)">
                           <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.confirmPaywayRefund') }}</span>
@@ -314,9 +383,8 @@
                           <app-icon name="check" [size]="14" /><span>{{ language.t('consolePayments.approveRefund') }}</span>
                         </button>
                       }
-                      <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-rose-700" (click)="reject(r)">Cancel request</button>
-                    </div>
-                  }
+                    }
+                  </div>
                 </td>
               </tr>
             }
@@ -328,6 +396,7 @@
       <p class="px-1 py-3 text-center text-[12px] text-ink-3">{{ language.t('consolePayments.noRefundsYet') }}</p>
     }
   </section>
+  }
 
   @if (selectedPayout(); as payout) {
     <div class="modal-backdrop" role="presentation" (click)="selectedPayout.set(null)">

@@ -12,7 +12,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
-from accounts.models import PlatformSettings
+from accounts.models import PlatformSettings, Role
 from bookings.models import Booking, BookingStatus
 from listings.models import Property
 from notifications.models import Notification
@@ -26,6 +26,7 @@ from payments.services import (
     apply_stripe_event,
     confirm_aba_payment,
     confirm_stripe_payment,
+    create_booking,
     normalize_method,
     pay_booking,
     process_refund,
@@ -262,6 +263,54 @@ class AbaPaymentFlowTests(TestCase):
             ).count(),
             1,
         )
+
+    @override_settings(**ABA_SETTINGS)
+    def test_success_cancels_other_pending_methods(self):
+        winner = self._pending_payment("PAY-TEST00000011")
+        loser = self._pending_payment("PAY-TEST00000012")
+
+        self.assertTrue(
+            confirm_aba_payment(
+                winner.pk, status="APPROVED", amount="100.00", payload={}
+            )
+        )
+
+        winner.refresh_from_db()
+        loser.refresh_from_db()
+        self.booking.refresh_from_db()
+        self.assertEqual(winner.status, Payment.Status.SUCCESS)
+        self.assertEqual(loser.status, Payment.Status.CANCELLED)
+        self.assertEqual(self.booking.payment_id, winner.pk)
+
+    @override_settings(**ABA_SETTINGS)
+    def test_payment_confirms_pending_booking_without_owner_approval(self):
+        booking = Booking.objects.create(
+            property=self.property,
+            renter=self.renter,
+            owner=self.owner,
+            status=BookingStatus.PENDING,
+            monthly_rent=Decimal("100.00"),
+        )
+        payment = Payment.objects.create(
+            property=self.property,
+            user=self.renter,
+            booking=booking,
+            amount=Decimal("100.00"),
+            method=Payment.Method.ABA,
+            status=Payment.Status.PENDING,
+            provider=Payment.Provider.ABA_PAYWAY,
+            provider_ref="PAY-TEST00000099",
+        )
+
+        self.assertTrue(
+            confirm_aba_payment(
+                payment.pk, status="APPROVED", amount="100.00", payload={}
+            )
+        )
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, BookingStatus.CONFIRMED)
+        self.assertEqual(booking.payment_id, payment.pk)
 
     @override_settings(**ABA_SETTINGS)
     def test_amount_mismatch_does_not_confirm(self):
@@ -960,3 +1009,49 @@ class StripePaymentFlowTests(TestCase):
             ).count(),
             1,
         )
+
+
+class BookingAvailabilityTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            email="booking-owner@example.com",
+            username="bookingowner",
+            password="secret123",
+            role=Role.OWNER,
+        )
+        self.first_renter = User.objects.create_user(
+            email="booking-first@example.com",
+            username="bookingfirst",
+            password="secret123",
+            role=Role.RENTER,
+        )
+        self.second_renter = User.objects.create_user(
+            email="booking-second@example.com",
+            username="bookingsecond",
+            password="secret123",
+            role=Role.RENTER,
+        )
+        self.property = Property.objects.create(
+            owner=self.owner,
+            title="Single villa",
+            location="Phnom Penh",
+            price_per_month=500,
+        )
+
+    @patch("payments.services.notify")
+    def test_another_renter_cannot_book_an_active_property(self, _notify):
+        first = create_booking(property_obj=self.property, renter=self.first_renter)
+        self.assertIsNotNone(first)
+
+        second = create_booking(property_obj=self.property, renter=self.second_renter)
+        self.assertIsNone(second)
+        self.assertEqual(Booking.objects.filter(property=self.property).count(), 1)
+
+    @patch("payments.services.notify")
+    def test_cancelled_booking_releases_the_property(self, _notify):
+        first = create_booking(property_obj=self.property, renter=self.first_renter)
+        self.assertIsNotNone(first)
+        Booking.objects.filter(pk=first.pk).update(status=BookingStatus.CANCELLED)
+
+        second = create_booking(property_obj=self.property, renter=self.second_renter)
+        self.assertIsNotNone(second)

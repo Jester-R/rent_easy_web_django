@@ -1,5 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import { RouterLink } from '@angular/router';
 import { PropertyService } from '../../../services/property.service';
@@ -58,7 +59,7 @@ export class OwnerPropertiesComponent implements OnInit {
   }
 
   deleteProperty(id: number): void {
-    if (!confirm('Remove this listing from public browsing? Any active paid bookings will be sent to the admin team for review before a refund is issued.')) return;
+    if (!confirm(this.language.t('ownerList.deleteConfirm'))) return;
 
     this.propertyService.deleteProperty(id).subscribe({
       next: (res) => {
@@ -67,6 +68,45 @@ export class OwnerPropertiesComponent implements OnInit {
             ? `Listing hidden. ${res.refunds_requested} paid booking(s) sent to the admin team for refund review.`
             : 'Listing hidden from public browsing.'
         );
+        this.loadProperties();
+      },
+      error: (err: HttpErrorResponse) => this.successMessage.set(this.errorMessage(err)),
+    });
+  }
+
+  toggleAvailability(p: Property): void {
+    const unavailable = p.owner_status !== 'unavailable';
+    const confirmKey = unavailable ? 'unavailableConfirm' : 'availableConfirm';
+    if (!confirm(this.language.t(`ownerList.${confirmKey}`))) return;
+
+    this.propertyService.setAvailability(p.id, unavailable).subscribe({
+      next: () => {
+        this.successMessage.set(this.language.t('ownerList.availabilityUpdated'));
+        this.loadProperties();
+      },
+      error: (err: HttpErrorResponse) => this.successMessage.set(this.errorMessage(err)),
+    });
+  }
+
+  private errorMessage(err: HttpErrorResponse): string {
+    const detail = err.error?.detail;
+    if (detail === 'owner_action_rate_limited') {
+      return this.language.t('ownerList.rateLimited');
+    }
+    if (detail === 'active_paid_booking') {
+      return this.language.t('ownerList.activePaidBooking');
+    }
+    if (detail === 'availability_not_changed') {
+      return this.language.t('ownerList.actionFailed');
+    }
+    return detail || this.language.t('ownerList.actionFailed');
+  }
+
+  reopenProperty(id: number): void {
+    if (!confirm(this.language.t('ownerList.reopenConfirm'))) return;
+    this.propertyService.reopenProperty(id).subscribe({
+      next: () => {
+        this.successMessage.set(this.language.t('ownerList.reopenListing'));
         this.loadProperties();
       },
     });

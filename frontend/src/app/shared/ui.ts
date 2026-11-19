@@ -40,6 +40,7 @@ export function paymentPill(status: string, refundStatus?: string): string {
   if (refundStatus === 'Processed') return 'pill-refunded';
   if (status === 'Success') return 'pill-approved';
   if (status === 'Failed') return 'pill-rejected';
+  if (status === 'Cancelled') return 'pill-cancelled';
   return 'pill-neutral';
 }
 
@@ -49,13 +50,16 @@ export function paymentStatusLabel(status: string): string {
 
 export function refundPill(status: string): string {
   if (status === 'Processed') return 'pill-refunded';
+  if (status === 'Accepted') return 'pill-approved';
+  if (status === 'Rejected') return 'pill-rejected';
   if (status === 'Pending') return 'pill-pending';
   return 'pill-neutral';
 }
 
 export function refundStatusLabel(status: string): string {
   if (status === 'None') return 'No Refund';
-  if (status === 'Pending') return 'Refund Pending';
+  if (status === 'Pending' || status === 'Accepted') return 'Refunding';
+  if (status === 'Rejected') return 'Refund failed';
   if (status === 'Processed') return 'Refunded';
   return status;
 }
@@ -228,6 +232,7 @@ export function categoryLabel(value?: string | null): string {
 /** Payout destination currently supported by the owner profile form. */
 export const PAYOUT_METHODS: readonly CategoryOption[] = [
   { value: 'aba', label: 'ABA Bank' },
+  { value: 'stripe', label: 'Stripe' },
 ];
 
 export function payoutMethodLabel(value?: string | null): string {

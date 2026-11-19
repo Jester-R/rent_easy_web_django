@@ -40,7 +40,7 @@
                   {{ categoryLabel(prop.category) }}
                 </span>
               }
-              <span class="bg-white/90 backdrop-blur text-ink text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+              <span class="bg-white/90 backdrop-blur text-ink text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm dark:bg-black/70 dark:text-white">
                 📍 {{ locationLabel(prop) }}
               </span>
             </div>
@@ -49,8 +49,8 @@
               <button
                 (click)="toggleFavorite()"
                 [disabled]="isFavoritePending()"
-                class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-ink-3 hover:text-rose-500 hover:scale-110 shadow-sm transition-all"
-                [class.text-rose-500]="prop.is_favorite"
+                class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 backdrop-blur flex items-center justify-center hover:text-rose-500 hover:scale-110 shadow-sm transition-all dark:bg-black/70"
+                [class]="prop.is_favorite ? 'text-rose-500 dark:text-rose-400' : 'text-ink-3 dark:text-white'"
                 [attr.aria-pressed]="prop.is_favorite"
                 [attr.aria-label]="prop.is_favorite ? 'Remove from favorites' : 'Add to favorites'"
               >
@@ -147,13 +147,21 @@
       <!-- Right Column: Booking Box -->
       <div class="space-y-6">
         @if (auth.isRenter()) {
-          @if (prop.has_active_booking) {
-            <div class="app-card p-6 border-emerald-200 bg-emerald-50/40">
-              <div class="flex items-center gap-3 text-emerald-800 font-bold mb-2">
+          @if (ownerStatus() !== 'available' && !prop.has_active_booking) {
+            <div class="app-card border-amber-200 bg-amber-50/40 p-6 dark:border-amber-900/60 dark:bg-amber-950/30">
+              <div class="mb-2 flex items-center gap-3 font-bold text-amber-800 dark:text-amber-300">
+                <app-icon name="alert" [size]="20" />
+                <span>{{ ownerStatus() === 'removed' ? language.t('propertyDetail.propertyRemovedByOwner') : language.t('propertyDetail.propertyUnavailable') }}</span>
+              </div>
+              <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-200/80">{{ language.t('propertyDetail.propertyUnavailableHelp') }}</p>
+            </div>
+          } @else if (prop.has_active_booking) {
+            <div class="app-card p-6 border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+              <div class="flex items-center gap-3 text-emerald-800 font-bold mb-2 dark:text-emerald-300">
                 <app-icon name="check-circle" [size]="20" />
                 <span>{{ language.t('propertyDetail.activeBookingExists') }}</span>
               </div>
-              <p class="text-xs text-emerald-700 leading-relaxed mb-4">
+              <p class="text-xs text-emerald-700 leading-relaxed mb-4 dark:text-emerald-200/80">
                 You already have an active or pending lease request for this property.
               </p>
               <a routerLink="/bookings" class="btn btn-primary w-full text-xs">
@@ -215,11 +223,14 @@
                 <div>
                   <label class="form-label">{{ language.t('propertyDetail.leaseDurationMonths') }}</label>
                   <input
-                    type="number"
+                    type="text"
                     formControlName="lease_months"
-                    min="1"
-                    max="60"
-                    (change)="recalcEndDate()"
+                    pattern="[0-9]*"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    (keydown)="onLeaseMonthsKeydown($event)"
+                    (paste)="onLeaseMonthsPaste($event)"
+                    (input)="onLeaseMonthsInput($event)"
                     class="form-input"
                   />
                 </div>

@@ -1,8 +1,6 @@
 import type { PageCatalog } from '../types';
 
 export const profile: PageCatalog = {
-  profilePhotoURL: ['Profile Photo URL', 'តំណរូបផ្ទាល់ខ្លួន'],
-  imageLinkWillShowAsYourAvatarInTheHeader: ['Image link will show as your avatar in the header.', 'រូបភាពនឹងបង្ហាញជារូបតំណាងនៅក្នុងប៊ូតុងគណនី។'],
   fullName: ['Full Name', 'ឈ្មោះពេញ'],
   username: ['Username', 'ឈ្មោះអ្នកប្រើ'],
   email: ['Email', 'អ៊ីមែល'],
@@ -23,7 +21,7 @@ export const profile: PageCatalog = {
     'Where should RentEasy send the rent collected on your properties? The admin uses these details after the 7-day hold.',
     'តើ RentEasy គួរផ្ទេរប្រាក់ជួលដែលប្រមូលបានពីអចលនទ្រព្យរបស់អ្នកទៅណា? អ្នកគ្រប់គ្រងប្រើព័ត៌មាននេះបន្ទាប់ពីរយៈពេល ៧ ថ្ងៃ។',
   ],
-  payoutAccountsPerMethodHelp: ['Enter the ABA account where your rental payouts should be sent.', 'បញ្ចូលគណនី ABA ដែលត្រូវទទួលការទូទាត់ប្រាក់ជួលរបស់អ្នក។'],
+  payoutAccountsPerMethodHelp: ['Enter the account details for each payout method. Only the selected method is used for your rent.', 'បញ្ចូលព័ត៌មានគណនីសម្រាប់វិធីទទួលប្រាក់នីមួយៗ។ មានតែវិធីដែលបានជ្រើសរើសទេដែលត្រូវប្រើសម្រាប់ប្រាក់ជួលរបស់អ្នក។'],
   payoutAccountMissing: [
     'Add your payout account so the admin can send your rent after the hold period.',
     'សូមបន្ថែមគណនីទទួលប្រាក់ ដើម្បីឱ្យអ្នកគ្រប់គ្រងអាចផ្ទេរប្រាក់ជួលរបស់អ្នកបន្ទាប់ពីរយៈពេលរង់ចាំ។',
@@ -31,6 +29,8 @@ export const profile: PageCatalog = {
   payoutMethod: ['Payout Method', 'វិធីទទួលប្រាក់'],
   renterPaymentMethod: ['Payment method', 'វិធីសាស្ត្រទូទាត់'],
   renterPaymentMethodHelp: ['Save your ABA payer details here. Your name and phone can prefill the secure ABA PayWay checkout when you pay an approved booking.', 'រក្សាទុកព័ត៌មានអ្នកបង់ប្រាក់ ABA នៅទីនេះ។ ឈ្មោះ និងលេខទូរស័ព្ទអាចបំពេញជាមុនក្នុងទំព័រទូទាត់សុវត្ថិភាព ABA PayWay នៅពេលបង់ប្រាក់សម្រាប់ការកក់ដែលបានអនុម័ត។'],
+  revealSensitive: ['Reveal details', 'បង្ហាញព័ត៌មាន'],
+  hideSensitive: ['Hide details', 'លាក់ព័ត៌មាន'],
   abaPaywayMerchantId: ['ABA PayWay merchant ID', 'លេខសម្គាល់ពាណិជ្ជករ ABA PayWay'],
   abaPaywayMerchantIdHelp: ['Enter the merchant ID issued to RentEasy by ABA. The API key remains in server configuration.', 'បញ្ចូលលេខសម្គាល់ពាណិជ្ជករដែល ABA ផ្តល់ឱ្យ RentEasy។ API key នៅក្នុងការកំណត់ម៉ាស៊ីនមេ។'],
   abaPaywayApiKey: ['ABA PayWay API key', 'កូនសោ API ABA PayWay'],
@@ -79,14 +79,15 @@ export const profile: PageCatalog = {
   registerTelegramWebhook: ['Register webhook', 'ចុះឈ្មោះ webhook'],
   registeringTelegramWebhook: ['Registering webhook...', 'កំពុងចុះឈ្មោះ webhook...'],
   telegramWebhookRegistered: ['Telegram webhook registered.', 'បានចុះឈ្មោះ webhook Telegram។'],
-  telegramWebhookRegisterHelp: ['Save the bot token and webhook URL first, then register the webhook so Telegram sends updates to this bot.', 'រក្សាទុកកូនសោ bot និង URL webhook ជាមុនសិន បន្ទាប់មកចុះឈ្មោះ webhook ដើម្បីឱ្យ Telegram ផ្ញើព័ត៌មានទៅ bot នេះ។'],
   telegramWebhookRegisterFailed: ['Could not register the Telegram webhook.', 'មិនអាចចុះឈ្មោះ webhook Telegram បានទេ។'],
   abaAccountHolderName: ['ABA account holder name', 'ឈ្មោះម្ចាស់គណនី ABA'],
   abaAccountNumber: ['ABA account number', 'លេខគណនី ABA'],
-  selectPayoutMethod: ['Select a payout method', 'ជ្រើសរើសវិធីទទួលប្រាក់'],
   accountHolderName: ['Account Holder Name', 'ឈ្មោះម្ចាស់គណនី'],
   accountNumber: ['Account Number', 'លេខគណនី'],
-  bankName: ['Bank Name', 'ឈ្មោះធនាគារ'],
+  abaPayoutHelp: ['Add the ABA account where RentEasy should send your rental payouts.', 'បន្ថែមគណនី ABA ដែល RentEasy គួរផ្ញើប្រាក់ជួលរបស់អ្នក។'],
+  stripePayoutHelp: ['Add the Stripe account holder name and Stripe account ID used for rental payouts.', 'បន្ថែមឈ្មោះម្ចាស់គណនី Stripe និងលេខសម្គាល់គណនី Stripe សម្រាប់ទទួលប្រាក់ជួល។'],
+  stripeAccountHolderName: ['Stripe account holder name', 'ឈ្មោះម្ចាស់គណនី Stripe'],
+  stripeAccountId: ['Stripe account ID', 'លេខសម្គាល់គណនី Stripe'],
   phoneNumber: ['Phone Number', 'លេខទូរស័ព្ទ'],
   payoutNote: ['Payout Note', 'កំណត់ចំណាំការទទួលប្រាក់'],
 };

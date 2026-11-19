@@ -12,6 +12,9 @@ RentEasy Web is a browser based rental platform built with an Angular frontend a
 - **Notifications:** in-app notifications with unread counts and optional Telegram delivery.
 - **Payments:** real ABA PayWay hosted checkout (sandbox or production), Stripe hosted card checkout (test mode or production), with automatic mock fallback, plus demo Wing/card flows and refunds.
 - **Rent hold and owner payouts:** rent is held by the platform for 7 days, cancellations/refunds are allowed during the hold, and admins record manual transfers to owner payout accounts.
+- **Chat:** renters and owners can chat directly about a property; approved refunds create separate one-to-one support chats between the admin and renter, and between the admin and owner.
+- **Chat filters:** conversations can be filtered by chat type, participant, property, date range, and free-text search.
+- **Sensitive settings:** payment account details and API tokens are masked by default and require an explicit **Reveal details** action to view.
 
 ## Stack
 
@@ -275,6 +278,44 @@ deliberately **not** refunded by RentEasy: issue the refund in the PayWay
 merchant portal (or via PayWay's Refund API), then use **Mark refunded in
 PayWay** to record it. That action only updates RentEasy's records and never moves
 money.
+
+### Refund chats and cancellation fee
+
+A refund request does **not** create a chat thread. Once an admin accepts the
+refund, RentEasy creates two separate one-to-one support conversations:
+
+- admin ↔ renter
+- admin ↔ owner
+
+Renters and owners see **Chat admin** on booking/payment/refund screens. The admin
+console refund table shows **Chat renter** and **Chat owner**. General booking
+chats are separate from refund support chats and are available as **Chat owner**
+for renters and **Chat renter** for owners, including for inactive/rented
+properties. Refund chat titles show the name of the participant messaging the
+admin, and the property/refund details stay visible in the thread header.
+
+The admin cancellation fee is configured in console **Payment Settings** as
+`late_cancellation_fee`. It is independent of payment gateway commission: the
+first five days of the hold are free, the final two days use the configured fee,
+and the refund cannot be accepted until that fee is recorded. The existing
+`commission_due`/`commission_paid` refund fields store and track this fee, but
+the UI labels it as the cancellation fee.
+
+### Chat filters
+
+The **Messages** page filters conversations by All/General/Refund chat type,
+participant (renter/user, owner, or admin), property title/location, date range,
+and free-text search over names, emails, references, and property details. The
+backend accepts `chat_type`, `participant`, `property`, `date_from`, `date_to`,
+and `search` query parameters on `GET /api/conversations/`.
+
+### Sensitive settings
+
+Profile payment/payout fields and console integration secrets are masked by
+default. Use **Reveal details / Hide details** to show or hide them while
+editing. Stored API keys and tokens are never returned by the settings API; the
+UI only receives configured/from-environment flags and can replace or clear
+those values.
 
 ### Rent hold and owner payouts
 

@@ -43,18 +43,13 @@ export class BookingService {
     );
   }
 
-  cancelBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
+  cancelBooking(
+    id: number,
+    message?: string
+  ): Observable<{ ok: boolean; booking: Booking }> {
     return this.http.post<{ ok: boolean; booking: Booking }>(
       `${this.baseUrl}/rent/bookings/${id}/cancel/`,
-      {},
-      { withCredentials: true }
-    );
-  }
-
-  confirmBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
-    return this.http.post<{ ok: boolean; booking: Booking }>(
-      `${this.baseUrl}/rent/bookings/${id}/confirm/`,
-      {},
+      { message: message || '' },
       { withCredentials: true }
     );
   }
@@ -87,26 +82,13 @@ export class BookingService {
     );
   }
 
-  approveBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
-    return this.http.post<{ ok: boolean; booking: Booking }>(
-      `${this.baseUrl}/owner/bookings/${id}/approve/`,
-      {},
-      { withCredentials: true }
-    );
-  }
-
-  rejectBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
-    return this.http.post<{ ok: boolean; booking: Booking }>(
-      `${this.baseUrl}/owner/bookings/${id}/reject/`,
-      {},
-      { withCredentials: true }
-    );
-  }
-
-  ownerCancelBooking(id: number): Observable<{ ok: boolean; booking: Booking }> {
+  ownerCancelBooking(
+    id: number,
+    message?: string
+  ): Observable<{ ok: boolean; booking: Booking }> {
     return this.http.post<{ ok: boolean; booking: Booking }>(
       `${this.baseUrl}/owner/bookings/${id}/cancel/`,
-      {},
+      { message: message || '' },
       { withCredentials: true }
     );
   }

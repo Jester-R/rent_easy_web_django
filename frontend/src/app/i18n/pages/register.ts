@@ -28,7 +28,6 @@ export const register: PageCatalog = {
   usernameMustBeAlphanumeric: ['Username must be alphanumeric.', 'ឈ្មោះអ្នកប្រើត្រូវមានតែអក្សរ និងលេខ។'],
   registrationFailedPleaseCheckYourDetails: ['Registration failed. Please check your details.', 'ការចុះឈ្មោះបរាជ័យ។ សូមពិនិត្យព័ត៌មានរបស់អ្នក។'],
   signUpWithGoogle: ['Sign up with Google', 'ចុះឈ្មោះជាមួយ Google'],
-  continueWithGoogle: ['Continue with Google', 'បន្តជាមួយ Google'],
   or: ['or', 'ឬ'],
   disposableEmailNotAllowed: ['Disposable or temporary email addresses are not allowed. Please use your real email.', 'មិនអនុញ្ញាតឱ្យប្រើអាសយដ្ឋានអ៊ីមែលបណ្ដោះអាសន្នទេ។ សូមប្រើអ៊ីមែលពិតប្រាកដរបស់អ្នក។'],
   emailDomainInvalid: ['This email domain does not exist or cannot receive mail. Please use a valid email.', 'ដែនអ៊ីមែលនេះមិនមាន ឬមិនអាចទទួលសំបុត្របានទេ។ សូមប្រើអ៊ីមែលពិតប្រាកដ។'],

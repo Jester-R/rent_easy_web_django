@@ -8,4 +8,7 @@ export const notifications: PageCatalog = {
   youAreAllCaughtUp: ['You are all caught up!', 'អ្នកបានអានព័ត៌មានថ្មីៗទាំងអស់ហើយ!'],
   markUnread: ['Mark unread', 'សម្គាល់ថាមិនទាន់អាន'],
   markRead: ['Mark read', 'សម្គាល់ថាបានអាន'],
+  clearAll: ['Clear all', 'លុបទាំងអស់'],
+  clear: ['Clear', 'លុប'],
+  clearAllConfirm: ['Delete all notifications?', 'លុបការជូនដំណឹងទាំងអស់?'],
 };

@@ -30,7 +30,9 @@ def apply_status_filter(queryset, raw: str):
 def booking_owner_queryset(user):
     return (
         Booking.objects.filter(owner=user)
-        .select_related("property", "renter", "owner", "payment", "payment__payout")
+        .select_related(
+            "property", "property__owner", "renter", "owner", "payment", "payment__payout"
+        )
         .order_by("-created_at")
     )
 
@@ -38,14 +40,16 @@ def booking_owner_queryset(user):
 def booking_renter_queryset(user):
     return (
         Booking.objects.filter(renter=user)
-        .select_related("property", "renter", "owner", "payment", "payment__payout")
+        .select_related(
+            "property", "property__owner", "renter", "owner", "payment", "payment__payout"
+        )
         .order_by("-created_at")
     )
 
 
 def booking_all_queryset():
     return Booking.objects.select_related(
-        "property", "renter", "owner", "payment", "payment__payout"
+        "property", "property__owner", "renter", "owner", "payment", "payment__payout"
     ).order_by("-created_at")
 
 

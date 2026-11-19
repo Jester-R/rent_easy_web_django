@@ -21,7 +21,13 @@ from core.bolt import (
 )
 from core.bolt_serializers import notification as serialize_notification
 from notifications.models import Notification
-from notifications.services import mark_all_seen, recent_for, unread_count
+from notifications.services import (
+    clear_all_notifications,
+    clear_notification,
+    mark_all_seen,
+    recent_for,
+    unread_count,
+)
 
 STREAM_POLL_SECONDS = 3.0
 STREAM_BATCH = 25
@@ -42,10 +48,9 @@ async def feed(request):
     total = await queryset.acount()
     queryset = queryset[(page - 1) * page_size : page * page_size]
     items = [await serialize_notification(item) async for item in queryset]
-    await in_thread(mark_all_seen, user)
     return {
         "notifications": items,
-        "unread": 0,
+        "unread": await in_thread(unread_count, user),
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -137,14 +142,37 @@ async def mark_seen(request):
     return {"ok": True, "unread": 0}
 
 
+@api.post("/notifications/clear-all/")
+async def clear_all(request):
+    user = await login_required(request)
+    deleted = await in_thread(clear_all_notifications, user)
+    return {"ok": True, "deleted": deleted, "unread": 0}
+
+
+@api.post("/notifications/{pk}/clear/")
+async def clear_one(request):
+    pk = param_int(request, "pk")
+    user = await login_required(request)
+    ok = await in_thread(clear_notification, user, pk)
+    return {"ok": ok}
+
+
 @api.post("/notifications/{pk}/toggle-read/")
 async def toggle_read(request):
     pk = param_int(request, "pk")
     user = await login_required(request)
     item = await Notification.objects.filter(pk=pk, recipient=user).afirst()
-    if item is not None:
+    if item is None:
+        return {"ok": False, "read": False, "unread": await in_thread(unread_count, user)}
+    if item.is_read:
+        await in_thread(item.mark_unread)
+    else:
         await in_thread(item.mark_read)
-    return {"ok": item is not None, "read": item.is_read if item else False}
+    return {
+        "ok": True,
+        "read": item.is_read,
+        "unread": await in_thread(unread_count, user),
+    }
 
 
 mark_full_request(api)

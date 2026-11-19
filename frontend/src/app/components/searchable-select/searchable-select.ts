@@ -17,6 +17,8 @@ export interface SelectOption {
   label: string;
 }
 
+const MAX_VISIBLE_OPTIONS = 100;
+
 @Component({
   selector: 'app-searchable-select',
   standalone: true,
@@ -58,8 +60,18 @@ export class SearchableSelectComponent implements ControlValueAccessor {
 
   readonly filtered = computed(() => {
     const q = this.query().trim().toLowerCase();
-    if (!q) return this.optionList();
-    return this.optionList().filter((o) => o.label.toLowerCase().includes(q));
+    const matches = q
+      ? this.optionList().filter((o) => o.label.toLowerCase().includes(q))
+      : this.optionList();
+    return matches.slice(0, MAX_VISIBLE_OPTIONS);
+  });
+
+  readonly hasMoreOptions = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    const count = q
+      ? this.optionList().filter((o) => o.label.toLowerCase().includes(q)).length
+      : this.optionList().length;
+    return count > MAX_VISIBLE_OPTIONS;
   });
 
   readonly selectedLabel = computed(

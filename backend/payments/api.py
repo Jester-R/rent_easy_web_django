@@ -35,13 +35,26 @@ from payments.models import Payment, Payout, Refund
 from payments.services import (
     RefundRequiresGateway,
     RefundRequestError,
+    add_refund_message,
     apply_aba_callback,
     apply_stripe_event,
     backfill_missing_payouts,
+    ensure_refund_chat,
     process_refund,
     reconcile_aba_payment,
+    request_refund,
     reconcile_stripe_payment,
     release_due_payouts,
+)
+
+REFUND_DETAIL_RELATIONS = (
+    "payment",
+    "payment__property",
+    "payment__property__owner",
+    "payment__user",
+    "booking",
+    "booking__owner",
+    "requested_by",
 )
 
 api = BoltAPI(
@@ -113,7 +126,7 @@ async def _refresh_pending_payment(payment: Payment) -> Payment:
 
     async def reload() -> Payment:
         return (
-            await Payment.objects.select_related("property", "booking", "user")
+            await Payment.objects.select_related("property", "property__owner", "booking", "user")
             .filter(pk=payment.pk)
             .afirst()
         ) or payment
@@ -213,7 +226,7 @@ async def stripe_return(request):
     target_url = _frontend_payment_url(payment_id)
     if payment_id:
         payment = await (
-            Payment.objects.select_related("property", "booking", "user")
+            Payment.objects.select_related("property", "property__owner", "booking", "user")
             .filter(pk=payment_id)
             .afirst()
         )
@@ -240,7 +253,7 @@ async def aba_return(request):
 
     if payment_id:
         payment = await (
-            Payment.objects.select_related("property", "booking", "user")
+            Payment.objects.select_related("property", "property__owner", "booking", "user")
             .filter(pk=payment_id)
             .afirst()
         )
@@ -258,7 +271,7 @@ async def renter_refresh(request):
     pk = param_int(request, "pk")
     user = await renter_required(request)
     payment = await (
-        Payment.objects.select_related("property", "booking", "user")
+        Payment.objects.select_related("property", "property__owner", "booking", "user")
         .filter(pk=pk)
         .afirst()
     )
@@ -275,7 +288,7 @@ async def owner_refresh(request):
     pk = param_int(request, "pk")
     user = await owner_required(request)
     payment = await (
-        Payment.objects.select_related("property", "booking", "user")
+        Payment.objects.select_related("property", "property__owner", "booking", "user")
         .filter(pk=pk)
         .afirst()
     )
@@ -297,7 +310,7 @@ async def renter_list(request):
     user = await renter_required(request)
     queryset = (
         Payment.objects.filter(user=user)
-        .select_related("property", "booking", "user")
+        .select_related("property", "property__owner", "booking", "user")
         .order_by("-created_at")
     )
     queryset = _apply_filters(queryset, request)
@@ -325,7 +338,7 @@ async def renter_detail(request):
     pk = param_int(request, "pk")
     user = await renter_required(request)
     payment = await (
-        Payment.objects.select_related("property", "booking", "user")
+        Payment.objects.select_related("property", "property__owner", "booking", "user")
         .filter(pk=pk)
         .afirst()
     )
@@ -334,7 +347,7 @@ async def renter_detail(request):
     if payment.user_id != user.pk:
         raise HTTPException(status_code=403, detail="not_authorized")
     refund = (
-        await Refund.objects.select_related("payment", "requested_by")
+        await Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
         .filter(payment_id=pk)
         .order_by("-created_at")
         .afirst()
@@ -360,7 +373,7 @@ async def owner_list(request):
 
     queryset = (
         Payment.objects.filter(property__owner=user)
-        .select_related("property", "booking", "user")
+        .select_related("property", "property__owner", "booking", "user")
         .order_by("-created_at")
     )
     queryset = _apply_filters(queryset, request)
@@ -467,7 +480,7 @@ async def owner_detail(request):
     pk = param_int(request, "pk")
     user = await owner_required(request)
     payment = await (
-        Payment.objects.select_related("property", "booking", "user")
+        Payment.objects.select_related("property", "property__owner", "booking", "user")
         .filter(pk=pk)
         .afirst()
     )
@@ -476,7 +489,7 @@ async def owner_detail(request):
     if payment.property_id and payment.property.owner_id != user.pk:
         raise HTTPException(status_code=403, detail="not_authorized")
     refund = await (
-        Refund.objects.select_related("payment", "booking", "requested_by")
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
         .filter(payment_id=pk, booking__owner=user)
         .order_by("-created_at")
         .afirst()
@@ -515,13 +528,7 @@ async def process_refund_view(request):
     pk = param_int(request, "pk")
     user = await admin_required(request)
     refund = await (
-        Refund.objects.select_related(
-            "payment",
-            "payment__property",
-            "payment__user",
-            "booking",
-            "booking__owner",
-        )
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
         .filter(pk=pk)
         .afirst()
     )
@@ -541,13 +548,55 @@ async def process_refund_view(request):
     if not ok:
         raise HTTPException(status_code=409, detail="refund_already_processed")
     refund = await (
-        Refund.objects.select_related(
-            "payment",
-            "payment__property",
-            "payment__user",
-            "booking",
-            "booking__owner",
-        )
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
+        .filter(pk=pk)
+        .afirst()
+    )
+    return {"ok": True, "refund": await serialize_refund(refund)}
+
+
+@api.post("/refunds/{pk}/chat/")
+async def refund_chat(request):
+    user = await login_required(request)
+    pk = param_int(request, "pk")
+    refund = (
+        await Refund.objects.select_related("booking", "payment")
+        .filter(pk=pk)
+        .afirst()
+    )
+    if refund is None:
+        raise HTTPException(status_code=404, detail="refund_not_found")
+    if refund.status not in (Refund.Status.ACCEPTED, Refund.Status.PROCESSED):
+        raise HTTPException(status_code=409, detail="refund_not_accepted")
+    if user.pk == refund.booking.renter_id:
+        party = "renter"
+    elif user.pk == refund.booking.owner_id:
+        party = "owner"
+    else:
+        raise HTTPException(status_code=403, detail="not_authorized")
+    conversation = await in_thread(ensure_refund_chat, refund, party=party)
+    return {
+        "ok": True,
+        "conversation_id": conversation.pk,
+        "url": conversation.get_absolute_url(),
+    }
+
+
+@api.post("/refunds/{pk}/messages/")
+async def refund_message(request):
+    pk = param_int(request, "pk")
+    user = await login_required(request)
+    refund = await Refund.objects.filter(pk=pk).afirst()
+    if refund is None:
+        raise HTTPException(status_code=404, detail="refund_not_found")
+    data = json_body(request)
+    try:
+        await in_thread(add_refund_message, refund, user, body_str(data, "body"))
+    except RefundRequestError as exc:
+        status = 403 if exc.code == "not_authorized" else 409
+        raise HTTPException(status_code=status, detail=exc.code) from exc
+    refund = await (
+        Refund.objects.select_related(*REFUND_DETAIL_RELATIONS)
         .filter(pk=pk)
         .afirst()
     )

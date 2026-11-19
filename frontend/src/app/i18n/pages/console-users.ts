@@ -25,7 +25,6 @@ export const consoleUsers: PageCatalog = {
   rejected: ['Rejected', 'បានបដិសេធ'],
   approve: ['Approve', 'អនុម័ត'],
   reject: ['Reject', 'បដិសេធ'],
-  edit: ['Edit', 'កែសម្រួល'],
   delete: ['Delete', 'លុប'],
   selected: ['selected', 'បានជ្រើសរើស'],
   rejectThisOwnerRequest: ['Reject this owner request?', 'បដិសេធសំណើម្ចាស់នេះមែនទេ?'],

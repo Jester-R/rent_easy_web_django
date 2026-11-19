@@ -3,6 +3,7 @@ from __future__ import annotations
 # NOTE: models that declare a ``property`` FK shadow the builtin inside the
 # class body, so ``builtins.property`` is used explicitly for derived fields.
 import builtins
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
@@ -12,8 +13,8 @@ ACTIVE_STATUSES = ("Pending", "Approved", "Confirmed")
 
 #: Mirrors ``PropertyProvider._isValidStatusTransition`` from the Flutter app.
 VALID_TRANSITIONS: dict[str, tuple[str, ...]] = {
-    "Pending": ("Approved", "Rejected", "Cancelled"),
-    "Approved": ("Confirmed", "Cancelled"),
+    "Pending": ("Confirmed", "Rejected", "Cancelled"),
+    "Approved": ("Confirmed", "Rejected", "Cancelled"),
     "Confirmed": ("Cancelled",),
     "Rejected": (),
     "Cancelled": (),
@@ -115,6 +116,54 @@ class Booking(models.Model):
         return payout.available_at if payout is not None else None
 
     @builtins.property
+    def refund(self):
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get("refunds")
+        if prefetched is not None:
+            return prefetched[0] if prefetched else None
+        return self.refunds.order_by("-created_at").first()
+
+    @builtins.property
+    def refund_id(self) -> int | None:
+        return self.refund.pk if self.refund else None
+
+    @builtins.property
+    def refund_status(self) -> str:
+        return self.refund.status if self.refund else ""
+
+    @builtins.property
+    def refund_state(self) -> str:
+        refund = self.refund
+        if refund is None:
+            return ""
+        if refund.status == "Processed":
+            return "Refunded"
+        if refund.status == "Rejected":
+            return "Refund failed"
+        return "Refunding"
+
+    @builtins.property
+    def refund_conversation_id(self) -> int | None:
+        return self.renter_refund_conversation_id or self.owner_refund_conversation_id
+
+    @builtins.property
+    def renter_refund_conversation_id(self) -> int | None:
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get("refunds")
+        if prefetched is not None:
+            refund = prefetched[0] if prefetched else None
+        else:
+            refund = self.refunds.order_by("-created_at").first()
+        return refund.renter_conversation_id if refund is not None else None
+
+    @builtins.property
+    def owner_refund_conversation_id(self) -> int | None:
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get("refunds")
+        if prefetched is not None:
+            refund = prefetched[0] if prefetched else None
+        else:
+            refund = self.refunds.order_by("-created_at").first()
+        return refund.owner_conversation_id if refund is not None else None
+
+    @builtins.property
     def _payout(self):
         if not self.payment_id:
             return None
@@ -134,20 +183,16 @@ class Booking(models.Model):
             return False
         if not self.payment_id:
             return False
-        # Paid bookings may be cancelled only while the platform still holds
-        # the money. A missing payout row is treated as legacy and allowed.
-        payout = self._payout
-        if payout is None:
-            return True
-        return (
-            payout.status == "Scheduled" and payout.available_at > timezone.now()
-        ) and self.can_transition_to(BookingStatus.CANCELLED)
+        if self.refund_state == "Refunding":
+            return False
+        paid_at = self.payment.paid_at or self.payment.created_at
+        if timezone.now() >= paid_at + timedelta(days=7):
+            return False
+        return self.can_transition_to(BookingStatus.CANCELLED)
 
-    def can_approve(self) -> bool:
-        return self.can_transition_to(BookingStatus.APPROVED)
-
-    def can_reject(self) -> bool:
-        return self.can_transition_to(BookingStatus.REJECTED)
+    def can_owner_cancel(self) -> bool:
+        """Owners may only cancel bookings the renter has already paid for."""
+        return bool(self.payment_id) and self.can_cancel()
 
     def get_absolute_url(self) -> str:
         """API path for the booking: owner-facing when the owner is the viewer."""

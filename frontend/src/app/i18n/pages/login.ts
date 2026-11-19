@@ -36,7 +36,6 @@ export const login: PageCatalog = {
   telegramCodeNotReady: ['The bot has not received your Start message yet. Open the bot and press Start.', 'bot មិនទាន់ទទួលបានសារ Start របស់អ្នកនៅឡើយទេ។ សូមបើក bot ហើយចុច Start។'],
   telegramTooManyAttempts: ['Too many attempts. Please start again.', 'ព្យាយាមច្រើនដងពេក។ សូមចាប់ផ្តើមម្ដងទៀត។'],
   telegramStartFailed: ['Could not start Telegram login. Please try again.', 'មិនអាចចាប់ផ្តើមការចូលគណនីតាម Telegram បានទេ។ សូមព្យាយាមម្ដងទៀត។'],
-  signInWithGoogle: ['Sign in with Google', 'ចូលគណនីជាមួយ Google'],
   or: ['or', 'ឬ'],
   oauthCancelled: ['Google sign-in was cancelled.', 'ការចូលគណនីតាម Google ត្រូវបានបោះបង់។'],
   oauthNotConfigured: ['Google sign-in is not configured yet. Set GOOGLE_OAUTH_CLIENT_ID in your .env.', 'មិនទាន់បានកំណត់រចនាសម្ព័ន្ធ Google OAuth នៅឡើយទេ។ សូមកំណត់ GOOGLE_OAUTH_CLIENT_ID ក្នុង .env។'],

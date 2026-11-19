@@ -352,6 +352,9 @@ export class OwnerPropertyFormComponent implements OnInit {
         this.cambodiaVillages.set(villages);
         this.applyLoadedPropertyLocation();
         this.applyPendingMapAddress();
+        if (this.pendingAiLocation) {
+          this.applyAiLocation(this.pendingAiLocation);
+        }
         if (this.communeCode() && !this.villageCode()) {
           const communeVillages = villages.filter(
             (v) => v.commune_code === this.communeCode(),
@@ -359,9 +362,6 @@ export class OwnerPropertyFormComponent implements OnInit {
           if (communeVillages.length > 0) {
             this.villageCode.set(this.villageKey(communeVillages[0]));
           }
-        }
-        if (this.pendingAiLocation) {
-          this.applyAiLocation(this.pendingAiLocation);
         }
       },
       error: () => {

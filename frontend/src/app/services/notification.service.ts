@@ -1,5 +1,6 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
 import { Observable, Subscription, tap } from 'rxjs';
 import { AppNotification } from '../models';
 
@@ -8,6 +9,7 @@ import { AppNotification } from '../models';
 })
 export class NotificationService {
   private readonly http = inject(HttpClient);
+  private readonly platformId = inject(PLATFORM_ID);
   private readonly baseUrl = '/api';
 
   readonly unreadCount = signal<number>(0);
@@ -16,8 +18,8 @@ export class NotificationService {
   readonly incoming = signal<AppNotification | null>(null);
 
   private stream: EventSource | null = null;
-  private refreshTimer: number | null = null;
   private refreshRequest: Subscription | null = null;
+  private lastPreviewRefresh = 0;
 
   /**
    * Open the Server-Sent Events notification stream. Safe to call repeatedly;
@@ -32,11 +34,6 @@ export class NotificationService {
     });
     this.stream = stream;
 
-    // SSE can be buffered or terminated by an intermediary. Keep the bell
-    // current with a small preview refresh as a fallback for those cases.
-    this.refreshPreview();
-    this.refreshTimer = window.setInterval(() => this.refreshPreview(), 3_000);
-
     stream.addEventListener('ready', (event: MessageEvent) => {
       try {
         const payload = JSON.parse(event.data) as { unread?: number };
@@ -46,6 +43,7 @@ export class NotificationService {
       } catch {
         // Ignore malformed keep-alive payloads.
       }
+      this.refreshPreview();
     });
 
     stream.addEventListener('notification', (event: MessageEvent) => {
@@ -56,23 +54,27 @@ export class NotificationService {
       } catch {
         // Ignore malformed events and wait for the next one.
       }
+      this.refreshPreview();
     });
   }
 
   disconnect(): void {
     this.stream?.close();
     this.stream = null;
-    if (this.refreshTimer !== null) {
-      window.clearInterval(this.refreshTimer);
-      this.refreshTimer = null;
-    }
     this.refreshRequest?.unsubscribe();
     this.refreshRequest = null;
+    this.lastPreviewRefresh = 0;
   }
 
-  private refreshPreview(): void {
-    if (this.refreshRequest && !this.refreshRequest.closed) return;
-    this.refreshRequest = this.getPreview().subscribe();
+  refreshPreview(): void {
+    if (!isPlatformBrowser(this.platformId) || document.hidden) return;
+    const now = Date.now();
+    if (now - this.lastPreviewRefresh < 1000) return;
+    this.lastPreviewRefresh = now;
+    this.refreshRequest?.unsubscribe();
+    this.refreshRequest = this.getPreview().subscribe({
+      error: () => undefined,
+    });
   }
 
   getNotifications(page = 1, pageSize = 25): Observable<{ notifications: AppNotification[]; unread: number; total: number; page: number; page_size: number }> {
@@ -103,18 +105,6 @@ export class NotificationService {
       );
   }
 
-  getBadge(): Observable<{ unread: number }> {
-    return this.http
-      .get<{ unread: number }>(`${this.baseUrl}/notifications/badge/`, {
-        withCredentials: true,
-      })
-      .pipe(
-        tap((res) => {
-          this.unreadCount.set(res.unread);
-        })
-      );
-  }
-
   readAll(): Observable<{ ok: boolean; unread: number }> {
     return this.http
       .post<{ ok: boolean; unread: number }>(
@@ -129,11 +119,47 @@ export class NotificationService {
       );
   }
 
-  toggleRead(id: number): Observable<{ ok: boolean; read: boolean }> {
-    return this.http.post<{ ok: boolean; read: boolean }>(
+  clearAll(): Observable<{ ok: boolean; deleted: number; unread: number }> {
+    return this.http
+      .post<{ ok: boolean; deleted: number; unread: number }>(
+        `${this.baseUrl}/notifications/clear-all/`,
+        {},
+        { withCredentials: true }
+      )
+      .pipe(
+        tap(() => {
+          this.unreadCount.set(0);
+          this.preview.set([]);
+        })
+      );
+  }
+
+  clear(id: number): Observable<{ ok: boolean }> {
+    return this.http
+      .post<{ ok: boolean }>(
+        `${this.baseUrl}/notifications/${id}/clear/`,
+        {},
+        { withCredentials: true }
+      )
+      .pipe(
+        tap(() => {
+          this.preview.update((items) => items.filter((item) => item.id !== id));
+        })
+      );
+  }
+
+  toggleRead(id: number): Observable<{ ok: boolean; read: boolean; unread: number }> {
+    return this.http.post<{ ok: boolean; read: boolean; unread: number }>(
       `${this.baseUrl}/notifications/${id}/toggle-read/`,
       {},
       { withCredentials: true }
+    ).pipe(
+      tap((res) => {
+        this.unreadCount.set(res.unread);
+        this.preview.update((items) =>
+          items.map((item) => (item.id === id ? { ...item, read: res.read } : item))
+        );
+      })
     );
   }
 }

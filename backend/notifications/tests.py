@@ -3,11 +3,14 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+from django_bolt.exceptions import HTTPException
 
 from accounts.models import Role, User
+from listings.api import _lease_months_from_body
 from listings.models import Property
 from notifications.models import Notification
 from notifications.rendering import notification_copy, render
+from notifications.services import clear_all_notifications, clear_notification
 from notifications.services import notify
 from notifications.telegram import _message_text
 from payments.services import create_booking
@@ -129,6 +132,47 @@ class NotificationChannelTests(TestCase):
         )
         self.assertEqual(notification.params["move_in"], "01 Dec 2026")
         self.assertEqual(notification.params["lease"], "6 months (until 01 Jun 2027)")
+
+    def test_booking_request_rejects_decimal_lease_months(self):
+        with self.assertRaises(HTTPException) as raised:
+            _lease_months_from_body({"lease_months": 1.5})
+        self.assertEqual(
+            raised.exception.detail, "lease_months_must_be_whole_number"
+        )
+
+    def test_clear_notifications_only_removes_the_requested_rows(self):
+        user = self._user()
+        other = self._user(
+            email="other@real-domain.com", username="other_notify"
+        )
+        mine = Notification.objects.create(
+            recipient=user,
+            kind=Notification.Kind.ANNOUNCEMENT,
+            title_key="a",
+            body_key="b",
+        )
+        keep = Notification.objects.create(
+            recipient=user,
+            kind=Notification.Kind.ANNOUNCEMENT,
+            title_key="a",
+            body_key="b",
+        )
+        theirs = Notification.objects.create(
+            recipient=other,
+            kind=Notification.Kind.ANNOUNCEMENT,
+            title_key="a",
+            body_key="b",
+        )
+
+        self.assertTrue(clear_notification(user, mine.pk))
+        self.assertFalse(Notification.objects.filter(pk=mine.pk).exists())
+        self.assertTrue(Notification.objects.filter(pk=keep.pk).exists())
+        self.assertFalse(clear_notification(other, mine.pk))
+
+        deleted = clear_all_notifications(user)
+        self.assertEqual(deleted, 1)
+        self.assertFalse(Notification.objects.filter(pk=keep.pk).exists())
+        self.assertTrue(Notification.objects.filter(pk=theirs.pk).exists())
 
     @override_settings(FRONTEND_BASE_URL="https://renteasy.example")
     def test_telegram_message_links_to_the_notification_page(self):

@@ -90,10 +90,10 @@
                 <button (click)="markAllRead()" class="text-[11px] text-primary hover:underline font-semibold">{{ language.t('navbar.markRead') }}</button>
               </div>
               <div class="max-h-72 overflow-y-auto divide-y divide-hairline">
-                @if (notifications().length === 0) {
+                @if (notifService.preview().length === 0) {
                   <p class="p-6 text-center text-[12px] text-ink-3">{{ language.t('navbar.noNotifications') }}</p>
                 } @else {
-                  @for (n of notifications(); track n.id) {
+                  @for (n of notifService.preview(); track n.id) {
                     <button type="button" (click)="openNotification(n)" class="flex w-full items-start gap-2.5 p-2.5 text-start hover:bg-surface-2 transition-colors" [class.bg-primary-soft/30]="!n.read">
                       <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg" [class.bg-primary-soft]="!n.read" [class.text-primary-dark]="!n.read" [class.bg-surface-2]="n.read" [class.text-ink-3]="n.read">
                         <app-icon [name]="notificationIcon(n.kind)" [size]="15" />
@@ -176,7 +176,7 @@
                 <span>{{ language.t('navbar.settings') }}</span>
               </a>
               <div class="divider my-1"></div>
-              <button (click)="logout()" class="nav-item w-full text-rose-600 hover:bg-rose-50">
+              <button (click)="logout()" class="nav-item w-full text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10 dark:hover:text-rose-200">
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M15 8V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h8a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M10 12h11"/><path d="m17.5 8.5 3.5 3.5-3.5 3.5"/></svg>
                 <span>{{ language.t('navbar.logOut') }}</span>
               </button>

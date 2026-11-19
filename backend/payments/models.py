@@ -16,6 +16,7 @@ class Payment(models.Model):
         PENDING = "Pending", "Pending"
         SUCCESS = "Success", "Success"
         FAILED = "Failed", "Failed"
+        CANCELLED = "Cancelled", "Cancelled"
 
     class RefundStatus(models.TextChoices):
         NONE = "None", "None"
@@ -124,6 +125,35 @@ class Payment(models.Model):
     @builtins.property
     def is_pending(self) -> bool:
         return self.status == self.Status.PENDING
+
+    @builtins.property
+    def refund_state(self) -> str:
+        prefetched = getattr(self, "_prefetched_objects_cache", {}).get("refunds")
+        if prefetched is not None:
+            refund = prefetched[0] if prefetched else None
+            if refund is None:
+                return ""
+            if refund.status == "Processed":
+                return "Refunded"
+            if refund.status == "Rejected":
+                return "Refund failed"
+            return "Refunding"
+        if self.refund_status == self.RefundStatus.PROCESSED:
+            return "Refunded"
+        if self.refund_status == self.RefundStatus.PENDING:
+            return "Refunding"
+        return ""
+
+    @builtins.property
+    def display_status(self) -> str:
+        state = self.refund_state
+        if state:
+            return state
+        if self.status == self.Status.SUCCESS:
+            return "Paid"
+        if self.status == self.Status.CANCELLED:
+            return "Cancelled"
+        return self.status
 
     @builtins.property
     def can_refund_locally(self) -> bool:
@@ -277,6 +307,7 @@ class Refund(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "Pending", "Pending"
+        ACCEPTED = "Accepted", "Accepted"
         PROCESSED = "Processed", "Processed"
         REJECTED = "Rejected", "Rejected"
 
@@ -303,7 +334,23 @@ class Refund(models.Model):
         blank=True,
         related_name="refund_requests",
     )
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("0.00")
+    )
+    commission_due = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
+    )
+    commission_paid = models.BooleanField(default=False)
+    commission_paid_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accepted_refunds",
+    )
     created_at = models.DateTimeField(default=timezone.now)
+    accepted_at = models.DateTimeField(null=True, blank=True)
     processed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -323,6 +370,38 @@ class Refund(models.Model):
     def amount_display(self) -> str:
         return f"${float(self.amount or 0):,.0f}"
 
+    @builtins.property
+    def commission_due_display(self) -> str:
+        return f"${float(self.commission_due or 0):,.2f}"
+
+    def conversation_id_for(self, party: str) -> int | None:
+        cache = getattr(self, "_prefetched_objects_cache", {}).get("conversations")
+        if cache is not None:
+            conversation = next((c for c in cache if c.refund_party == party), None)
+            return conversation.pk if conversation is not None else None
+        return (
+            self.conversations.filter(refund_party=party)
+            .values_list("pk", flat=True)
+            .first()
+        )
+
+    @builtins.property
+    def renter_conversation_id(self) -> int | None:
+        return self.conversation_id_for("renter")
+
+    @builtins.property
+    def owner_conversation_id(self) -> int | None:
+        return self.conversation_id_for("owner")
+
+    @builtins.property
+    def chat_conversation_id(self) -> int | None:
+        return self.renter_conversation_id or self.owner_conversation_id
+
+    def mark_commission_paid(self) -> None:
+        self.commission_paid = True
+        self.commission_paid_at = timezone.now()
+        self.save(update_fields=["commission_paid", "commission_paid_at"])
+
     def process(self, note: str = "") -> bool:
         if self.status == self.Status.PROCESSED:
             return False
@@ -333,3 +412,32 @@ class Refund(models.Model):
         self.save(update_fields=["status", "processed_at", "note"])
         self.payment.mark_refunded(self.amount)
         return True
+
+
+class RefundMessage(models.Model):
+    refund = models.ForeignKey(Refund, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="refund_messages",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.refund.reference} · {self.pk}"
+
+    @builtins.property
+    def is_from_admin(self) -> bool:
+        if self.sender_id is None:
+            return False
+        return bool(
+            getattr(self.sender, "is_staff", False)
+            or getattr(self.sender, "is_superuser", False)
+            or getattr(self.sender, "role", "") == "superadmin"
+        )

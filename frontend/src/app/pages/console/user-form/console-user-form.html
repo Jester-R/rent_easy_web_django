@@ -1,7 +1,7 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 class="text-[20px] font-extrabold tracking-tight">{{ isEdit() ? language.t('consoleUserForm.editUser') : language.t('consoleUserForm.newUser') }}</h1>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleUserForm.newUser') }}</h1>
       <p class="text-[12px] text-ink-3">{{ language.t('consoleUserForm.users') }}</p>
     </div>
     <a routerLink="/console/users" class="btn btn-ghost btn-sm">
@@ -29,7 +29,7 @@
             <app-icon name="user" [size]="20" />
           </span>
           <div class="min-w-0">
-            <h2 class="text-[16px] font-extrabold tracking-tight">{{ isEdit() ? language.t('consoleUserForm.edit') + ' ' + (user()?.display_name ?? '') : language.t('consoleUserForm.newUser') }}</h2>
+            <h2 class="text-[16px] font-extrabold tracking-tight">{{ language.t('consoleUserForm.newUser') }}</h2>
             <p class="text-[13px] text-ink-3">{{ language.t('consoleUserForm.users') }}</p>
           </div>
         </div>
@@ -71,7 +71,7 @@
             <div>
               <label class="form-label" for="password">{{ language.t('consoleUserForm.password') }}</label>
               <input id="password" type="password" formControlName="password" class="form-input" autocomplete="new-password" />
-              <p class="text-[11px] text-ink-3 mt-1">{{ isEdit() ? language.t('consoleUserForm.leaveBlankToKeepTheCurrentPassword') : language.t('consoleUserForm.required') }}</p>
+              <p class="text-[11px] text-ink-3 mt-1">{{ language.t('consoleUserForm.required') }}</p>
               @if (showError('password')) {
                 <p class="form-error">{{ language.t('consoleUserForm.passwordMustBeAtLeast6Characters') }}</p>
               }
@@ -91,16 +91,15 @@
               <div>
                 <h3 class="text-[14px] font-extrabold">{{ language.t('consoleUserForm.payoutDetails') }}</h3>
                 <p class="mt-1 text-[11px] text-ink-3">{{ language.t('consoleUserForm.payoutDetailsHelp') }}</p>
-                @if (isEdit() && !user()?.has_payout_details) {
-                  <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
-                    {{ language.t('consoleUserForm.noPayoutDetails') }}
-                  </p>
-                }
               </div>
               <div class="grid gap-3 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                  <span class="form-label">{{ language.t('consoleUserForm.payoutMethod') }}</span>
-                  <p class="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm font-semibold">ABA Bank</p>
+                  <label class="form-label" for="payout_method">{{ language.t('consoleUserForm.payoutMethod') }}</label>
+                  <select id="payout_method" formControlName="payout_method" class="form-input">
+                    @for (method of payoutMethods; track method.value) {
+                      <option [value]="method.value">{{ payoutMethodLabel(method.value) }}</option>
+                    }
+                  </select>
                 </div>
                 <div>
                   <label class="form-label" for="payout_account_name">{{ language.t('consoleUserForm.accountName') }}</label>
@@ -120,18 +119,6 @@
                 </div>
               </div>
             </section>
-          }
-
-          @if (isEdit() && user(); as account) {
-            <div class="rounded-xl bg-surface-2 p-3.5 text-[12px] text-ink-3">
-              <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span><strong class="text-ink-2">{{ language.t('consoleUserForm.userID') }}:</strong> #{{ account.id }}</span>
-                <span><strong class="text-ink-2">{{ language.t('consoleUserForm.created') }}:</strong> {{ prettyDate(account.date_joined) }}</span>
-                @if (account.last_login_at) {
-                  <span><strong class="text-ink-2">{{ language.t('consoleUserForm.lastLogin') }}:</strong> {{ prettyDate(account.last_login_at) }}</span>
-                }
-              </p>
-            </div>
           }
 
           <div class="flex flex-col-reverse gap-2 border-t border-hairline pt-5 sm:flex-row sm:justify-end">

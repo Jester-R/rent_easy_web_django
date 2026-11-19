@@ -63,6 +63,7 @@ export const ownerForm: PageCatalog = {
   aiNeedsTitle: ['Enter a title before generating with AI.', 'សូមបញ្ចូលចំណងជើង មុនពេលបង្កើតដោយ AI។'],
   aiNotConfigured: ['AI is not configured on the server yet.', 'AI មិនទាន់បានកំណត់នៅលើម៉ាស៊ីនមេនៅឡើយទេ។'],
   aiGenerationFailed: ['Could not create the property draft. Please try again.', 'មិនអាចបង្កើតសេចក្តីព្រាងអចលនទ្រព្យបានទេ។ សូមព្យាយាមម្ដងទៀត។'],
+
   cancel: ['Cancel', 'បោះបង់'],
   saving: ['Saving...', 'កំពុងរក្សាទុក...'],
   saveChanges: ['Save Changes', 'រក្សាទុកការផ្លាស់ប្តូរ'],

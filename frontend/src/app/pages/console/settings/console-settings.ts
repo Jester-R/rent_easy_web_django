@@ -52,6 +52,7 @@ export class ConsoleSettingsComponent implements OnInit {
   homePromotion = signal<ConsoleSettings['home_promotion']>(DEFAULT_HOME_PROMOTION);
 
   paymentMethodDetails = signal<Record<string, PaymentMethodDetail>>({});
+  revealSensitive = signal(false);
   abaPaywayMerchantId = signal('');
   abaPaywayApiKey = signal('');
   abaPaywayApiKeyConfigured = signal(false);

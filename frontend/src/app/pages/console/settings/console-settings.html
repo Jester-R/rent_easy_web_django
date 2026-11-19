@@ -1,7 +1,12 @@
 <div class="space-y-4">
-  <div>
-    <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleSettings.platformSettings') }}</h1>
-    <p class="text-[12px] text-ink-3">{{ language.t('consoleSettings.platformWideSwitchesControlledBySystemAdmins') }}</p>
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleSettings.platformSettings') }}</h1>
+      <p class="text-[12px] text-ink-3">{{ language.t('consoleSettings.platformWideSwitchesControlledBySystemAdmins') }}</p>
+    </div>
+    <button type="button" class="btn btn-outline btn-xs" (click)="revealSensitive.set(!revealSensitive())">
+      {{ revealSensitive() ? language.t('profile.hideSensitive') : language.t('profile.revealSensitive') }}
+    </button>
   </div>
 
   @if (error(); as message) {
@@ -124,7 +129,7 @@
         </label>
         <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayMerchantIdHelp') }}</p>
         <label class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayApiKey') }}
-          <input type="password" class="form-input mt-1" [value]="abaPaywayApiKey()" (input)="abaPaywayApiKey.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="abaPaywayApiKey()" (input)="abaPaywayApiKey.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
         </label>
         @if (abaPaywayApiKeyConfigured()) {
           <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayApiKeyConfigured') }}</p>
@@ -136,10 +141,10 @@
           <p class="text-[11px] text-ink-3">{{ language.t('profile.abaPaywayApiKeyFromEnv') }}</p>
         }
         <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.accountName') }}
-          <input class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_name || ''" (input)="updatePaymentMethodDetail('account_name', $any($event.target).value)" maxlength="120" />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_name || ''" (input)="updatePaymentMethodDetail('account_name', $any($event.target).value)" maxlength="120" />
         </label>
         <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.accountNumber') }}
-          <input class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_number || ''" (input)="updatePaymentMethodDetail('account_number', $any($event.target).value)" maxlength="64" />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="paymentMethodDetails()['ABA Pay']?.account_number || ''" (input)="updatePaymentMethodDetail('account_number', $any($event.target).value)" maxlength="64" />
         </label>
         <label class="text-[11px] text-ink-3">{{ language.t('consoleSettings.instructionsEnglish') }}
           <textarea class="form-input mt-1" rows="2" [value]="paymentMethodDetails()['ABA Pay']?.instructions_en || ''" (input)="updatePaymentMethodDetail('instructions_en', $any($event.target).value)" maxlength="255"></textarea>
@@ -168,7 +173,7 @@
           <input class="form-input mt-1" [value]="stripePublishableKey()" (input)="stripePublishableKey.set($any($event.target).value)" maxlength="255" autocomplete="off" placeholder="pk_live_..." />
         </label>
         <label class="text-[11px] text-ink-3">{{ language.t('profile.stripeSecretKey') }}
-          <input type="password" class="form-input mt-1" [value]="stripeSecretKey()" (input)="stripeSecretKey.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="sk_live_..." />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="stripeSecretKey()" (input)="stripeSecretKey.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="sk_live_..." />
         </label>
         @if (stripeSecretConfigured()) {
           <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeSecretConfigured') }}</p>
@@ -180,7 +185,7 @@
           <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeSecretFromEnv') }}</p>
         }
         <label class="text-[11px] text-ink-3">{{ language.t('profile.stripeWebhookSecret') }}
-          <input type="password" class="form-input mt-1" [value]="stripeWebhookSecret()" (input)="stripeWebhookSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="whsec_..." />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="stripeWebhookSecret()" (input)="stripeWebhookSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="whsec_..." />
         </label>
         @if (stripeWebhookConfigured()) {
           <p class="text-[11px] text-ink-3">{{ language.t('profile.stripeWebhookConfigured') }}</p>
@@ -212,7 +217,7 @@
           <input class="form-input mt-1" [value]="googleClientId()" (input)="googleClientId.set($any($event.target).value)" maxlength="255" autocomplete="off" placeholder="...apps.googleusercontent.com" />
         </label>
         <label class="text-[11px] text-ink-3">{{ language.t('profile.googleClientSecret') }}
-          <input type="password" class="form-input mt-1" [value]="googleClientSecret()" (input)="googleClientSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="googleClientSecret()" (input)="googleClientSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
         </label>
         @if (googleClientSecretConfigured()) {
           <p class="text-[11px] text-ink-3">{{ language.t('profile.googleClientSecretConfigured') }}</p>
@@ -245,7 +250,7 @@
       }
       <div class="space-y-3 rounded-xl border border-hairline p-4">
         <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramBotToken') }}
-          <input type="password" class="form-input mt-1" [value]="telegramBotToken()" (input)="telegramBotToken.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="123456789:AA..." />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="telegramBotToken()" (input)="telegramBotToken.set($any($event.target).value)" maxlength="255" autocomplete="new-password" placeholder="123456789:AA..." />
         </label>
         @if (telegramBotTokenConfigured()) {
           <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramBotTokenConfigured') }}</p>
@@ -260,7 +265,7 @@
           <input class="form-input mt-1" [value]="telegramBotUsername()" (input)="telegramBotUsername.set($any($event.target).value)" maxlength="64" autocomplete="off" placeholder="RentEasyBot" />
         </label>
         <label class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookSecret') }}
-          <input type="password" class="form-input mt-1" [value]="telegramWebhookSecret()" (input)="telegramWebhookSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
+          <input [type]="revealSensitive() ? 'text' : 'password'" class="form-input mt-1" [value]="telegramWebhookSecret()" (input)="telegramWebhookSecret.set($any($event.target).value)" maxlength="255" autocomplete="new-password" />
         </label>
         @if (telegramWebhookSecretConfigured()) {
           <p class="text-[11px] text-ink-3">{{ language.t('profile.telegramWebhookSecretConfigured') }}</p>
