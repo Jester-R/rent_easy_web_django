@@ -37,6 +37,7 @@ export class BrowsePropertiesComponent implements OnInit {
   loadError = signal(false);
   locationLoadError = signal(false);
   villagesLoading = signal(false);
+  filtersExpanded = signal(true);
 
   categories = signal<PropertyCategorySetting[]>([]);
 
@@ -237,6 +238,10 @@ export class BrowsePropertiesComponent implements OnInit {
   onFilterChange(): void {
     this.page.set(1);
     this.loadProperties();
+  }
+
+  toggleFilters(): void {
+    this.filtersExpanded.update((value) => !value);
   }
 
   onProvinceChange(code: string): void {
