@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from accounts.models import PlatformSettings, Role, User
-from bookings.models import ACTIVE_STATUSES, Booking, BookingStatus
+from bookings.models import ACTIVE_STATUSES, Booking, BookingStatus, payment_window_hours
 from chat.models import Conversation
 from notifications.models import Notification
 from notifications.services import notify
@@ -173,7 +173,22 @@ def create_booking(
     move_in_date = _coerce_date(move_in_date)
     end_date = _coerce_date(end_date)
 
+    expire_unpaid_bookings()
     Property.objects.select_for_update().get(pk=property_obj.pk)
+    if has_active_booking(renter, property_obj):
+        return None
+    if Booking.objects.filter(
+        renter=renter,
+        property=property_obj,
+        created_at__date=timezone.localdate(),
+    ).exists():
+        return None
+    if Booking.objects.filter(
+        property=property_obj,
+        status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+        payment_id__isnull=True,
+    ).exists():
+        return None
     if Booking.objects.filter(
         property=property_obj, status__in=ACTIVE_STATUSES
     ).exists():
@@ -207,6 +222,64 @@ def create_booking(
     )
     return booking
 
+
+def has_active_booking(renter, property_obj) -> bool:
+    """True when renter already booked this room today (1 room/renter/day)."""
+    return Booking.objects.filter(
+        renter=renter,
+        property=property_obj,
+        created_at__date=timezone.localdate(),
+    ).exists()
+
+
+def expire_unpaid_bookings() -> int:
+    """Expire unpaid requests that passed the payment window.
+
+    Expiry is refreshed on the booking/listing endpoints and can also be run
+    from cron via ``manage.py expire_unpaid_bookings``. At most 500 rows are
+    handled per call so a request never stalls on a large backlog.
+    """
+    cutoff = timezone.now() - timedelta(hours=payment_window_hours())
+    candidates = (
+        Booking.objects.filter(
+            status=BookingStatus.PENDING,
+            created_at__lt=cutoff,
+            payment_id__isnull=True,
+        )
+        .select_related("property", "renter", "owner")
+        .order_by("created_at")[:500]
+    )
+    expired = 0
+    for candidate in candidates:
+        with transaction.atomic():
+            booking = (
+                Booking.objects.select_for_update()
+                .select_related("property", "renter", "owner")
+                .filter(
+                    pk=candidate.pk,
+                    status=BookingStatus.PENDING,
+                    payment_id__isnull=True,
+                )
+                .first()
+            )
+            if booking is None:
+                continue
+            ok, _code = transition_booking(booking, BookingStatus.EXPIRED)
+            if not ok:
+                continue
+            expired += 1
+            notify(
+                booking.renter,
+                Notification.Kind.BOOKING_UPDATE,
+                "notif_booking_expired",
+                "notif_booking_expired_body",
+                params={
+                    "title": booking.property_title,
+                    "hours": payment_window_hours(),
+                },
+                link=booking.get_absolute_url(),
+            )
+    return expired
 
 def payout_for_payment(payment: Payment | None) -> Payout | None:
     if payment is None or not payment.pk:
@@ -679,6 +752,7 @@ def release_due_payouts(owner=None) -> int:
         payment__booking__status__in=[
             BookingStatus.CANCELLED,
             BookingStatus.REJECTED,
+            BookingStatus.EXPIRED,
         ]
     ).update(**cancelled)
     return base.filter(
@@ -712,6 +786,26 @@ def cancel_competing_payments(payment: Payment) -> int:
     ).exclude(pk=payment.pk).update(status=Payment.Status.CANCELLED)
 
 
+def _fail_late_payment(payment: Payment, payload: dict, error: str, note: str) -> None:
+    """Mark an unusable gateway payment failed and queue its refund."""
+    payment.status = Payment.Status.FAILED
+    needs_refund = not payment.is_refunded
+    if needs_refund:
+        payment.refund_status = Payment.RefundStatus.PENDING
+    payment.gateway_payload = {**payment.gateway_payload, **payload, "error": error}
+    payment.save(update_fields=["status", "refund_status", "gateway_payload"])
+    if needs_refund and not Refund.objects.filter(
+        payment=payment, status=Refund.Status.PENDING
+    ).exists():
+        Refund.objects.create(
+            payment=payment,
+            booking_id=payment.booking_id,
+            amount=payment.amount,
+            reason=Refund.Reason.OTHER,
+            note=note,
+        )
+
+
 def _booking_conflict_or_attach(payment: Payment, payload: dict) -> bool:
     """Finalize a successful gateway payment against its booking.
 
@@ -728,28 +822,25 @@ def _booking_conflict_or_attach(payment: Payment, payload: dict) -> bool:
     )
     if booking is None:
         return False
+    if booking.status in (
+        BookingStatus.CANCELLED,
+        BookingStatus.REJECTED,
+        BookingStatus.EXPIRED,
+    ):
+        _fail_late_payment(
+            payment,
+            payload,
+            "booking_closed",
+            "Payment received after the booking was cancelled or expired.",
+        )
+        return False
     if booking.payment_id and booking.payment_id != payment.pk:
-        payment.status = Payment.Status.FAILED
-        needs_refund = not payment.is_refunded
-        if needs_refund:
-            payment.refund_status = Payment.RefundStatus.PENDING
-        payment.gateway_payload = {
-            **payment.gateway_payload,
-            **payload,
-            "error": "booking_already_paid",
-        }
-        payment.save(update_fields=["status", "refund_status", "gateway_payload"])
-        if needs_refund:
-            if not Refund.objects.filter(
-                payment=payment, status=Refund.Status.PENDING
-            ).exists():
-                Refund.objects.create(
-                    payment=payment,
-                    booking=booking,
-                    amount=payment.amount,
-                    reason=Refund.Reason.OTHER,
-                    note="Duplicate payment for an already-paid booking.",
-                )
+        _fail_late_payment(
+            payment,
+            payload,
+            "booking_already_paid",
+            "Duplicate payment for an already-paid booking.",
+        )
         return False
 
     payment.status = Payment.Status.SUCCESS
@@ -1313,7 +1404,11 @@ def reject_refund(refund: Refund, actor=None, note: str = "") -> bool:
     payment.save(update_fields=["refund_status"])
 
     booking = refund.booking
-    if booking.status not in (BookingStatus.CANCELLED, BookingStatus.REJECTED):
+    if booking.status not in (
+        BookingStatus.CANCELLED,
+        BookingStatus.REJECTED,
+        BookingStatus.EXPIRED,
+    ):
         payout = Payout.objects.filter(payment=payment).first()
         if payout and payout.status == Payout.Status.CANCELLED:
             payout.status = (
@@ -1509,6 +1604,12 @@ def process_refund(
     booking = Booking.objects.select_for_update().get(pk=refund.booking_id)
     from listings.services import reopen_property_if_idle
 
+    if booking.status not in (
+        BookingStatus.CANCELLED,
+        BookingStatus.REJECTED,
+        BookingStatus.EXPIRED,
+    ):
+        booking.transition(BookingStatus.CANCELLED)
     reopen_property_if_idle(booking.property_id)
     notify(
         booking.renter,
@@ -1559,7 +1660,8 @@ def pay_out(payout: Payout, actor=None, note: str = "") -> bool:
         or payment.is_refunded
         or (
             booking is not None
-            and booking.status in (BookingStatus.CANCELLED, BookingStatus.REJECTED)
+            and booking.status
+            in (BookingStatus.CANCELLED, BookingStatus.REJECTED, BookingStatus.EXPIRED)
         )
     ):
         raise PayoutBlocked("This payment was cancelled or refunded.")

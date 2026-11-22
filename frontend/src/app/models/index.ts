@@ -90,7 +90,7 @@ export interface Property {
 export interface Booking {
   id: number;
   reference: string;
-  status: 'Pending' | 'Approved' | 'Confirmed' | 'Rejected' | 'Cancelled' | string;
+  status: 'Pending' | 'Approved' | 'Confirmed' | 'Rejected' | 'Cancelled' | 'Expired' | string;
   monthly_rent: number;
   rent_display: string;
   move_in_date?: string | null;
@@ -117,6 +117,12 @@ export interface Booking {
   approved_at?: string | null;
   rejected_at?: string | null;
   cancelled_at?: string | null;
+  expired_at?: string | null;
+  payment_deadline_at?: string | null;
+  payment_hours_remaining?: number;
+  payment_window_hours?: number;
+  can_approve?: boolean;
+  can_reject?: boolean;
   can_cancel?: boolean;
   can_owner_cancel?: boolean;
 }

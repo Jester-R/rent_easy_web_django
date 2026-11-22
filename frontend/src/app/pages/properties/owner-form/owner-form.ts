@@ -118,13 +118,6 @@ export class OwnerPropertyFormComponent implements OnInit {
     address?: Record<string, string>;
     displayName?: string;
   } | null = null;
-  private pendingAiLocation: {
-    location?: string;
-    province?: string;
-    commune?: string;
-    village?: string;
-  } | null = null;
-
   readonly provinceOptions = computed<SelectOption[]>(() =>
     this.cambodiaProvinces().map((province) => ({
       value: province.code,
@@ -218,19 +211,6 @@ export class OwnerPropertyFormComponent implements OnInit {
     return value.trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
-  private findLocationByName<T extends { name_en: string; name_km: string }>(
-    items: T[],
-    value: string,
-  ): T | undefined {
-    const query = this.normalizeLocationName(value);
-    if (!query) return undefined;
-    return items.find(
-      (item) =>
-        this.normalizeLocationName(item.name_en) === query ||
-        this.normalizeLocationName(item.name_km) === query,
-    );
-  }
-
   private readonly fb = inject(FormBuilder);
   private readonly propertyService = inject(PropertyService);
   private readonly router = inject(Router);
@@ -239,10 +219,6 @@ export class OwnerPropertyFormComponent implements OnInit {
   isLoading = signal(false);
   isUploadingPhotos = signal(false);
   photoDropActive = signal(false);
-  isGeneratingDescription = signal(false);
-  aiPrompt = '';
-  aiPanelOpen = signal(false);
-  aiDraftApplied = signal(false);
   errorMessage = signal<string | null>(null);
   selectedImages = signal<string[]>([]);
   existingImages = signal<string[]>([]);
@@ -352,9 +328,6 @@ export class OwnerPropertyFormComponent implements OnInit {
         this.cambodiaVillages.set(villages);
         this.applyLoadedPropertyLocation();
         this.applyPendingMapAddress();
-        if (this.pendingAiLocation) {
-          this.applyAiLocation(this.pendingAiLocation);
-        }
         if (this.communeCode() && !this.villageCode()) {
           const communeVillages = villages.filter(
             (v) => v.commune_code === this.communeCode(),
@@ -1044,132 +1017,6 @@ export class OwnerPropertyFormComponent implements OnInit {
 
   removeExistingImage(index: number): void {
     this.existingImages.update((images) => images.filter((_, i) => i !== index));
-  }
-
-  generateWithAi(): void {
-    if (this.isGeneratingDescription()) return;
-    if (!this.aiPrompt.trim()) {
-      this.errorMessage.set(this.language.t('ownerForm.aiNeedsPrompt'));
-      return;
-    }
-    this.loadCategorySettings();
-    this.isGeneratingDescription.set(true);
-    this.errorMessage.set(null);
-    this.aiDraftApplied.set(false);
-
-    this.propertyService
-      .generateDescription({
-        prompt: this.aiPrompt.trim(),
-        locations: this.locationOptions().map((option) => option.value).filter(Boolean),
-        categories: this.categorySettings().map((category) => category.value),
-      })
-      .subscribe({
-        next: (res) => {
-          this.isGeneratingDescription.set(false);
-          this.aiDraftApplied.set(true);
-          this.form.patchValue({
-            ...(res.title ? { title: res.title } : {}),
-            ...(res.title_km ? { title_km: res.title_km } : {}),
-            ...(res.price_per_month != null ? { price_per_month: res.price_per_month } : {}),
-            ...(res.category && this.categorySettings().some((category) => category.value === res.category) ? { category: res.category } : {}),
-            ...(res.bedrooms != null ? { bedrooms: res.bedrooms } : {}),
-            ...(res.bathrooms != null ? { bathrooms: res.bathrooms } : {}),
-            ...(res.description ? { description: res.description } : {}),
-            ...(res.description_km ? { description_km: res.description_km } : {}),
-          });
-          this.applyAiLocation(res);
-        },
-        error: (err) => {
-          this.isGeneratingDescription.set(false);
-          const detail = err?.error?.detail;
-          if (detail === 'ai_not_configured') {
-            this.errorMessage.set(this.language.t('ownerForm.aiNotConfigured'));
-          } else {
-            this.errorMessage.set(this.language.t('ownerForm.aiGenerationFailed'));
-          }
-        },
-      });
-  }
-
-  private applyAiLocation(draft: {
-    location?: string;
-    province?: string;
-    commune?: string;
-    village?: string;
-  }): void {
-    const locationValue = (draft.location || '').trim();
-    const provinceValue = (draft.province || '').trim();
-    const communeValue = (draft.commune || '').trim();
-    const villageValue = (draft.village || '').trim();
-
-    if (!locationValue && !provinceValue && !communeValue && !villageValue) {
-      this.pendingAiLocation = null;
-      return;
-    }
-
-    let district = this.cambodiaDistricts().find(
-      (item) =>
-        locationValue !== '' &&
-        this.locationLabel(item.name_en, item.name_km) === locationValue,
-    );
-    if (!district && locationValue) {
-      district = this.findLocationByName(this.cambodiaDistricts(), locationValue);
-    }
-    let province = provinceValue
-      ? this.findLocationByName(this.cambodiaProvinces(), provinceValue)
-      : undefined;
-    let commune = communeValue
-      ? this.findLocationByName(
-          this.cambodiaCommunes().filter(
-            (item) =>
-              (!district || item.district_code === district.code) &&
-              (!province || item.province_code === province.code),
-          ),
-          communeValue,
-        )
-      : undefined;
-    let village =
-      villageValue && this.cambodiaVillages().length
-        ? this.findLocationByName(
-            this.cambodiaVillages().filter(
-              (item) => !commune || item.commune_code === commune.code,
-            ),
-            villageValue,
-          )
-        : undefined;
-
-    if (!commune && village) {
-      const communeCode = village.commune_code;
-      commune = this.cambodiaCommunes().find((item) => item.code === communeCode);
-    }
-    if (!district && commune) {
-      const districtCode = commune.district_code;
-      district = this.cambodiaDistricts().find((item) => item.code === districtCode);
-    }
-    if (!province && commune) {
-      const provinceCode = commune.province_code;
-      province = this.cambodiaProvinces().find((item) => item.code === provinceCode);
-    }
-    if (!province && district) {
-      const provinceCode = district.province_code;
-      province = this.cambodiaProvinces().find((item) => item.code === provinceCode);
-    }
-
-    const districtLabel = district
-      ? this.locationLabel(district.name_en, district.name_km)
-      : '';
-    this.form.patchValue({ location: districtLabel });
-
-    this.provinceCode.set(province?.code || '');
-    this.districtCode.set(district?.code || '');
-    this.communeCode.set(commune?.code || '');
-    this.villageCode.set(village ? this.villageKey(village) : '');
-
-    if (commune || (villageValue && !this.cambodiaVillages().length)) {
-      this.ensureVillagesLoaded();
-    }
-    this.pendingAiLocation =
-      villageValue && !this.cambodiaVillages().length ? draft : null;
   }
 
   onSubmit(): void {

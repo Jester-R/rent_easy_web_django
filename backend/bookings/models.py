@@ -11,19 +11,27 @@ from django.utils import timezone
 
 ACTIVE_STATUSES = ("Pending", "Approved", "Confirmed")
 
+
+def payment_window_hours() -> int:
+    """Hours a renter has to pay a booking request before it expires."""
+    return max(1, int(getattr(settings, "BOOKING_PAYMENT_WINDOW_HOURS", 5) or 5))
+
+
 #: Mirrors ``PropertyProvider._isValidStatusTransition`` from the Flutter app.
 VALID_TRANSITIONS: dict[str, tuple[str, ...]] = {
-    "Pending": ("Confirmed", "Rejected", "Cancelled"),
-    "Approved": ("Confirmed", "Rejected", "Cancelled"),
+    "Pending": ("Approved", "Confirmed", "Rejected", "Cancelled", "Expired"),
+    "Approved": ("Confirmed", "Cancelled", "Expired"),
     "Confirmed": ("Cancelled",),
     "Rejected": (),
     "Cancelled": (),
+    "Expired": (),
 }
 
 TIMESTAMP_FIELD = {
     "Approved": "approved_at",
     "Rejected": "rejected_at",
     "Cancelled": "cancelled_at",
+    "Expired": "expired_at",
 }
 
 
@@ -33,6 +41,7 @@ class BookingStatus(models.TextChoices):
     CONFIRMED = "Confirmed", "Confirmed"
     REJECTED = "Rejected", "Rejected"
     CANCELLED = "Cancelled", "Cancelled"
+    EXPIRED = "Expired", "Expired"
 
 
 class Booking(models.Model):
@@ -71,6 +80,7 @@ class Booking(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
     rejected_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
+    expired_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -104,6 +114,17 @@ class Booking(models.Model):
     @builtins.property
     def is_paid(self) -> bool:
         return bool(self.payment_id)
+
+    @builtins.property
+    def payment_deadline_at(self):
+        return self.created_at + timedelta(hours=payment_window_hours())
+
+    @builtins.property
+    def payment_hours_remaining(self) -> float:
+        if self.payment_id or self.status != BookingStatus.PENDING:
+            return 0.0
+        remaining = (self.payment_deadline_at - timezone.now()).total_seconds()
+        return round(max(0.0, remaining / 3600), 2)
 
     @builtins.property
     def payout_status(self) -> str:
@@ -222,4 +243,5 @@ class Booking(models.Model):
             BookingStatus.APPROVED: self.approved_at,
             BookingStatus.REJECTED: self.rejected_at,
             BookingStatus.CANCELLED: self.cancelled_at,
+            BookingStatus.EXPIRED: self.expired_at,
         }.get(self.status) or self.created_at

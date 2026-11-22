@@ -237,8 +237,10 @@ export class PropertyDetailComponent implements OnInit {
         error: (err) => {
           this.isBookingSubmitting.set(false);
           const detail = err.error?.detail || '';
-          if (detail === 'active_booking_exists') {
-            this.bookingError.set(this.language.t('propertyDetail.propertyAlreadyBooked'));
+          if (detail === 'booking_unavailable_or_already_booked_today') {
+            this.bookingError.set(
+              'This room is unavailable or you already booked it today. You can try another room.',
+            );
           } else {
             this.bookingError.set('Failed to submit booking request.');
           }

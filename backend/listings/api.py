@@ -233,8 +233,10 @@ def _validate_property_payload(data: dict) -> dict:
 @api.get("/rent/properties/")
 async def renter_browse(request):
     from accounts.models import Role
-    from bookings.models import ACTIVE_STATUSES, Booking
+    from bookings.models import Booking, BookingStatus
+    from payments.services import expire_unpaid_bookings
 
+    await in_thread(expire_unpaid_bookings)
     user = await get_user(request)
     renter = user if user is not None and user.is_renter else None
 
@@ -314,11 +316,13 @@ async def renter_browse(request):
                 user=renter, property_id__in=ids
             ).values_list("property_id", flat=True)
         }
+        today = timezone.localdate()
         active_ids = {
             v
             async for v in Booking.objects.filter(
+                renter=renter,
                 property_id__in=ids,
-                status__in=ACTIVE_STATUSES,
+                created_at__date=today,
             ).values_list("property_id", flat=True)
         }
 
@@ -469,7 +473,9 @@ async def booking_request(request):
         note=body_str(data, "note"),
     )
     if booking is None:
-        raise HTTPException(status_code=409, detail="active_booking_exists")
+        raise HTTPException(
+            status_code=409, detail="booking_unavailable_or_already_booked_today"
+        )
     return {"booking_id": booking.pk, "reference": booking.reference}
 
 

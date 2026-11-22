@@ -16,4 +16,9 @@ export const bookingDetail: PageCatalog = {
   paymentMethod: ['Payment method', 'វិធីសាស្ត្រទូទាត់'],
   openRefundChat: ['Chat admin', 'ជជែកជាមួយអ្នកគ្រប់គ្រង'],
   search: ['Search...', 'ស្វែងរក...'],
+  paymentWindowRemaining: ['Pay within', 'ត្រូវបង់ក្នុងរយៈពេល'],
+  paymentDeadline: ['Payment deadline', 'កាលកំណត់ទូទាត់'],
+  payWithin: ['Time left to pay', 'ពេលវេលានៅសល់ដើម្បីបង់ប្រាក់'],
+  lessThanHour: ['Less than 1 hour', 'តិចជាង ១ ម៉ោង'],
+  expiredInfo: ['This booking request expired because payment was not completed within 5 hours.', 'សំណើកក់នេះបានផុតកំណត់ ព្រោះមិនបានបញ្ចប់ការទូទាត់ប្រាក់ក្នុងរយៈពេល ៥ ម៉ោង។'],
 };

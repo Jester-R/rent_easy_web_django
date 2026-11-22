@@ -15,6 +15,7 @@ export const VALUE_KM: Readonly<Record<string, string>> = {
   Confirmed: 'បានបញ្ជាក់',
   Rejected: 'បានបដិសេធ',
   Cancelled: 'បានលុបចោល',
+  Expired: 'ផុតកំណត់',
   // Payment statuses
   Success: 'ជោគជ័យ',
   Successful: 'ជោគជ័យ',

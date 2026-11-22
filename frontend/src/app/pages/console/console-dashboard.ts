@@ -44,6 +44,7 @@ export class ConsoleDashboardComponent implements OnInit {
     { label: 'Approved', cls: 'bg-primary' },
     { label: 'Rejected', cls: 'bg-danger' },
     { label: 'Cancelled', cls: 'bg-ink-3' },
+    { label: 'Expired', cls: 'bg-slate-400' },
   ];
 
   ngOnInit(): void {

@@ -39,7 +39,11 @@ from accounts.models import (
     is_valid_username,
     normalize_identity,
 )
-from accounts.session_tracking import current_session_key
+from accounts.session_tracking import (
+    current_session_key,
+    end_login_session,
+    end_login_session_key,
+)
 from accounts.default_promotion import DEFAULT_HOME_PROMOTION
 from accounts.integration_config import (
     telegram_bot_token,
@@ -976,6 +980,54 @@ async def sessions_export(request):
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+async def _get_login_session(pk: int) -> LoginSession:
+    session = await LoginSession.objects.select_related("user").filter(pk=pk).afirst()
+    if session is None:
+        raise HTTPException(status_code=404, detail="session_not_found")
+    return session
+
+
+async def _terminate_session_row(session_row: LoginSession, actor, ended_by_admin: bool) -> bool:
+    await in_thread(end_login_session_key, session_row.session_key)
+    deleted = await in_thread(
+        lambda: Session.objects.filter(session_key=session_row.session_key).delete()[0]
+    )
+    if ended_by_admin and session_row.user_id != actor.pk:
+        await audit(
+            actor,
+            AuditLog.Action.LOGOUT,
+            "session",
+            session_row.user_id,
+            f"terminated session #{session_row.pk} for {session_row.user.display_name}",
+        )
+    return bool(deleted)
+
+
+@console_api.post("/sessions/{pk}/logout/")
+async def session_logout(request):
+    actor = await superadmin_required(request)
+    session_row = await _get_login_session(param_int(request, "pk"))
+    await _terminate_session_row(session_row, actor, ended_by_admin=True)
+    active_keys = await _active_session_keys()
+    current_key = await in_thread(current_session_key, request)
+    refreshed = await LoginSession.objects.select_related("user").aget(pk=session_row.pk)
+    return {"ok": True, "session": _session_item(refreshed, active_keys, current_key)}
+
+
+@console_api.post("/sessions/bulk-logout/")
+async def sessions_bulk_logout(request):
+    actor = await superadmin_required(request)
+    ids = _ids(json_body(request))
+    if not ids:
+        return {"ok": True, "logged_out": 0}
+    rows = [row async for row in LoginSession.objects.select_related("user").filter(pk__in=ids)]
+    logged_out = 0
+    for row in rows:
+        await _terminate_session_row(row, actor, ended_by_admin=True)
+        logged_out += 1
+    return {"ok": True, "logged_out": logged_out}
 
 
 def _audit_filters(request):

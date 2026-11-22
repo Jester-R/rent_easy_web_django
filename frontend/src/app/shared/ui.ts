@@ -11,6 +11,8 @@ export function bookingPill(status: string): string {
       return 'pill-rejected';
     case 'Cancelled':
       return 'pill-cancelled';
+    case 'Expired':
+      return 'pill-neutral';
     default:
       return 'pill-neutral';
   }
@@ -250,6 +252,8 @@ export function payoutPill(status: string): string {
       return 'pill-approved';
     case 'Cancelled':
       return 'pill-cancelled';
+    case 'Expired':
+      return 'pill-neutral';
     default:
       return 'pill-neutral';
   }

@@ -234,7 +234,12 @@ def record_login_session(
 
 def end_login_session(request: Any) -> None:
     """Mark the current session as signed out before Django flushes it."""
-    session_key = current_session_key(request)
+    end_login_session_key(current_session_key(request))
+
+
+def end_login_session_key(session_key: str) -> None:
+    """Mark a specific session as signed out without needing the request."""
+    session_key = str(session_key or "")
     if not session_key:
         return
     LoginSession.objects.filter(

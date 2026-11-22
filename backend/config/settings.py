@@ -142,6 +142,12 @@ DEFAULT_SUPERADMIN = {
 # afterwards the owner's payout becomes eligible for manual transfer.
 RENT_HOLD_DAYS = int(os.environ.get("RENT_HOLD_DAYS", "7") or "7")
 
+# A renter has this many hours from creating a booking request to complete the
+# payment. Unpaid requests older than the window are expired automatically.
+BOOKING_PAYMENT_WINDOW_HOURS = int(
+    os.environ.get("BOOKING_PAYMENT_WINDOW_HOURS", "5") or "5"
+)
+
 # -- ABA PayWay ---------------------------------------------------------------
 # ABA supplies the API key; both values can also be saved from the admin
 # Profile form, where they override these environment defaults. Checkout is

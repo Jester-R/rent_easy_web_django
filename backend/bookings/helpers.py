@@ -17,6 +17,7 @@ BOOKING_STATUS_FILTERS = (
     "Confirmed",
     "Rejected",
     "Cancelled",
+    "Expired",
 )
 
 

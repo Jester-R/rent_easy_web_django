@@ -4,10 +4,21 @@
       <h1 class="text-[20px] font-extrabold tracking-tight">{{ language.t('consoleSessions.loginSessions') }}</h1>
       <p class="text-[12px] text-ink-3">{{ language.t('consoleSessions.subtitle') }}</p>
     </div>
-    <button type="button" class="btn btn-outline btn-sm w-full sm:w-auto" [disabled]="isExporting()" (click)="exportCsv()">
-      <app-icon name="download" [size]="15" />
-      <span>{{ isExporting() ? language.t('profile.savingChanges') : language.t('consoleSessions.exportCsv') }}</span>
-    </button>
+    <div class="flex w-full flex-wrap gap-2 sm:w-auto">
+      @if (selectedCount() > 0) {
+        <button type="button" class="btn btn-danger-soft btn-sm flex-1 sm:flex-none" [disabled]="isBulkBusy()" (click)="bulkLogout()">
+          <app-icon name="logout" [size]="15" />
+          <span>{{ isBulkBusy() ? language.t('consoleSessions.loggingOut') : language.t('consoleSessions.logoutSelected').replace('{count}', selectedCount().toString()) }}</span>
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" [disabled]="isBulkBusy()" (click)="clearSelection()">
+          {{ language.t('consoleSessions.clearSelection') }}
+        </button>
+      }
+      <button type="button" class="btn btn-outline btn-sm flex-1 sm:flex-none" [disabled]="isExporting()" (click)="exportCsv()">
+        <app-icon name="download" [size]="15" />
+        <span>{{ isExporting() ? language.t('profile.savingChanges') : language.t('consoleSessions.exportCsv') }}</span>
+      </button>
+    </div>
   </div>
 
   @if (error(); as message) {
@@ -111,6 +122,16 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th class="w-10">
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-hairline"
+                [checked]="allVisibleSelected()"
+                [disabled]="visibleLogoutIds().length === 0 || allVisibleBusy()"
+                (change)="toggleAllVisible()"
+                [attr.aria-label]="language.t('consoleSessions.selectAllActive')"
+              />
+            </th>
             <th class="text-start">{{ language.t('consoleSessions.user') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.status') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.device') }}</th>
@@ -118,11 +139,24 @@
             <th class="text-start">{{ language.t('consoleSessions.ipAddress') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.signedIn') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.lastSeen') }}</th>
+            <th class="text-end">{{ language.t('consoleSessions.actions') }}</th>
           </tr>
         </thead>
         <tbody>
           @for (item of sessions(); track item.id) {
             <tr>
+              <td data-label="">
+                @if (item.is_active) {
+                  <input
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-hairline"
+                    [checked]="isSelected(item.id)"
+                    [disabled]="isBusy(item.id)"
+                    (change)="toggle(item.id)"
+                    [attr.aria-label]="language.t('consoleSessions.selectSession')"
+                  />
+                }
+              </td>
               <td [attr.data-label]="language.t('consoleSessions.user')" class="min-w-[13rem]">
                 <div class="flex items-center gap-2.5">
                   <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
@@ -170,6 +204,22 @@
               <td [attr.data-label]="language.t('consoleSessions.ipAddress')" class="whitespace-nowrap font-mono text-[12px] text-ink-2">{{ item.ip_address || '—' }}</td>
               <td [attr.data-label]="language.t('consoleSessions.signedIn')" class="whitespace-nowrap text-ink-2">{{ prettyDate(item.created_at) }}</td>
               <td [attr.data-label]="language.t('consoleSessions.lastSeen')" class="whitespace-nowrap text-ink-2">{{ prettyDate(item.last_seen_at) }}</td>
+              <td [attr.data-label]="language.t('consoleSessions.actions')" class="text-end">
+                @if (item.is_active) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    [class.text-danger]="!item.is_current"
+                    [disabled]="isBusy(item.id)"
+                    (click)="logout(item)"
+                  >
+                    <app-icon name="logout" [size]="14" />
+                    <span>{{ item.is_current ? language.t('consoleSessions.logoutCurrent') : language.t('consoleSessions.logout') }}</span>
+                  </button>
+                } @else {
+                  <span class="text-[12px] text-ink-3">—</span>
+                }
+              </td>
             </tr>
           }
         </tbody>

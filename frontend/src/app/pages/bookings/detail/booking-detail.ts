@@ -137,7 +137,7 @@ export class BookingDetailComponent implements OnInit {
   readonly resolvedAt = computed<string | null>(() => {
     const b = this.booking();
     if (!b) return null;
-    return b.approved_at || b.rejected_at || b.cancelled_at || null;
+    return b.approved_at || b.rejected_at || b.cancelled_at || b.expired_at || null;
   });
 
   readonly backLink = computed<string>(() =>
@@ -243,6 +243,17 @@ export class BookingDetailComponent implements OnInit {
 
   avatarFg(p: Party): string {
     return `hsl(${this.hue(p)} 55% 28%)`;
+  }
+
+  formatRemaining(hours: number | undefined | null): string {
+    const value = Math.max(0, Number(hours) || 0);
+    if (value <= 0) return this.language.t('bookingDetail.lessThanHour');
+    const totalMinutes = Math.floor(value * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if (h <= 0) return `${m}m`;
+    if (m <= 0) return `${h}h`;
+    return `${h}h ${m}m`;
   }
 
   cancel(): void {

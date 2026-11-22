@@ -48,6 +48,9 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
   readonly isLoading = signal(true);
   readonly isExporting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly selected = signal<number[]>([]);
+  readonly busyIds = signal<number[]>([]);
+  readonly isBulkBusy = signal(false);
 
   private timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -66,6 +69,21 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
       label: this.language.valueLabel(item.label),
     })),
   ]);
+
+  readonly selectedCount = computed(() => this.selected().length);
+  readonly visibleLogoutIds = computed(() =>
+    this.sessions()
+      .filter((item) => item.is_active)
+      .map((item) => item.id)
+  );
+  readonly allVisibleSelected = computed(() => {
+    const ids = this.visibleLogoutIds();
+    return ids.length > 0 && ids.every((id) => this.selected().includes(id));
+  });
+  readonly allVisibleBusy = computed(() => {
+    const ids = this.visibleLogoutIds();
+    return ids.length > 0 && ids.every((id) => this.busyIds().includes(id));
+  });
 
   readonly roleOptions = computed<SelectOption[]>(() => [
     { value: 'all', label: this.language.t('consoleSessions.allRoles') },
@@ -104,6 +122,8 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
           this.inactiveCount.set(res.inactive_count);
           this.methods.set(res.methods ?? []);
           this.roles.set(res.roles ?? []);
+          const visible = new Set(res.sessions.map((item) => item.id));
+          this.selected.update((ids) => ids.filter((id) => visible.has(id)));
           this.error.set(null);
           this.isLoading.set(false);
         },
@@ -157,6 +177,80 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
   changePage(page: number): void {
     this.page.set(page);
     this.load();
+  }
+
+  isSelected(id: number): boolean {
+    return this.selected().includes(id);
+  }
+
+  isBusy(id: number): boolean {
+    return this.busyIds().includes(id);
+  }
+
+  toggle(id: number): void {
+    if (this.isBusy(id)) return;
+    const cur = this.selected();
+    this.selected.set(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+  }
+
+  toggleAllVisible(): void {
+    const ids = this.visibleLogoutIds();
+    if (!ids.length || this.allVisibleBusy()) return;
+    const cur = new Set(this.selected());
+    if (this.allVisibleSelected()) {
+      ids.forEach((id) => cur.delete(id));
+    } else {
+      ids.forEach((id) => cur.add(id));
+    }
+    this.selected.set([...cur]);
+  }
+
+  clearSelection(): void {
+    this.selected.set([]);
+  }
+
+  logout(session: LoginSessionItem): void {
+    if (!session.is_active || this.isBusy(session.id)) return;
+    const label = session.is_current
+      ? this.language.t('consoleSessions.confirmLogoutCurrent')
+      : this.language.t('consoleSessions.confirmLogoutSingle').replace('{user}', session.user.display_name);
+    if (!confirm(label)) return;
+    this.busyIds.update((ids) => [...ids, session.id]);
+    this.console.logoutSession(session.id).subscribe({
+      next: () => {
+        this.selected.update((ids) => ids.filter((id) => id !== session.id));
+        this.busyIds.update((ids) => ids.filter((id) => id !== session.id));
+        this.load();
+      },
+      error: () => {
+        this.busyIds.update((ids) => ids.filter((id) => id !== session.id));
+        this.error.set(this.language.t('consoleSessions.logoutFailed'));
+      },
+    });
+  }
+
+  bulkLogout(): void {
+    const ids = this.selected().filter((id) => !this.busyIds().includes(id));
+    if (!ids.length || this.isBulkBusy()) return;
+    const message = this.language
+      .t('consoleSessions.confirmLogoutMultiple')
+      .replace('{count}', String(ids.length));
+    if (!confirm(message)) return;
+    this.isBulkBusy.set(true);
+    this.busyIds.update((busy) => [...new Set([...busy, ...ids])]);
+    this.console.bulkLogoutSessions(ids).subscribe({
+      next: () => {
+        this.isBulkBusy.set(false);
+        this.selected.set([]);
+        this.busyIds.update((busy) => busy.filter((id) => !ids.includes(id)));
+        this.load();
+      },
+      error: () => {
+        this.isBulkBusy.set(false);
+        this.busyIds.update((busy) => busy.filter((id) => !ids.includes(id)));
+        this.error.set(this.language.t('consoleSessions.logoutFailed'));
+      },
+    });
   }
 
   exportCsv(): void {

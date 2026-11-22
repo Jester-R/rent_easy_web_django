@@ -398,26 +398,6 @@ export class PropertyService {
     );
   }
 
-  generateDescription(data: {
-    prompt?: string;
-    locations?: string[];
-    categories?: string[];
-    title?: string;
-    title_km?: string;
-    location?: string;
-    category?: string;
-    price_per_month?: number;
-    bedrooms?: number;
-    bathrooms?: number;
-    notes?: string;
-  }): Observable<{ title?: string; title_km?: string; location?: string; province?: string; commune?: string; village?: string; price_per_month?: number | null; category?: string; bedrooms?: number | null; bathrooms?: number | null; description: string; description_km: string; model?: string; provider?: string }> {
-    return this.http.post<{ title?: string; title_km?: string; location?: string; province?: string; commune?: string; village?: string; price_per_month?: number | null; category?: string; bedrooms?: number | null; bathrooms?: number | null; description: string; description_km: string; model?: string; provider?: string }>(
-      `${this.baseUrl}/ai/property-description/`,
-      data,
-      { withCredentials: true }
-    );
-  }
-
   getOwnerProperties(page = 1, pageSize = 25): Observable<{ properties: Property[]; total: number; page: number; page_size: number }> {
     const params = new HttpParams().set('page', String(page)).set('page_size', String(pageSize));
     return this.http.get<{ properties: Property[]; total: number; page: number; page_size: number }>(

@@ -10,6 +10,7 @@ import {
   ConsoleSessionsResponse,
   ConsoleSettings,
   ConsoleUsersResponse,
+  LoginSessionItem,
   Payout,
   Refund,
   User,
@@ -122,6 +123,22 @@ export class ConsoleService {
   }
 
   /* --------------------------- security reports --------------------------- */
+
+  logoutSession(id: number): Observable<{ ok: boolean; session?: LoginSessionItem }> {
+    return this.http.post<{ ok: boolean; session?: LoginSessionItem }>(
+      `${this.base}/sessions/${id}/logout/`,
+      {},
+      this.opts
+    );
+  }
+
+  bulkLogoutSessions(ids: number[]): Observable<{ ok: boolean; logged_out?: number }> {
+    return this.http.post<{ ok: boolean; logged_out?: number }>(
+      `${this.base}/sessions/bulk-logout/`,
+      { ids },
+      this.opts
+    );
+  }
 
   getSessions(filters?: {
     q?: string;

@@ -20,7 +20,11 @@ from django.utils import timezone
 from django_bolt.serializers import Serializer, computed_field, field, field_validator
 from django_bolt.serializers.loading import LoadingPlan
 
-from bookings.models import ACTIVE_STATUSES
+from bookings.models import (
+    ACTIVE_STATUSES,
+    VALID_TRANSITIONS,
+    payment_window_hours as booking_payment_window_hours,
+)
 from payments.models import Refund
 
 
@@ -199,6 +203,9 @@ class BookingSerializer(Serializer):
     approved_at: str | None = None
     rejected_at: str | None = None
     cancelled_at: str | None = None
+    expired_at: str | None = None
+    payment_deadline_at: str | None = None
+    payment_hours_remaining: float = 0.0
 
     @classmethod
     def loading_plan(cls, model_cls):
@@ -272,6 +279,18 @@ class BookingSerializer(Serializer):
     @field_validator("cancelled_at")
     def _cancel(cls, value):
         return _iso(value)
+
+    @field_validator("expired_at")
+    def _expire(cls, value):
+        return _iso(value)
+
+    @field_validator("payment_deadline_at")
+    def _deadline(cls, value):
+        return _iso(value)
+
+    @computed_field
+    def payment_window_hours(self) -> int:
+        return booking_payment_window_hours()
 
     @computed_field
     def is_active(self) -> bool:

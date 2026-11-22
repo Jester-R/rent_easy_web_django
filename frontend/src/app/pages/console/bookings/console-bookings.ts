@@ -60,6 +60,7 @@ export class ConsoleBookingsComponent implements OnInit, OnDestroy {
       { value: 'Confirmed', label: `Confirmed (${c['Confirmed'] ?? 0})` },
       { value: 'Rejected', label: `Rejected (${c['Rejected'] ?? 0})` },
       { value: 'Cancelled', label: `Cancelled (${c['Cancelled'] ?? 0})` },
+      { value: 'Expired', label: `Expired (${c['Expired'] ?? 0})` },
     ];
   });
 

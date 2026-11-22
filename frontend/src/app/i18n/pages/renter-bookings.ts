@@ -30,4 +30,6 @@ export const renterBookings: PageCatalog = {
   search: ['Search...', 'ស្វែងរក...'],
   processingPayment: ['Processing Payment...', 'កំពុងដំណើរការការទូទាត់...'],
   payNow: ['Pay Now', 'បង់ឥឡូវនេះ'],
+  payWithin: ['Time left to pay:', 'ពេលវេលានៅសល់ដើម្បីបង់ប្រាក់៖'],
+  lessThanHour: ['Less than 1 hour', 'តិចជាង ១ ម៉ោង'],
 };

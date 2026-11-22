@@ -106,6 +106,16 @@ DEFAULT_NOTIFICATION_MESSAGES = [
         "body_km": "ការកក់សម្រាប់ {title} ត្រូវបានបោះបង់។ សំណើសងប្រាក់កំពុងរង់ចាំអ្នកគ្រប់គ្រងពិនិត្យ។",
     },
     {
+        "key": "notif_booking_expired",
+        "body_key": "notif_booking_expired_body",
+        "label_en": "Booking request expired",
+        "label_km": "សំណើកក់ផុតកំណត់",
+        "title_en": "Booking request expired",
+        "title_km": "សំណើកក់ផុតកំណត់",
+        "body_en": "Your booking request for {title} expired because payment was not completed within {hours} hours.",
+        "body_km": "សំណើកក់របស់អ្នកសម្រាប់ {title} បានផុតកំណត់ ព្រោះមិនបានបញ្ចប់ការទូទាត់ប្រាក់ក្នុងរយៈពេល {hours} ម៉ោង។",
+    },
+    {
         "key": "notif_booking_rejected",
         "body_key": "notif_booking_rejected_body",
         "label_en": "Booking rejected",

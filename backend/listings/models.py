@@ -55,23 +55,25 @@ class PropertyQuerySet(models.QuerySet):
         confirmed = Booking.objects.filter(
             property__isnull=False, status=BookingStatus.CONFIRMED
         ).values_list("property_id", flat=True)
+        unpaid = Booking.objects.filter(
+            property__isnull=False,
+            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+            payment_id__isnull=True,
+        ).values_list("property_id", flat=True)
         queryset = (
             self.filter(is_active=True)
             .exclude(id__in=confirmed)
+            .exclude(id__in=unpaid)
             .exclude(id__in=active_paid_property_ids())
         )
         if not user or not user.is_authenticated:
             return queryset
-        blocked = Booking.objects.filter(
+        same_day = Booking.objects.filter(
             renter=user,
             property__isnull=False,
-            status__in=[
-                BookingStatus.PENDING,
-                BookingStatus.APPROVED,
-                BookingStatus.CONFIRMED,
-            ],
+            created_at__date=timezone.localdate(),
         ).values_list("property_id", flat=True)
-        return queryset.exclude(id__in=blocked)
+        return queryset.exclude(id__in=same_day)
 
     def available(self):
         return self

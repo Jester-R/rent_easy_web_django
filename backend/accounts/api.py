@@ -1113,6 +1113,7 @@ async def renter_dashboard(request):
             "active": counts.get(BookingStatus.PENDING, 0)
             + counts.get(BookingStatus.APPROVED, 0)
             + counts.get(BookingStatus.CONFIRMED, 0),
+            "expired": counts.get(BookingStatus.EXPIRED, 0),
             "pending": counts.get(BookingStatus.PENDING, 0),
             "approved": counts.get(BookingStatus.APPROVED, 0)
             + counts.get(BookingStatus.CONFIRMED, 0),

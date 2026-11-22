@@ -82,41 +82,26 @@
           <span [class]="'pill ml-auto ' + statusBadge().pill">{{ statusBadge().label }}</span>
         </div>
 
-        <div class="mt-4 grid gap-2 text-[12px] sm:grid-cols-2">
-          <div class="flex items-center gap-1.5 text-ink-2">
-            <app-icon name="home" [size]="14" />
-            <span>{{ language.t('bookingDetail.propertyType') }}:</span>
-            <strong>{{ categoryLabel(b.property.category) || '—' }}</strong>
-          </div>
-          <div class="flex items-center gap-1.5 text-ink-2">
-            <app-icon name="users" [size]="14" />
-            <span>{{ language.t('bookingDetail.bedrooms') }}:</span>
-            <strong>{{ b.property.bedrooms }}</strong>
-            <span class="text-ink-3">·</span>
-            <span>{{ language.t('bookingDetail.bathrooms') }}:</span>
-            <strong>{{ b.property.bathrooms }}</strong>
-          </div>
-        </div>
-
-        @if (description(b.property)) {
-          <div class="mt-4 rounded-xl border border-hairline bg-surface-2 p-3.5">
-            <p class="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-3">
-              <app-icon name="note" [size]="13" />
-              <span>{{ language.t('bookingDetail.description') }}</span>
+        @if (!b.payment_id && b.status === 'Pending') {
+          <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[13px] text-amber-900">
+            <p class="font-bold">
+              {{ language.t('bookingDetail.paymentWindowRemaining') }}
+              {{ formatRemaining(b.payment_hours_remaining) }}
             </p>
-            <p class="whitespace-pre-line text-[13px] leading-relaxed text-ink-2">{{ description(b.property) }}</p>
+            <p class="mt-0.5 text-[12px] text-amber-800">
+              {{ language.t('bookingDetail.paymentDeadline') }}: {{ prettyDate(b.payment_deadline_at) }}
+            </p>
+          </div>
+        } @else if (b.status === 'Expired') {
+          <div class="mt-3 rounded-xl border border-hairline bg-surface-2 px-3.5 py-3 text-[13px] text-ink-2">
+            {{ language.t('bookingDetail.expiredInfo') }}
           </div>
         }
 
-        @if (b.property.is_active) {
-          <a
-            [routerLink]="['/properties', b.property_id]"
-            class="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-          >
-            {{ language.t('bookingDetail.viewListing') }}
-            <app-icon name="arrow-right" [size]="13" />
-          </a>
-        }
+        <p class="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink-3">
+          <app-icon name="document" [size]="13" />
+          <span class="font-mono">{{ b.reference }}</span>
+        </p>
 
         <div class="divider my-4"></div>
 
@@ -149,6 +134,15 @@
                 <span>Move-out</span>
               </dt>
               <dd class="mt-1 text-[15px] font-bold">{{ shortDate(b.end_date) }}</dd>
+            </div>
+          }
+          @if (!b.payment_id && b.status === 'Pending') {
+            <div class="rounded-xl bg-surface-2 p-3">
+              <dt class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-3">
+                <app-icon name="clock" [size]="13" />
+                <span>{{ language.t('bookingDetail.payWithin') }}</span>
+              </dt>
+              <dd class="mt-1 text-[15px] font-bold text-amber-700">{{ formatRemaining(b.payment_hours_remaining) }}</dd>
             </div>
           }
           <div class="rounded-xl bg-surface-2 p-3">
@@ -258,6 +252,12 @@
             <dt class="text-ink-3">Created</dt>
             <dd class="font-bold">{{ prettyDate(b.created_at) }}</dd>
           </div>
+          @if (!b.payment_id && b.status === 'Pending' && b.payment_deadline_at) {
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-ink-3">{{ language.t('bookingDetail.paymentDeadline') }}</dt>
+              <dd class="text-end font-bold">{{ prettyDate(b.payment_deadline_at) }}</dd>
+            </div>
+          }
           @if (resolvedAt(); as resolved) {
             <div class="flex items-center justify-between">
               <dt class="text-ink-3">Resolved</dt>

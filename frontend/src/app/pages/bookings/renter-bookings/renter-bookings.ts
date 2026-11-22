@@ -157,6 +157,17 @@ export class RenterBookingsComponent implements OnInit {
     });
   }
 
+  formatRemaining(hours: number | undefined | null): string {
+    const value = Math.max(0, Number(hours) || 0);
+    if (value <= 0) return this.language.t('renterBookings.lessThanHour');
+    const totalMinutes = Math.floor(value * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if (h <= 0) return `${m}m`;
+    if (m <= 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
   changePage(page: number): void {
     this.page.set(page);
     this.loadBookings();

@@ -14,7 +14,7 @@
 
   <!-- Status Tabs -->
   <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-hairline mb-6">
-    @for (tab of ['all', 'Pending', 'Approved', 'Confirmed', 'Rejected', 'Cancelled']; track tab) {
+    @for (tab of ['all', 'Pending', 'Approved', 'Confirmed', 'Rejected', 'Cancelled', 'Expired']; track tab) {
       <button
         (click)="loadBookings(tab)"
         class="chip shrink-0 whitespace-nowrap capitalize"
@@ -52,8 +52,16 @@
 
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="pill shrink-0" [ngClass]="bookingState(b).pill">
-                    {{ bookingState(b).label }}
+                  <span class="text-xs font-mono text-ink-3">#{{ b.reference }}</span>
+                  <span class="pill"
+                    [ngClass]="{
+                      'pill-pending': b.status === 'Pending',
+                      'pill-approved': b.status === 'Approved' || b.status === 'Confirmed',
+                      'pill-rejected': b.status === 'Rejected',
+                      'pill-cancelled': b.status === 'Cancelled',
+                      'pill-neutral': b.status === 'Expired'
+                    }">
+                    {{ label(b.status) }}
                   </span>
                 </div>
 
