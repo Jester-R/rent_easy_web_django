@@ -1329,6 +1329,29 @@ html {
     }
 }
 
+/* browse: collapsible filter panel (slide down / slide up) */
+.filter-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+}
+
+.filter-collapse.is-open {
+    grid-template-rows: 1fr;
+}
+
+.filter-collapse-inner {
+    overflow: hidden;
+    min-height: 0;
+    visibility: hidden;
+    transition: visibility 0s linear 0.3s;
+}
+
+.filter-collapse.is-open .filter-collapse-inner {
+    visibility: visible;
+    transition-delay: 0s;
+}
+
 /* keep the last card clear of the bar */
 @media (max-width: 1023px) {
     main {

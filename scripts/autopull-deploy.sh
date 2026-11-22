@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 APP_DIR="${APP_DIR:-/opt/renteasy}"
 APP_USER="${APP_USER:-renteasy}"
@@ -24,7 +24,7 @@ app_shell() {
 APP_DIR=$(cd "$APP_DIR" && pwd)
 
 before=$(run_as_app git -C "$APP_DIR" rev-parse HEAD)
-run_as_app git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
+run_as_app git -C "$APP_DIR" fetch --quiet origin "$BRANCH" || { log "fetch failed"; exit 1; }
 remote=$(run_as_app git -C "$APP_DIR" rev-parse "origin/$BRANCH")
 
 if [ "$before" = "$remote" ]; then
@@ -33,25 +33,46 @@ fi
 
 dirty=$(run_as_app git -C "$APP_DIR" status --porcelain --untracked-files=no)
 if [ -n "$dirty" ]; then
-  log "tracked files are modified; refusing to pull"
+  log "tracked files were modified, discarding local edits:"
   printf '%s\n' "$dirty"
-  exit 1
+  run_as_app git -C "$APP_DIR" checkout -- . || exit 1
 fi
 
 log "updating ${before:0:7} -> ${remote:0:7}"
-run_as_app git -C "$APP_DIR" pull --ff-only origin "$BRANCH"
 
-app_shell "cd '$APP_DIR/backend' && uv sync --frozen"
-app_shell "set -a; . '$APP_DIR/.env'; set +a; cd '$APP_DIR/backend' && .venv/bin/python manage.py migrate --noinput"
-app_shell "cd '$APP_DIR/frontend' && npm install --legacy-peer-deps && npm run build"
+fail() {
+  log "FAILED: $* - rolling back to ${before:0:7}; will retry on next run"
+  run_as_app git -C "$APP_DIR" reset --hard -q "$before"
+  exit 1
+}
+
+run_as_app git -C "$APP_DIR" pull --ff-only --quiet origin "$BRANCH" || fail "git pull"
+
+app_shell "cd '$APP_DIR/backend' && uv sync --frozen" || fail "uv sync"
+app_shell "set -a; . '$APP_DIR/.env'; set +a; cd '$APP_DIR/backend' && .venv/bin/python manage.py migrate --noinput" || fail "migrate"
+app_shell "cd '$APP_DIR/frontend' && npm install --legacy-peer-deps && npm run build" || fail "frontend build"
 
 index_csr="$APP_DIR/frontend/dist/frontend/browser/index.csr.html"
 if [ -f "$index_csr" ]; then
   run_as_app cp "$index_csr" "$APP_DIR/frontend/dist/frontend/browser/index.html"
 fi
+chmod -R a+rX "$APP_DIR/frontend/dist"
+
+systemctl restart "$SERVICE" || fail "service restart"
+
+healthy=0
+for _ in $(seq 1 30); do
+  if curl -fsS http://127.0.0.1:8123/core/health/ >/dev/null 2>&1; then
+    healthy=1
+    break
+  fi
+  sleep 1
+done
+[ "$healthy" = 1 ] || fail "backend health check"
 
 if [ -f "$APP_DIR/scripts/autopull-deploy.sh" ]; then
-  install -m 0755 "$APP_DIR/scripts/autopull-deploy.sh" /usr/local/bin/renteasy-autopull
+  install -m 0755 "$APP_DIR/scripts/autopull-deploy.sh" /usr/local/bin/renteasy-autopull.new
+  mv -f /usr/local/bin/renteasy-autopull.new /usr/local/bin/renteasy-autopull
 fi
 
 if [ -f "$APP_DIR/scripts/telegram-webhook-check.sh" ]; then
@@ -62,5 +83,4 @@ if [ -f "$APP_DIR/scripts/telegram-webhook-check.sh" ]; then
   systemctl enable --now renteasy-telegram-webhook.timer
 fi
 
-systemctl restart "$SERVICE"
-log "deployed $(app_shell "git -C '$APP_DIR' rev-parse --short HEAD")"
+log "deployed $(run_as_app git -C "$APP_DIR" rev-parse --short HEAD)"

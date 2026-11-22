@@ -13,144 +13,136 @@
         class="form-input ps-11 pe-36"
         [placeholder]="language.t('browse.searchByTitleLocationOrKeywords')"
       />
-      <button type="button" (click)="filtersOpen.set(true)" class="absolute end-2 top-1/2 -translate-y-1/2 btn btn-primary btn-sm">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 5.5h17l-6.6 7.6V19l-3.8-2.2v-3.7L3.5 5.5Z"/></svg>
+      <button
+        type="button"
+        (click)="filtersOpen.set(!filtersOpen())"
+        [attr.aria-expanded]="filtersOpen()"
+        class="absolute end-2 top-1/2 -translate-y-1/2 btn btn-primary btn-sm"
+      >
+        <svg class="w-4 h-4 transition-transform duration-300" [class.rotate-180]="filtersOpen()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3.5 5.5h17l-6.6 7.6V19l-3.8-2.2v-3.7L3.5 5.5Z"/></svg>
         <span>{{ language.t('browse.filters') }}</span>
+        <svg class="w-3.5 h-3.5 transition-transform duration-300" [class.rotate-180]="filtersOpen()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
       </button>
+    </div>
+
+    <div class="filter-collapse" [class.is-open]="filtersOpen()">
+      <div class="filter-collapse-inner">
+        <div class="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.province') }}</label>
+            <app-searchable-select
+              [options]="provinceOptions()"
+              [ngModel]="selectedProvince()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onProvinceChange($event)"
+              [placeholder]="language.t('browse.allProvinces')"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.location') }}</label>
+            <app-searchable-select
+              [options]="locationOptions()"
+              [ngModel]="selectedLocation()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onDistrictChange($event)"
+              [disabled]="selectedProvince() === '__all__'"
+              [placeholder]="selectedProvince() === '__all__' ? language.t('browse.selectProvinceFirst') : language.t('browse.allLocations')"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.commune') }}</label>
+            <app-searchable-select
+              [options]="communeOptions()"
+              [ngModel]="selectedCommune()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onCommuneChange($event)"
+              [disabled]="selectedLocation() === '__all__'"
+              [placeholder]="selectedLocation() === '__all__' ? language.t('browse.selectDistrictFirst') : language.t('browse.allCommunes')"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.village') }}</label>
+            <app-searchable-select
+              [options]="villageOptions()"
+              [ngModel]="selectedVillage()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onVillageChange($event)"
+              [disabled]="selectedCommune() === '__all__'"
+              [placeholder]="selectedCommune() === '__all__' ? language.t('browse.selectCommuneFirst') : (villagesLoading() ? language.t('browse.loadingVillages') : language.t('browse.allVillages'))"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.category') }}</label>
+            <app-searchable-select
+              [options]="categoryOptions()"
+              [ngModel]="selectedCategory"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="selectedCategory = $event; onFilterChange()"
+              [placeholder]="language.t('browse.allCategories')"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.minBedrooms') }}</label>
+            <app-searchable-select
+              [options]="bedroomOptions"
+              [ngModel]="minBedrooms.toString()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="minBedrooms = +$event; onFilterChange()"
+              [placeholder]="language.t('browse.any')"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.maxPrice') }}</label>
+            <input
+              type="number"
+              [(ngModel)]="maxPrice"
+              (ngModelChange)="onSearchInput()"
+              (keyup.enter)="onFilterChange()"
+              class="form-input"
+              [placeholder]="language.t('browse.eG1500')"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <label class="form-label">{{ language.t('browse.sortBy') }}</label>
+            <app-searchable-select
+              [options]="sortOptions"
+              [ngModel]="sort"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="sort = $event; onFilterChange()"
+              [placeholder]="language.t('browse.recommended')"
+              [searchPlaceholder]="language.t('browse.search2')"
+            />
+          </div>
+
+          @if (searchTerm || selectedProvince() !== '__all__' || selectedLocation() !== '__all__' || selectedCommune() !== '__all__' || selectedVillage() !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
+            <div class="col-span-2 flex sm:col-span-3 lg:col-span-4">
+              <button type="button" (click)="resetFilters()" class="btn btn-ghost flex-1 sm:flex-none">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                <span>{{ language.t('browse.reset') }}</span>
+              </button>
+            </div>
+          }
+        </div>
+      </div>
     </div>
 
     @if (locationLoadError()) {
       <p class="mt-3 text-xs text-ink-3" role="status">{{ language.t('browse.locationLoadFailed') }}</p>
     }
   </section>
-
-  @if (filtersOpen()) {
-    <div class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" (click)="filtersOpen.set(false)">
-      <div class="app-card max-h-[88vh] w-full overflow-y-auto rounded-t-2xl p-4 sm:max-w-2xl sm:rounded-2xl sm:p-5" (click)="$event.stopPropagation()">
-        <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-base font-extrabold text-ink">{{ language.t('browse.filters') }}</h2>
-          <button type="button" (click)="filtersOpen.set(false)" class="btn btn-ghost btn-sm">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 6 12 12M18 6 6 18"/></svg>
-            <span>{{ language.t('browse.close') }}</span>
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.province') }}</label>
-          <app-searchable-select
-            [options]="provinceOptions()"
-            [ngModel]="selectedProvince()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="onProvinceChange($event)"
-            [placeholder]="language.t('browse.allProvinces')"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.location') }}</label>
-          <app-searchable-select
-            [options]="locationOptions()"
-            [ngModel]="selectedLocation()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="onDistrictChange($event)"
-            [disabled]="selectedProvince() === '__all__'"
-            [placeholder]="selectedProvince() === '__all__' ? language.t('browse.selectProvinceFirst') : language.t('browse.allLocations')"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.commune') }}</label>
-          <app-searchable-select
-            [options]="communeOptions()"
-            [ngModel]="selectedCommune()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="onCommuneChange($event)"
-            [disabled]="selectedLocation() === '__all__'"
-            [placeholder]="selectedLocation() === '__all__' ? language.t('browse.selectDistrictFirst') : language.t('browse.allCommunes')"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.village') }}</label>
-          <app-searchable-select
-            [options]="villageOptions()"
-            [ngModel]="selectedVillage()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="onVillageChange($event)"
-            [disabled]="selectedCommune() === '__all__'"
-            [placeholder]="selectedCommune() === '__all__' ? language.t('browse.selectCommuneFirst') : (villagesLoading() ? language.t('browse.loadingVillages') : language.t('browse.allVillages'))"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.category') }}</label>
-          <app-searchable-select
-            [options]="categoryOptions()"
-            [ngModel]="selectedCategory"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="selectedCategory = $event; onFilterChange()"
-            [placeholder]="language.t('browse.allCategories')"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.minBedrooms') }}</label>
-          <app-searchable-select
-            [options]="bedroomOptions"
-            [ngModel]="minBedrooms.toString()"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="minBedrooms = +$event; onFilterChange()"
-            [placeholder]="language.t('browse.any')"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.maxPrice') }}</label>
-          <input
-            type="number"
-            [(ngModel)]="maxPrice"
-            (ngModelChange)="onSearchInput()"
-            (keyup.enter)="onFilterChange()"
-            class="form-input"
-            [placeholder]="language.t('browse.eG1500')"
-          />
-        </div>
-
-        <div class="min-w-0">
-          <label class="form-label">{{ language.t('browse.sortBy') }}</label>
-          <app-searchable-select
-            [options]="sortOptions"
-            [ngModel]="sort"
-            [ngModelOptions]="{ standalone: true }"
-            (ngModelChange)="sort = $event; onFilterChange()"
-            [placeholder]="language.t('browse.recommended')"
-            [searchPlaceholder]="language.t('browse.search2')"
-          />
-        </div>
-
-        @if (searchTerm || selectedProvince() !== '__all__' || selectedLocation() !== '__all__' || selectedCommune() !== '__all__' || selectedVillage() !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
-          <div class="flex sm:col-span-2">
-            <button type="button" (click)="resetFilters()" class="btn btn-ghost flex-1 sm:flex-none">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 6 12 12M18 6 6 18"/></svg>
-              <span>{{ language.t('browse.reset') }}</span>
-            </button>
-          </div>
-        }
-        </div>
-
-        <div class="mt-4 flex justify-end">
-          <button type="button" (click)="filtersOpen.set(false)" class="btn btn-primary">{{ language.t('browse.done') }}</button>
-        </div>
-      </div>
-    </div>
-  }
 
 
   @if (isLoading()) {

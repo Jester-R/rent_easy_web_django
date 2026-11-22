@@ -3,8 +3,6 @@ import type { PageCatalog } from '../types';
 export const browse: PageCatalog = {
   searchByTitleLocationOrKeywords: ['Search by title, location or keywords...', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬពាក្យគន្លឹះ...'],
   filters: ['Filters', 'តម្រង'],
-  close: ['Close', 'បិទ'],
-  done: ['Done', 'រួចរាល់'],
   province: ['Province', 'ខេត្ត'],
   allProvinces: ['All Provinces', 'គ្រប់ខេត្ត'],
   location: ['Location / District', 'ទីតាំង / ខណ្ឌ'],
