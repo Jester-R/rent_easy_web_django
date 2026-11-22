@@ -1,6 +1,9 @@
 import { Component, computed, inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   CambodiaCommune,
   CambodiaDistrict,
@@ -37,7 +40,19 @@ export class BrowsePropertiesComponent implements OnInit {
   loadError = signal(false);
   locationLoadError = signal(false);
   villagesLoading = signal(false);
-  filtersExpanded = signal(true);
+  filtersOpen = signal(false);
+
+  private readonly search$ = new Subject<string>();
+
+  constructor() {
+    this.search$
+      .pipe(debounceTime(400), distinctUntilChanged(), takeUntilDestroyed())
+      .subscribe(() => this.onFilterChange());
+  }
+
+  onSearchInput(): void {
+    this.search$.next(this.searchTerm);
+  }
 
   categories = signal<PropertyCategorySetting[]>([]);
 
@@ -240,9 +255,6 @@ export class BrowsePropertiesComponent implements OnInit {
     this.loadProperties();
   }
 
-  toggleFilters(): void {
-    this.filtersExpanded.update((value) => !value);
-  }
 
   onProvinceChange(code: string): void {
     this.selectedProvince.set(code);

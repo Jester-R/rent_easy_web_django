@@ -2,8 +2,9 @@ import type { PageCatalog } from '../types';
 
 export const browse: PageCatalog = {
   searchByTitleLocationOrKeywords: ['Search by title, location or keywords...', 'ស្វែងរកតាមចំណងជើង ទីតាំង ឬពាក្យគន្លឹះ...'],
-  search: ['Search', 'ស្វែងរក'],
-  applyFilters: ['Apply Filters', 'អនុវត្តតម្រង'],
+  filters: ['Filters', 'តម្រង'],
+  close: ['Close', 'បិទ'],
+  done: ['Done', 'រួចរាល់'],
   province: ['Province', 'ខេត្ត'],
   allProvinces: ['All Provinces', 'គ្រប់ខេត្ត'],
   location: ['Location / District', 'ទីតាំង / ខណ្ឌ'],
@@ -27,8 +28,6 @@ export const browse: PageCatalog = {
   sortBy: ['Sort By', 'តម្រៀបតាម'],
   recommended: ['Recommended', 'ណែនាំ'],
   reset: ['Reset', 'កំណត់ឡើងវិញ'],
-  showFilters: ['Show Filters', 'បង្ហាញតម្រង'],
-  hideFilters: ['Hide Filters', 'លាក់តម្រង'],
   listingsUnavailable: ['Listings unavailable', 'មិនអាចបង្ហាញអចលនទ្រព្យបានទេ'],
   weCouldnTLoadPropertiesCheckYourConnectionAndTryAgain: ['We couldn’t load properties. Check your connection and try again.', 'មិនអាចផ្ទុកអចលនទ្រព្យបានទេ។ សូមពិនិត្យការតភ្ជាប់ ហើយព្យាយាមម្ដងទៀត។'],
   tryAgain: ['Try again', 'ព្យាយាមម្ដងទៀត'],
