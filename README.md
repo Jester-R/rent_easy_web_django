@@ -1,6 +1,12 @@
-# RentEasy Web
+
 
 RentEasy Web is a browser based rental platform built with an Angular frontend and an asynchronous Django backend powered by Django Bolt. It is the web companion to the RentEasy mobile app.
+
+## Screenshots
+
+| RentEasy app | Admin console |
+| --- | --- |
+| ![RentEasy app](docs/RentEasy.png) | ![RentEasy admin panel](docs/AdminPanel.png) |
 
 ## Features
 
