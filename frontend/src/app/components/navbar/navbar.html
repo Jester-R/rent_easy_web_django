@@ -63,16 +63,16 @@
           </a>
         }
 
-        <!-- Messages -->
+        <!-- Direct message shortcut (no need to open the profile menu) -->
         <a routerLink="/messages" class="btn btn-ghost btn-icon" [attr.aria-label]="language.t('navbar.messages')" [attr.title]="language.t('navbar.messages')">
           <svg class="w-5 h-5 text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
             <path d="M21 11.5a8.4 8.5 0 0 1-9 8.5 9.4 8.5 0 0 1-4.2-1L3 20.5l1.3-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8M8 13h5"/>
           </svg>
         </a>
 
-        <!-- Notifications Bell dropdown -->
-        <div class="relative">
-          <button type="button" (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative cursor-pointer" [attr.aria-label]="language.t('navbar.notifications')" [attr.aria-expanded]="isNotifMenuOpen()">
+        <!-- Bell opens a small preview; full list lives on /notifications -->
+        <div class="relative" #notifMenu>
+          <button type="button" (click)="toggleNotifMenu()" class="btn btn-ghost btn-icon relative cursor-pointer" [attr.aria-label]="language.t('navbar.notifications')" [attr.title]="language.t('navbar.notifications')" [attr.aria-expanded]="isNotifMenuOpen()">
             <svg class="w-5 h-5 text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
               <path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/>
             </svg>
@@ -117,8 +117,8 @@
         </div>
 
         <!-- User Dropdown Menu -->
-        <div class="relative">
-          <button (click)="toggleProfileMenu()" class="flex items-center gap-2 rounded-xl border border-hairline px-2 py-1.5 hover:border-primary transition-colors">
+        <div class="relative" #profileMenu>
+          <button (click)="toggleProfileMenu()" class="flex items-center gap-2 rounded-xl border border-hairline px-2 py-1.5 hover:border-primary transition-colors" [attr.aria-label]="language.t('navbar.profile')" [attr.aria-expanded]="isProfileMenuOpen()">
             @if (auth.currentUser()?.avatar_url) {
               <img
                 [src]="auth.currentUser()?.avatar_url"
@@ -163,13 +163,9 @@
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
                 <span>{{ language.t('navbar.profile') }}</span>
               </a>
-              <a routerLink="/notifications" (click)="isProfileMenuOpen.set(false)" class="nav-item">
-                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/></svg>
-                <span>{{ language.t('navbar.notifications') }}</span>
-              </a>
-              <a routerLink="/messages" (click)="isProfileMenuOpen.set(false)" class="nav-item">
-                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 11.5a8.4 8.5 0 0 1-9 8.5 9.4 8.5 0 0 1-4.2-1L3 20.5l1.3-4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8M8 13h5"/></svg>
-                <span>{{ language.t('navbar.messages') }}</span>
+              <a routerLink="/sessions" (click)="isProfileMenuOpen.set(false)" class="nav-item">
+                <app-icon name="monitor" [size]="17" />
+                <span>{{ language.t('navbar.sessions') }}</span>
               </a>
               <a routerLink="/settings" (click)="isProfileMenuOpen.set(false)" class="nav-item">
                 <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg>

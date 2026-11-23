@@ -26,7 +26,6 @@ class Payment(models.Model):
     class Method(models.TextChoices):
         ABA = "ABA Pay", "ABA Pay"
         ABA_MOCK = "ABA Pay (Mock)", "ABA Pay (Mock)"
-        WING = "Wing (Mock)", "Wing (Mock)"
         CARD = "Credit Card (Mock)", "Credit Card (Mock)"
         STRIPE = "Stripe Card", "Stripe Card"
 

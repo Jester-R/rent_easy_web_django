@@ -1,16 +1,18 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { IconComponent } from '../../../components/icon/icon';
 import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
 import {
   SearchableSelectComponent,
   SelectOption,
 } from '../../../components/searchable-select/searchable-select';
+import { AuthService } from '../../../services/auth.service';
 import { ConsoleService } from '../../../services/console.service';
 import { LanguageService } from '../../../services/language.service';
 import { ConsoleSessionsResponse, LoginSessionItem, RoleOption } from '../../../models';
-import { initials, prettyDate, roleLabel, shortDate } from '../../../shared/ui';
+import { prettyDate, shortDate } from '../../../shared/ui';
 
 @Component({
   selector: 'app-console-sessions',
@@ -25,12 +27,12 @@ import { initials, prettyDate, roleLabel, shortDate } from '../../../shared/ui';
 })
 export class ConsoleSessionsComponent implements OnInit, OnDestroy {
   private readonly console = inject(ConsoleService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
   readonly language = inject(LanguageService);
 
-  readonly initials = initials;
   readonly prettyDate = prettyDate;
   readonly shortDate = shortDate;
-  readonly roleLabel = roleLabel;
 
   readonly data = signal<ConsoleSessionsResponse | null>(null);
   readonly sessions = signal<LoginSessionItem[]>([]);
@@ -40,11 +42,9 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
   readonly activeCount = signal(0);
   readonly inactiveCount = signal(0);
   readonly methods = signal<RoleOption[]>([]);
-  readonly roles = signal<RoleOption[]>([]);
   readonly query = signal('');
   readonly status = signal('all');
   readonly method = signal('all');
-  readonly role = signal('all');
   readonly isLoading = signal(true);
   readonly isExporting = signal(false);
   readonly error = signal<string | null>(null);
@@ -85,14 +85,6 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
     return ids.length > 0 && ids.every((id) => this.busyIds().includes(id));
   });
 
-  readonly roleOptions = computed<SelectOption[]>(() => [
-    { value: 'all', label: this.language.t('consoleSessions.allRoles') },
-    ...this.roles().map((item) => ({
-      value: item.value,
-      label: this.language.valueLabel(item.label),
-    })),
-  ]);
-
   ngOnInit(): void {
     this.load();
   }
@@ -108,7 +100,6 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
         q: this.query(),
         status: this.status(),
         method: this.method(),
-        role: this.role(),
         page: this.page(),
         page_size: this.pageSize,
       })
@@ -121,7 +112,6 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
           this.activeCount.set(res.active_count);
           this.inactiveCount.set(res.inactive_count);
           this.methods.set(res.methods ?? []);
-          this.roles.set(res.roles ?? []);
           const visible = new Set(res.sessions.map((item) => item.id));
           this.selected.update((ids) => ids.filter((id) => visible.has(id)));
           this.error.set(null);
@@ -153,12 +143,6 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
     this.load();
   }
 
-  onRoleChange(value: string): void {
-    this.role.set(value);
-    this.page.set(1);
-    this.load();
-  }
-
   applyFilter(): void {
     if (this.timer) clearTimeout(this.timer);
     this.load();
@@ -169,7 +153,6 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
     this.query.set('');
     this.status.set('all');
     this.method.set('all');
-    this.role.set('all');
     this.page.set(1);
     this.load();
   }
@@ -213,14 +196,14 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
     if (!session.is_active || this.isBusy(session.id)) return;
     const label = session.is_current
       ? this.language.t('consoleSessions.confirmLogoutCurrent')
-      : this.language.t('consoleSessions.confirmLogoutSingle').replace('{user}', session.user.display_name);
+      : this.language.t('consoleSessions.confirmLogoutSingle');
     if (!confirm(label)) return;
     this.busyIds.update((ids) => [...ids, session.id]);
     this.console.logoutSession(session.id).subscribe({
-      next: () => {
+      next: (res) => {
         this.selected.update((ids) => ids.filter((id) => id !== session.id));
         this.busyIds.update((ids) => ids.filter((id) => id !== session.id));
-        this.load();
+        this.afterLogout(res.current ?? session.is_current);
       },
       error: () => {
         this.busyIds.update((ids) => ids.filter((id) => id !== session.id));
@@ -239,11 +222,11 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
     this.isBulkBusy.set(true);
     this.busyIds.update((busy) => [...new Set([...busy, ...ids])]);
     this.console.bulkLogoutSessions(ids).subscribe({
-      next: () => {
+      next: (res) => {
         this.isBulkBusy.set(false);
         this.selected.set([]);
         this.busyIds.update((busy) => busy.filter((id) => !ids.includes(id)));
-        this.load();
+        this.afterLogout(res.current_logged_out ?? false);
       },
       error: () => {
         this.isBulkBusy.set(false);
@@ -261,7 +244,6 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
         q: this.query(),
         status: this.status(),
         method: this.method(),
-        role: this.role(),
       })
       .subscribe({
         next: (blob) => {
@@ -288,6 +270,15 @@ export class ConsoleSessionsComponent implements OnInit, OnDestroy {
 
   location(item: LoginSessionItem): string {
     return item.location || this.language.t('consoleSessions.unknown');
+  }
+
+  private afterLogout(currentLoggedOut: boolean): void {
+    if (!currentLoggedOut) {
+      this.load();
+      return;
+    }
+    this.auth.currentUser.set(null);
+    void this.router.navigate(['/login']);
   }
 
   private saveBlob(blob: Blob, filename: string): void {

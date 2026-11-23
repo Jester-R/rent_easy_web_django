@@ -1,4 +1,4 @@
-<div class="property-card group" [class.opacity-75]="property().has_active_booking || property().has_paid_booking">
+<div class="property-card group" [class.opacity-75]="property().has_paid_booking">
   <span class="property-thumb overflow-hidden">
     @if (property().cover_image) {
       <img [src]="property().cover_image" [alt]="titleLabel" class="h-full w-full object-cover" loading="lazy" />
@@ -55,6 +55,23 @@
       </span>
       @if (property().has_paid_booking) {
         <span class="pill pill-approved">{{ language.t('app.paid') }}</span>
+      } @else if (property().booked_by_other) {
+        <span class="pill pill-pending pill-reserved"
+              [attr.aria-label]="language.t('app.bookedByOther')">
+          <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span>{{ language.t('app.reservedShort') }}</span>
+          @if (reservationCountdown(property().reservation_expires_at); as countdown) {
+            <span class="countdown">· {{ countdown }}</span>
+          }
+        </span>
+      } @else if (property().booking_status === 'Cancelled' && property().rebook_available_at) {
+        <span class="pill pill-cancelled pill-reserved"
+              [attr.aria-label]="language.t('app.requestAgainIn', { time: reservationCountdown(property().rebook_available_at) || '' })">
+          <span>{{ language.t('app.cancelled') }}</span>
+          @if (reservationCountdown(property().rebook_available_at); as countdown) {
+            <span class="countdown">· {{ countdown }}</span>
+          }
+        </span>
       } @else if (property().has_active_booking) {
         <span class="pill pill-pending">{{ language.t('app.alreadyBooked') }}</span>
       }

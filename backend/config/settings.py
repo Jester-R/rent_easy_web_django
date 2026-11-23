@@ -11,8 +11,17 @@ SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY", "rent_easy_web_django_change_me_in_production"
 )
 PRODUCTION = bool(os.environ.get("DJANGO_PRODUCTION", False))
-SQLITE_PATH = os.environ.get("SQLITE_PATH", "")
-MEDIA_PATH = os.environ.get("MEDIA_PATH")
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _resolve_storage_path(value, default):
+    """Resolve relative storage paths against the Django project directory."""
+    path = os.path.expanduser((value or default).strip())
+    return path if os.path.isabs(path) else os.path.join(BACKEND_DIR, path)
+
+
+SQLITE_PATH = _resolve_storage_path(os.environ.get("SQLITE_PATH"), "db.sqlite3")
+MEDIA_PATH = _resolve_storage_path(os.environ.get("MEDIA_PATH"), "media")
 
 if PRODUCTION:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -146,6 +155,17 @@ RENT_HOLD_DAYS = int(os.environ.get("RENT_HOLD_DAYS", "7") or "7")
 # payment. Unpaid requests older than the window are expired automatically.
 BOOKING_PAYMENT_WINDOW_HOURS = int(
     os.environ.get("BOOKING_PAYMENT_WINDOW_HOURS", "5") or "5"
+)
+
+# A renter cannot request the same property again until this many hours after
+# their original request, including when that request was cancelled.
+BOOKING_REBOOK_COOLDOWN_HOURS = int(
+    os.environ.get("BOOKING_REBOOK_COOLDOWN_HOURS", "24") or "24"
+)
+
+# Signed-out login sessions stay in the security history for this many days.
+LOGIN_SESSION_HISTORY_DAYS = int(
+    os.environ.get("LOGIN_SESSION_HISTORY_DAYS", "30") or "30"
 )
 
 # -- ABA PayWay ---------------------------------------------------------------

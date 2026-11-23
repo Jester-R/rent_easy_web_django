@@ -3,19 +3,27 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
+from unittest.mock import AsyncMock, patch
+
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import PlatformSettings
-from bookings.models import Booking, BookingStatus
+from bookings.models import (
+    Booking,
+    BookingStatus,
+    payment_window_hours,
+    rebook_cooldown_hours,
+)
 from chat.models import Conversation
 from core.bolt_serializers import booking as serialize_booking_data
 from listings.models import (
     OwnerPropertyAction,
     Property,
     PropertyOwnerStatus,
+    active_reservation_deadlines,
 )
 from listings.services import (
     OwnerActionBlocked,
@@ -33,14 +41,17 @@ from payments.services import (
     accept_refund,
     add_refund_message,
     ensure_refund_chat,
+    expire_unpaid_bookings,
     mark_refund_commission_paid,
     request_booking_cancellation,
     PayoutDetailsMissing,
     PayoutNotDue,
     cancel_payout_for_payment,
+    create_booking,
     create_payout_for_payment,
     pay_out,
     process_refund,
+    release_completed_bookings,
     release_due_payouts,
     transition_booking,
 )
@@ -722,3 +733,261 @@ class OwnerPropertyActionTests(TestCase):
         _, queued = soft_delete_owner_property(old_property.pk, self.owner)
         self.assertEqual(queued, 0)
         self.assertEqual(Refund.objects.filter(payment__property=old_property).count(), 0)
+
+
+class UnpaidReservationAvailabilityTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.owner = User.objects.create_user(
+            email="reservation-owner@example.test",
+            username="reservation-owner",
+            password="x",
+            role="owner",
+            payout_method="aba",
+            payout_account_name="Owner Name",
+            payout_account_number="000123456",
+            payout_bank_name="ABA Bank",
+            payout_phone="012345678",
+        )
+        cls.renter = User.objects.create_user(
+            email="reservation-renter@example.test",
+            username="reservation-renter",
+            password="x",
+            role="renter",
+        )
+        cls.other_renter = User.objects.create_user(
+            email="reservation-other@example.test",
+            username="reservation-other",
+            password="x",
+            role="renter",
+        )
+        cls.property = Property.objects.create(
+            owner=cls.owner,
+            title="Reservation Apartment",
+            location="Phnom Penh",
+            price_per_month=Decimal("250.00"),
+            bedrooms=1,
+            bathrooms=1,
+            description="Test",
+            category="apartment",
+        )
+
+    def _request(self, renter):
+        return create_booking(property_obj=self.property, renter=renter)
+
+    def test_unpaid_reservation_keeps_listing_visible_and_reports_deadline(self):
+        booking = self._request(self.renter)
+        self.assertIsNotNone(booking)
+
+        self.assertIn(self.property, Property.objects.for_renter(self.other_renter))
+        deadlines = active_reservation_deadlines([self.property.pk])
+        self.assertEqual(
+            deadlines.get(self.property.pk),
+            booking.payment_deadline_at.isoformat(),
+        )
+
+    def test_reserved_listing_hidden_from_other_renter_dashboard(self):
+        from accounts.api import renter_dashboard
+
+        self.assertIsNotNone(self._request(self.renter))
+
+        class Request:
+            query = {}
+            params = {}
+            session = None
+            headers = {}
+
+        with patch(
+            "accounts.api.renter_required",
+            new=AsyncMock(return_value=self.other_renter),
+        ):
+            data = async_to_sync(renter_dashboard)(Request())
+
+        self.assertNotIn("reserved", data)
+        self.assertNotIn(self.property.pk, [p["id"] for p in data["featured"]])
+        self.assertNotIn(self.property.pk, [p["id"] for p in data["suggested"]])
+
+    def test_other_renter_cannot_book_while_reservation_is_active(self):
+        self.assertIsNotNone(self._request(self.renter))
+        self.assertIsNone(self._request(self.other_renter))
+
+    def test_cancelled_booking_stays_visible_but_blocks_same_renter(self):
+        booking = self._request(self.renter)
+        Booking.objects.filter(pk=booking.pk).update(status=BookingStatus.CANCELLED)
+
+        self.assertIn(self.property, Property.objects.for_renter(self.renter))
+        self.assertIsNone(self._request(self.renter))
+        self.assertIsNotNone(self._request(self.other_renter))
+
+    def test_cancelled_booking_reports_wait_time_instead_of_already_booked(self):
+        from listings.api import renter_browse, renter_detail
+
+        booking = self._request(self.renter)
+        Booking.objects.filter(pk=booking.pk).update(status=BookingStatus.CANCELLED)
+        expected = (
+            booking.created_at + timedelta(hours=rebook_cooldown_hours())
+        ).isoformat()
+
+        class Request:
+            query = {"page": "1", "page_size": "25"}
+            params = {"pk": str(self.property.pk)}
+            session = None
+            headers = {}
+
+        with (
+            patch("listings.api.get_user", new=AsyncMock(return_value=self.renter)),
+            patch(
+                "listings.api.renter_required",
+                new=AsyncMock(return_value=self.renter),
+            ),
+        ):
+            browse = async_to_sync(renter_browse)(Request())
+            detail = async_to_sync(renter_detail)(Request())
+
+        item = next(p for p in browse["properties"] if p["id"] == self.property.pk)
+        self.assertFalse(item["has_active_booking"])
+        self.assertEqual(item["booking_status"], BookingStatus.CANCELLED)
+        self.assertEqual(item["rebook_available_at"], expected)
+
+        self.assertFalse(detail["has_active_booking"])
+        self.assertEqual(detail["booking_status"], BookingStatus.CANCELLED)
+        self.assertEqual(detail["rebook_available_at"], expected)
+
+    def test_same_renter_blocked_right_before_cooldown_expires(self):
+        booking = self._request(self.renter)
+        Booking.objects.filter(pk=booking.pk).update(
+            status=BookingStatus.CANCELLED,
+            created_at=timezone.now()
+            - timedelta(hours=rebook_cooldown_hours() - 1),
+        )
+
+        self.assertIsNone(self._request(self.renter))
+
+    def test_same_renter_can_rebook_after_cooldown_expires(self):
+        booking = self._request(self.renter)
+        Booking.objects.filter(pk=booking.pk).update(
+            status=BookingStatus.CANCELLED,
+            created_at=timezone.now()
+            - timedelta(hours=rebook_cooldown_hours() + 1),
+        )
+
+        self.assertIsNotNone(self._request(self.renter))
+
+    def test_available_filter_hides_unpaid_reservations(self):
+        from listings.api import renter_browse
+
+        self.assertIsNotNone(self._request(self.renter))
+
+        class Request:
+            query = {"availability": "available", "page": "1", "page_size": "25"}
+            params = {}
+            session = None
+            headers = {}
+
+        data = async_to_sync(renter_browse)(Request())
+        self.assertNotIn(
+            self.property.pk, [p["id"] for p in data["properties"]]
+        )
+        self.assertEqual(data["filters"]["availability"], "available")
+
+    def test_available_filter_hides_cancelled_cooldown_for_same_renter(self):
+        from listings.api import renter_browse
+
+        booking = self._request(self.renter)
+        Booking.objects.filter(pk=booking.pk).update(status=BookingStatus.CANCELLED)
+
+        class Request:
+            query = {"availability": "available", "page": "1", "page_size": "25"}
+            params = {}
+            session = None
+            headers = {}
+
+        with patch("listings.api.get_user", new=AsyncMock(return_value=self.renter)):
+            data = async_to_sync(renter_browse)(Request())
+        self.assertNotIn(self.property.pk, [p["id"] for p in data["properties"]])
+
+        with patch(
+            "listings.api.get_user", new=AsyncMock(return_value=self.other_renter)
+        ):
+            data = async_to_sync(renter_browse)(Request())
+        self.assertIn(self.property.pk, [p["id"] for p in data["properties"]])
+
+    def test_reservation_expires_after_payment_window(self):
+        booking = self._request(self.renter)
+        Booking.objects.filter(pk=booking.pk).update(
+            created_at=timezone.now() - timedelta(hours=payment_window_hours() + 1)
+        )
+
+        self.assertGreaterEqual(expire_unpaid_bookings(), 1)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, BookingStatus.EXPIRED)
+        self.assertNotIn(
+            self.property.pk, active_reservation_deadlines([self.property.pk])
+        )
+        self.assertIsNotNone(self._request(self.other_renter))
+
+    def test_approved_unpaid_reservation_also_expires(self):
+        booking = Booking.objects.create(
+            property=self.property,
+            renter=self.renter,
+            owner=self.owner,
+            status=BookingStatus.APPROVED,
+            monthly_rent=self.property.price_per_month,
+        )
+        Booking.objects.filter(pk=booking.pk).update(
+            created_at=timezone.now() - timedelta(hours=payment_window_hours() + 1)
+        )
+
+        expire_unpaid_bookings()
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, BookingStatus.EXPIRED)
+
+    def test_owner_release_rejects_unpaid_reservation(self):
+        booking = self._request(self.renter)
+        self.assertIsNotNone(booking)
+
+        _, ok = set_owner_property_availability(
+            self.property.pk, self.owner, unavailable=False
+        )
+        self.assertTrue(ok)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, BookingStatus.REJECTED)
+        self.assertNotIn(
+            self.property.pk, active_reservation_deadlines([self.property.pk])
+        )
+        self.assertIsNotNone(self._request(self.other_renter))
+
+    def test_completed_paid_booking_reopens_listing_automatically(self):
+        booking = Booking.objects.create(
+            property=self.property,
+            renter=self.renter,
+            owner=self.owner,
+            status=BookingStatus.PENDING,
+            monthly_rent=self.property.price_per_month,
+            move_in_date=timezone.localdate() - timedelta(days=60),
+            end_date=timezone.localdate() - timedelta(days=1),
+        )
+        paid_at = timezone.now() - timedelta(days=60)
+        payment = Payment.objects.create(
+            property=self.property,
+            user=self.renter,
+            booking=booking,
+            amount=self.property.price_per_month,
+            method=Payment.Method.ABA_MOCK,
+            status=Payment.Status.SUCCESS,
+            provider=Payment.Provider.MOCK,
+            paid_at=paid_at,
+            gateway_payload={},
+        )
+        _attach_successful_payment(booking, payment)
+        self.property.refresh_from_db()
+        self.assertFalse(self.property.is_active)
+        self.assertNotIn(self.property, Property.objects.for_renter(self.other_renter))
+
+        self.assertEqual(release_completed_bookings(), 1)
+        self.property.refresh_from_db()
+        self.assertTrue(self.property.is_active)
+        self.assertIsNone(self.property.rental_closed_at)
+        self.assertEqual(self.property.owner_status, PropertyOwnerStatus.AVAILABLE)
+        self.assertIn(self.property, Property.objects.for_renter(self.other_renter))
+        self.assertIsNotNone(self._request(self.other_renter))

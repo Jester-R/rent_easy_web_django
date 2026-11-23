@@ -283,14 +283,21 @@ export class ConsolePaymentsComponent implements OnInit, OnDestroy {
   }
 
   refund(p: Payment): void {
+    if (this.isSaving()) return;
     if (!confirm(`Issue a refund?\n\n${p.reference} — ${usd(p.amount)}`)) return;
+    this.isSaving.set(true);
+    this.error.set(null);
     this.console.createRefund({ payment: p.id, reason: 'other' }).subscribe({
-      next: () => this.load(),
+      next: () => {
+        this.isSaving.set(false);
+        this.load();
+      },
       error: (err) => {
+        this.isSaving.set(false);
         const detail = (err as { error?: { detail?: string } }).error?.detail;
         this.error.set(
-          detail === 'payment_not_refundable'
-            ? 'Only successful payments can be refunded.'
+          detail === 'payment_not_refundable' || detail === 'booking_required'
+            ? 'Only successful payments with a booking can be refunded.'
             : detail || 'Failed to issue refund.',
         );
       },

@@ -22,7 +22,6 @@ from django_bolt.serializers.loading import LoadingPlan
 
 from bookings.models import (
     ACTIVE_STATUSES,
-    VALID_TRANSITIONS,
     payment_window_hours as booking_payment_window_hours,
 )
 from payments.models import Refund
@@ -150,6 +149,10 @@ class PropertySerializer(Serializer):
     updated_at: str
     has_active_booking: bool = False
     has_paid_booking: bool = False
+    booked_by_other: bool = False
+    reservation_expires_at: str | None = None
+    booking_status: str | None = None
+    rebook_available_at: str | None = None
 
     @field_validator("price_per_month")
     def _price(cls, value):

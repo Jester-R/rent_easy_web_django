@@ -1,4 +1,7 @@
-"""Superadmin console JSON endpoints (mounted under ``/console``).
+"""Console JSON endpoints (mounted under ``/console``).
+
+Session endpoints are self-service for every signed-in account: the caller can
+only list and terminate their own sessions.
 
 This module intentionally defines its own :class:`BoltAPI` named
 ``console_api`` (not ``api``) so django-bolt's auto-discovery does not pick it
@@ -41,8 +44,8 @@ from accounts.models import (
 )
 from accounts.session_tracking import (
     current_session_key,
-    end_login_session,
     end_login_session_key,
+    prune_login_session_history,
 )
 from accounts.default_promotion import DEFAULT_HOME_PROMOTION
 from accounts.integration_config import (
@@ -59,6 +62,7 @@ from core.bolt import (
     body_str,
     in_thread,
     json_body,
+    login_required,
     mark_full_request,
     param_int,
     superadmin_required,
@@ -785,14 +789,15 @@ def _date_boundary(value: str, *, end: bool = False):
     return timezone.make_aware(moment, timezone.get_current_timezone())
 
 
-def _session_filters(request):
+def _session_filters(request, user):
     from core.bolt import q
 
     query = q(request, "q")
     status = q(request, "status", "all")
     method = q(request, "method", "all")
-    role = q(request, "role", "all")
-    queryset = LoginSession.objects.select_related("user").all()
+    # Sessions are self-service: a user can never see or manage another
+    # account's sessions, even when signed in as an admin.
+    queryset = LoginSession.objects.select_related("user").filter(user=user)
     if query:
         queryset = queryset.filter(
             Q(user__full_name__icontains=query)
@@ -806,9 +811,7 @@ def _session_filters(request):
         )
     if method != "all":
         queryset = queryset.filter(auth_method=method)
-    if role in dict(Role.choices):
-        queryset = queryset.filter(user__role=role)
-    return queryset, {"q": query, "status": status, "method": method, "role": role}
+    return queryset, {"q": query, "status": status, "method": method, "role": "all"}
 
 
 async def _active_session_keys() -> set[str]:
@@ -872,10 +875,11 @@ def _session_item(item, active_keys: set[str], current_key: str) -> dict:
 
 @console_api.get("/sessions/")
 async def sessions_list(request):
-    await superadmin_required(request)
+    actor = await login_required(request)
+    await in_thread(prune_login_session_history)
     from core.bolt import pagination
 
-    queryset, filters = _session_filters(request)
+    queryset, filters = _session_filters(request, actor)
     active_keys = await _active_session_keys()
     base = _apply_session_status(queryset, filters["status"], active_keys)
     total = await base.acount()
@@ -899,16 +903,18 @@ async def sessions_list(request):
         ).acount(),
         "methods": [
             {"value": value, "label": label}
-            async for value, label in _distinct_session_values("auth_method")
+            async for value, label in _distinct_session_values("auth_method", actor)
         ],
         "roles": [{"value": value, "label": label} for value, label in Role.choices],
     }
 
 
-async def _distinct_session_values(field: str):
+async def _distinct_session_values(field: str, user):
     values = [
         value
-        async for value in LoginSession.objects.values_list(field, flat=True).distinct()
+        async for value in LoginSession.objects.filter(user=user)
+        .values_list(field, flat=True)
+        .distinct()
         if value
     ]
     labels = {
@@ -922,8 +928,9 @@ async def _distinct_session_values(field: str):
 
 @console_api.get("/sessions/export/")
 async def sessions_export(request):
-    await superadmin_required(request)
-    queryset, filters = _session_filters(request)
+    actor = await login_required(request)
+    await in_thread(prune_login_session_history)
+    queryset, filters = _session_filters(request, actor)
     active_keys = await _active_session_keys()
     queryset = _apply_session_status(queryset, filters["status"], active_keys)[:10000]
     current_key = await in_thread(current_session_key, request)
@@ -982,8 +989,12 @@ async def sessions_export(request):
     )
 
 
-async def _get_login_session(pk: int) -> LoginSession:
-    session = await LoginSession.objects.select_related("user").filter(pk=pk).afirst()
+async def _get_login_session(pk: int, user) -> LoginSession:
+    session = (
+        await LoginSession.objects.select_related("user")
+        .filter(pk=pk, user=user)
+        .afirst()
+    )
     if session is None:
         raise HTTPException(status_code=404, detail="session_not_found")
     return session
@@ -1007,27 +1018,42 @@ async def _terminate_session_row(session_row: LoginSession, actor, ended_by_admi
 
 @console_api.post("/sessions/{pk}/logout/")
 async def session_logout(request):
-    actor = await superadmin_required(request)
-    session_row = await _get_login_session(param_int(request, "pk"))
-    await _terminate_session_row(session_row, actor, ended_by_admin=True)
+    actor = await login_required(request)
+    session_row = await _get_login_session(param_int(request, "pk"), actor)
+    await _terminate_session_row(session_row, actor, ended_by_admin=False)
     active_keys = await _active_session_keys()
     current_key = await in_thread(current_session_key, request)
     refreshed = await LoginSession.objects.select_related("user").aget(pk=session_row.pk)
-    return {"ok": True, "session": _session_item(refreshed, active_keys, current_key)}
+    return {
+        "ok": True,
+        "session": _session_item(refreshed, active_keys, current_key),
+        "current": session_row.session_key == current_key,
+    }
 
 
 @console_api.post("/sessions/bulk-logout/")
 async def sessions_bulk_logout(request):
-    actor = await superadmin_required(request)
+    actor = await login_required(request)
     ids = _ids(json_body(request))
     if not ids:
-        return {"ok": True, "logged_out": 0}
-    rows = [row async for row in LoginSession.objects.select_related("user").filter(pk__in=ids)]
+        return {"ok": True, "logged_out": 0, "current_logged_out": False}
+    current_key = await in_thread(current_session_key, request)
+    rows = [
+        row
+        async for row in LoginSession.objects.select_related("user").filter(
+            pk__in=ids, user=actor
+        )
+    ]
+    current_logged_out = any(row.session_key == current_key for row in rows)
     logged_out = 0
     for row in rows:
-        await _terminate_session_row(row, actor, ended_by_admin=True)
+        await _terminate_session_row(row, actor, ended_by_admin=False)
         logged_out += 1
-    return {"ok": True, "logged_out": logged_out}
+    return {
+        "ok": True,
+        "logged_out": logged_out,
+        "current_logged_out": current_logged_out,
+    }
 
 
 def _audit_filters(request):

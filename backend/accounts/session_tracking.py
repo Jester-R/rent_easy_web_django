@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 from django.conf import settings
 from django.contrib.sessions.models import Session
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog, LoginSession
@@ -170,6 +171,7 @@ def record_login_session(
 ) -> LoginSession | None:
     """Upsert the current Django session and append a login audit event."""
     try:
+        prune_login_session_history()
         session = getattr(request, "session", None)
         if session is None:
             return None
@@ -245,3 +247,19 @@ def end_login_session_key(session_key: str) -> None:
     LoginSession.objects.filter(
         session_key=session_key, logged_out_at__isnull=True
     ).update(logged_out_at=timezone.now())
+
+
+def prune_login_session_history() -> int:
+    """Delete signed-out or expired session history past the retention window.
+
+    Active sessions are never removed. The cleanup runs on sign-in and when the
+    session list/export is opened, so stale history disappears without waiting
+    for a separate cron job (one is also provided for scheduled cleanup).
+    """
+    days = max(1, int(getattr(settings, "LOGIN_SESSION_HISTORY_DAYS", 30) or 30))
+    cutoff = timezone.now() - timedelta(days=days)
+    stale = Q(logged_out_at__lt=cutoff) | Q(
+        logged_out_at__isnull=True, session_expires_at__lt=cutoff
+    )
+    deleted, _ = LoginSession.objects.filter(stale).delete()
+    return deleted

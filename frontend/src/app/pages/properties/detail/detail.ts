@@ -1,4 +1,4 @@
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, input, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -11,6 +11,7 @@ import { LeafletMapComponent } from '../../../components/leaflet-map/leaflet-map
 import { LanguageService } from '../../../services/language.service';
 import { PropertyCategoryService } from '../../../services/property-category.service';
 import { formatCoordinates } from '../../../shared/coords';
+import { formatReservationCountdown } from '../../../shared/reservation-countdown';
 import { propertyDescription, propertyLocation, propertyTitle } from '../../../shared/property-text';
 
 @Component({
@@ -18,7 +19,7 @@ import { propertyDescription, propertyLocation, propertyTitle } from '../../../s
   imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent, LeafletMapComponent],
   templateUrl: './detail.html',
 })
-export class PropertyDetailComponent implements OnInit {
+export class PropertyDetailComponent implements OnInit, OnDestroy {
   readonly language = inject(LanguageService);
   readonly id = input.required<string>();
 
@@ -38,6 +39,43 @@ export class PropertyDetailComponent implements OnInit {
     return propertyDescription(prop, this.language.current());
   }
 
+  googleMapsUrl(prop: Property): string {
+    const lat = prop.latitude;
+    const lng = prop.longitude;
+    const query =
+      typeof lat === 'number' && typeof lng === 'number'
+        ? `${lat},${lng}`
+        : this.locationLabel(prop).trim();
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }
+
+  reservationCountdown(value: string | null | undefined): string | null {
+    return formatReservationCountdown(value, this.now());
+  }
+
+  private startReservationTimer(): void {
+    if (this.reservationTimer) return;
+    this.reservationTimer = setInterval(() => {
+      this.now.set(Date.now());
+      this.refreshExpiredReservation();
+    }, 1000);
+  }
+
+  private refreshExpiredReservation(): void {
+    const prop = this.property();
+    const deadline =
+      prop?.rebook_available_at
+      ?? (prop?.booked_by_other ? prop.reservation_expires_at : null);
+    if (!deadline) return;
+
+    const expiresAt = Date.parse(deadline);
+    if (!Number.isFinite(expiresAt) || Date.now() < expiresAt) return;
+    if (this.lastExpiredDeadline === deadline) return;
+
+    this.lastExpiredDeadline = deadline;
+    this.loadDetail();
+  }
+
   selectImage(index: number): void {
     this.activeImage.set(index);
   }
@@ -48,6 +86,10 @@ export class PropertyDetailComponent implements OnInit {
   readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+
+  private reservationTimer: ReturnType<typeof setInterval> | null = null;
+  private lastExpiredDeadline: string | null = null;
+  readonly now = signal(Date.now());
 
   property = signal<Property | null>(null);
   ownerStatus = signal<string>('available');
@@ -79,8 +121,25 @@ export class PropertyDetailComponent implements OnInit {
     return this.categories.label(value, this.language.current());
   }
 
+  constructor() {
+    // Auth state resolves asynchronously. Loading before it settles would use
+    // the public endpoint, which has no reservation flags and would show the
+    // lease form to other renters.
+    effect(() => {
+      if (this.auth.isLoading()) return;
+      this.loadDetail();
+    });
+  }
+
   ngOnInit(): void {
-    this.loadDetail();
+    this.startReservationTimer();
+  }
+
+  ngOnDestroy(): void {
+    if (this.reservationTimer) {
+      clearInterval(this.reservationTimer);
+      this.reservationTimer = null;
+    }
   }
 
   loadDetail(): void {
@@ -92,11 +151,21 @@ export class PropertyDetailComponent implements OnInit {
     if (this.auth.isRenter()) {
       this.propertyService.getRenterProperty(propId).subscribe({
         next: (res) => {
+          const bookedByOther =
+            res.booked_by_other ?? Boolean(res.property.booked_by_other);
+          const rebookAt =
+            res.rebook_available_at ?? res.property.rebook_available_at ?? null;
           this.property.set({
             ...res.property,
             has_active_booking:
               res.has_active_booking || Boolean(res.active_booking_id),
+            booked_by_other: bookedByOther,
+            reservation_expires_at:
+              res.reservation_expires_at ?? res.property.reservation_expires_at,
+            booking_status: res.booking_status ?? res.property.booking_status ?? null,
+            rebook_available_at: rebookAt,
           });
+          if (!bookedByOther && !rebookAt) this.lastExpiredDeadline = null;
           this.ownerStatus.set(res.owner_status || res.property.owner_status || 'available');
           this.activeImage.set(0);
           this.isLoading.set(false);
@@ -115,6 +184,7 @@ export class PropertyDetailComponent implements OnInit {
           ...res.property,
           is_favorite: res.is_favorite,
         });
+        this.lastExpiredDeadline = null;
         this.ownerStatus.set(res.property.owner_status || 'available');
         this.activeImage.set(0);
         this.isLoading.set(false);
@@ -211,7 +281,14 @@ export class PropertyDetailComponent implements OnInit {
     }
     if (this.bookingForm.invalid) return;
     const prop = this.property();
-    if (!prop) return;
+    if (!prop || prop.booked_by_other || prop.has_paid_booking) {
+      this.bookingError.set(this.language.t('propertyDetail.bookedBySomeoneElse'));
+      return;
+    }
+    if (prop.rebook_available_at) {
+      this.bookingError.set(this.language.t('propertyDetail.cancelledWaitActive'));
+      return;
+    }
 
     this.isBookingSubmitting.set(true);
     this.bookingError.set(null);
@@ -239,7 +316,7 @@ export class PropertyDetailComponent implements OnInit {
           const detail = err.error?.detail || '';
           if (detail === 'booking_unavailable_or_already_booked_today') {
             this.bookingError.set(
-              'This room is unavailable or you already booked it today. You can try another room.',
+              'This room is unavailable, or you requested it within the last 24 hours. You can try another room.',
             );
           } else {
             this.bookingError.set('Failed to submit booking request.');

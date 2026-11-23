@@ -41,7 +41,6 @@ class PayoutMethod(models.TextChoices):
 
     ABA = "aba", "ABA Bank"
     STRIPE = "stripe", "Stripe"
-    WING = "wing", "Wing Bank"
     ACLEDA = "acleda", "ACLEDA Bank"
     OTHER = "other", "Other"
 

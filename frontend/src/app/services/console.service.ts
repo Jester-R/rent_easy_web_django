@@ -124,16 +124,16 @@ export class ConsoleService {
 
   /* --------------------------- security reports --------------------------- */
 
-  logoutSession(id: number): Observable<{ ok: boolean; session?: LoginSessionItem }> {
-    return this.http.post<{ ok: boolean; session?: LoginSessionItem }>(
+  logoutSession(id: number): Observable<{ ok: boolean; session?: LoginSessionItem; current?: boolean }> {
+    return this.http.post<{ ok: boolean; session?: LoginSessionItem; current?: boolean }>(
       `${this.base}/sessions/${id}/logout/`,
       {},
       this.opts
     );
   }
 
-  bulkLogoutSessions(ids: number[]): Observable<{ ok: boolean; logged_out?: number }> {
-    return this.http.post<{ ok: boolean; logged_out?: number }>(
+  bulkLogoutSessions(ids: number[]): Observable<{ ok: boolean; logged_out?: number; current_logged_out?: boolean }> {
+    return this.http.post<{ ok: boolean; logged_out?: number; current_logged_out?: boolean }>(
       `${this.base}/sessions/bulk-logout/`,
       { ids },
       this.opts

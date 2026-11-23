@@ -6,6 +6,7 @@ import { PropertyService } from '../../services/property.service';
 import { PropertyCategoryService } from '../../services/property-category.service';
 import { AuthService } from '../../services/auth.service';
 import { LanguageService } from '../../services/language.service';
+import { formatReservationCountdown } from '../../shared/reservation-countdown';
 import { propertyLocation, propertyTitle } from '../../shared/property-text';
 
 @Component({
@@ -26,6 +27,11 @@ export class PropertyCardComponent {
 
   constructor() {
     this.categories.load();
+  }
+
+  reservationCountdown(value: string | null | undefined): string | null {
+    // No ticking timer; the value is refreshed when the page is reloaded.
+    return formatReservationCountdown(value, Date.now());
   }
 
   categoryLabel(value?: string | null): string {

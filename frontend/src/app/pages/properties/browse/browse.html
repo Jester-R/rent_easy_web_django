@@ -127,7 +127,20 @@
             />
           </div>
 
-          @if (searchTerm || selectedProvince() !== '__all__' || selectedLocation() !== '__all__' || selectedCommune() !== '__all__' || selectedVillage() !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || sort !== 'recommended') {
+          <div class="min-w-0">
+            <span class="form-label block">{{ language.t('browse.availability') }}</span>
+            <label class="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-hairline bg-surface-2 px-3 py-2 text-xs font-bold">
+              <input
+                type="checkbox"
+                class="h-4 w-4 accent-primary"
+                [checked]="availability === 'available'"
+                (change)="onAvailabilityToggle($event)"
+              />
+              {{ language.t('browse.availableOnly') }}
+            </label>
+          </div>
+
+          @if (searchTerm || selectedProvince() !== '__all__' || selectedLocation() !== '__all__' || selectedCommune() !== '__all__' || selectedVillage() !== '__all__' || selectedCategory !== '__all__' || minBedrooms > 0 || maxPrice || availability !== 'all' || sort !== 'recommended') {
             <div class="col-span-2 flex sm:col-span-3 lg:col-span-4">
               <button type="button" (click)="resetFilters()" class="btn btn-ghost flex-1 sm:flex-none">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 6 12 12M18 6 6 18"/></svg>

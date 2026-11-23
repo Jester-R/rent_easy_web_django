@@ -151,11 +151,11 @@
                 <td class="whitespace-nowrap">
                   <span class="pill {{ refundPill(p.refund_status) }}">{{ statusText(refundStatusLabel(p.refund_status)) }}</span>
                 </td>
-                <td class="w-px">
-                  <div class="flex items-center justify-end gap-1">
+                <td class="w-px whitespace-nowrap">
+                  <div class="flex min-w-max items-center justify-end gap-1 whitespace-nowrap">
                     @if (p.status === 'Success' && p.refund_status === 'None') {
-                      <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-amber-700" [title]="language.t('consolePayments.issueRefund')" (click)="refund(p)">
-                        <app-icon name="rotate-ccw" [size]="14" /><span>{{ language.t('consolePayments.issueRefund') }}</span>
+                      <button type="button" class="btn btn-outline btn-xs whitespace-nowrap text-amber-700" [title]="language.t('consolePayments.issueRefund')" [disabled]="isSaving()" (click)="refund(p)">
+                        <app-icon name="rotate-ccw" [size]="14" /><span>{{ language.t('consolePayments.refund') }}</span>
                       </button>
                     }
                   </div>

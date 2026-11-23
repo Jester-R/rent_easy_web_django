@@ -1,4 +1,14 @@
-import { Component, effect, inject, signal, OnDestroy, PLATFORM_ID } from '@angular/core';
+import {
+  Component,
+  effect,
+  ElementRef,
+  HostListener,
+  inject,
+  signal,
+  OnDestroy,
+  PLATFORM_ID,
+  ViewChild,
+} from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
@@ -28,6 +38,9 @@ export class NavbarComponent implements OnDestroy {
   isProfileMenuOpen = signal(false);
   isNotifMenuOpen = signal(false);
 
+  @ViewChild('notifMenu') private notifMenu?: ElementRef<HTMLElement>;
+  @ViewChild('profileMenu') private profileMenu?: ElementRef<HTMLElement>;
+
   constructor() {
     if (!isPlatformBrowser(this.platformId)) return;
 
@@ -46,6 +59,23 @@ export class NavbarComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.notifService.disconnect();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as Node;
+    if (this.isNotifMenuOpen() && !this.notifMenu?.nativeElement.contains(target)) {
+      this.isNotifMenuOpen.set(false);
+    }
+    if (this.isProfileMenuOpen() && !this.profileMenu?.nativeElement.contains(target)) {
+      this.isProfileMenuOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.isNotifMenuOpen.set(false);
+    this.isProfileMenuOpen.set(false);
   }
 
   toggleMobileMenu(): void {

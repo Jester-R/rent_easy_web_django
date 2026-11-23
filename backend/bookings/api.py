@@ -34,10 +34,9 @@ from payments.gateways.stripe import StripeGatewayError
 from payments.models import Payment
 from payments.services import (
     UnsupportedPaymentMethod,
-    expire_unpaid_bookings,
     pay_booking,
+    refresh_booking_availability,
     request_booking_cancellation,
-    transition_booking,
 )
 
 api = BoltAPI(
@@ -90,7 +89,7 @@ async def _owner_booking(pk: int, user) -> Booking:
 @api.get("/rent/bookings/")
 async def renter_list(request):
     user = await renter_required(request)
-    await in_thread(expire_unpaid_bookings)
+    await in_thread(refresh_booking_availability)
     base = booking_renter_queryset(user)
     queryset = apply_status_filter(base, q(request, "status", "all"))
     page, page_size = pagination(request)
@@ -110,7 +109,7 @@ async def renter_list(request):
 async def renter_detail(request):
     pk = param_int(request, "pk")
     user = await renter_required(request)
-    await in_thread(expire_unpaid_bookings)
+    await in_thread(refresh_booking_availability)
     booking = await _renter_booking(pk, user)
     return {"booking": await serialize_booking(booking), "audience": "renter"}
 
@@ -141,7 +140,7 @@ async def renter_cancel(request):
 async def renter_pay(request):
     pk = param_int(request, "pk")
     user = await renter_required(request)
-    await in_thread(expire_unpaid_bookings)
+    await in_thread(refresh_booking_availability)
     booking = await _renter_booking(pk, user)
 
     if booking.status not in (
@@ -197,7 +196,7 @@ async def renter_pay(request):
 @api.get("/owner/bookings/")
 async def owner_list(request):
     user = await owner_required(request)
-    await in_thread(expire_unpaid_bookings)
+    await in_thread(refresh_booking_availability)
     base = booking_owner_queryset(user)
     queryset = apply_status_filter(base, q(request, "status", "all"))
     page, page_size = pagination(request)
@@ -217,7 +216,7 @@ async def owner_list(request):
 async def owner_detail(request):
     pk = param_int(request, "pk")
     user = await owner_required(request)
-    await in_thread(expire_unpaid_bookings)
+    await in_thread(refresh_booking_availability)
     booking = await _owner_booking(pk, user)
     return {"booking": await serialize_booking(booking), "audience": "owner"}
 

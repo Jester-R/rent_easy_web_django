@@ -306,14 +306,17 @@
           <p class="mt-2 text-xs text-ink-3">The payment status will update after ABA confirms the transfer.</p>
         </div>
       } @else {
-      <label class="form-label mt-4" for="pay-method">Payment method</label>
-      <app-searchable-select
-        [options]="methodOptions"
+      <label class="form-label mt-4" for="pay-method">{{ language.t('bookingDetail.paymentMethod') }}</label>
+      <select
+        id="pay-method"
+        class="form-input mt-1"
         [(ngModel)]="selectedMethod"
         [ngModelOptions]="{ standalone: true }"
-        [placeholder]="language.t('bookingDetail.paymentMethod')"
-        [searchPlaceholder]="language.t('bookingDetail.search')"
-      />
+      >
+        @for (option of methodOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
 
       @if (selectedPaymentInfo(); as paymentInfo) {
         @if (paymentInfo.account_name || paymentInfo.account_number || paymentInfo.instructions_en || paymentInfo.instructions_km) {

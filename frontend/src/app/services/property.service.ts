@@ -321,6 +321,7 @@ export class PropertyService {
     category?: string;
     min_bedrooms?: number;
     max_price?: number;
+    availability?: string;
     sort?: string;
     page?: number;
     page_size?: number;
@@ -341,6 +342,8 @@ export class PropertyService {
       params = params.set('min_bedrooms', filters.min_bedrooms.toString());
     if (filters?.max_price)
       params = params.set('max_price', filters.max_price.toString());
+    if (filters?.availability && filters.availability !== 'all')
+      params = params.set('availability', filters.availability);
     if (filters?.sort) params = params.set('sort', filters.sort);
     if (filters?.page) params = params.set('page', String(filters.page));
     if (filters?.page_size) params = params.set('page_size', String(filters.page_size));
@@ -353,8 +356,26 @@ export class PropertyService {
 
   getRenterProperty(
     id: number
-  ): Observable<{ property: Property; has_active_booking: boolean; active_booking_id: number | null; owner_status?: string }> {
-    return this.http.get<{ property: Property; has_active_booking: boolean; active_booking_id: number | null; owner_status?: string }>(
+  ): Observable<{
+    property: Property;
+    has_active_booking: boolean;
+    active_booking_id: number | null;
+    booked_by_other?: boolean;
+    reservation_expires_at?: string | null;
+    booking_status?: string | null;
+    rebook_available_at?: string | null;
+    owner_status?: string;
+  }> {
+    return this.http.get<{
+      property: Property;
+      has_active_booking: boolean;
+      active_booking_id: number | null;
+      booked_by_other?: boolean;
+      reservation_expires_at?: string | null;
+      booking_status?: string | null;
+      rebook_available_at?: string | null;
+      owner_status?: string;
+    }>(
       `${this.baseUrl}/rent/property/${id}/`,
       { withCredentials: true }
     );

@@ -3,10 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../../components/icon/icon';
-import {
-  SearchableSelectComponent,
-  SelectOption,
-} from '../../../components/searchable-select/searchable-select';
+import { SelectOption } from '../../../components/searchable-select/searchable-select';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { ChatService } from '../../../services/chat.service';
@@ -36,7 +33,7 @@ type BookingExt = Booking & { can_cancel?: boolean; can_owner_cancel?: boolean }
 
 @Component({
   selector: 'app-booking-detail',
-  imports: [RouterLink, FormsModule, IconComponent, SearchableSelectComponent],
+  imports: [RouterLink, FormsModule, IconComponent],
   templateUrl: './booking-detail.html',
 })
 export class BookingDetailComponent implements OnInit {

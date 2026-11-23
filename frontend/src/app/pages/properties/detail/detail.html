@@ -139,6 +139,18 @@
                   {{ language.t('propertyDetail.thisOwnerHasNotPinnedAMapLocationYet') }}
                 </div>
               }
+              @if (prop.has_coordinates || locationLabel(prop).trim()) {
+                <a
+                  [href]="googleMapsUrl(prop)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-outline btn-sm mt-3"
+                >
+                  <app-icon name="map-pin" [size]="15" />
+                  <span>{{ language.t('propertyDetail.openInGoogleMaps') }}</span>
+                  <app-icon name="external" [size]="14" />
+                </a>
+              }
             </div>
           </div>
         </div>
@@ -147,13 +159,53 @@
       <!-- Right Column: Booking Box -->
       <div class="space-y-6">
         @if (auth.isRenter()) {
-          @if (ownerStatus() !== 'available' && !prop.has_active_booking) {
+          @if (prop.booked_by_other) {
+            <div class="app-card p-6 border-amber-200 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/30">
+              <div class="mb-2 flex items-center gap-3 font-bold text-amber-800 dark:text-amber-300">
+                <app-icon name="alert" [size]="20" />
+                <span>{{ language.t('propertyDetail.bookedBySomeoneElse') }}</span>
+              </div>
+              <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-200/80">
+                {{ language.t('propertyDetail.bookedBySomeoneElseHelp') }}
+              </p>
+              @if (prop.reservation_expires_at) {
+                @if (reservationCountdown(prop.reservation_expires_at); as countdown) {
+                  <p class="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 text-sm font-extrabold tabular-nums text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+                    <app-icon name="clock" [size]="16" />
+                    {{ language.t('propertyDetail.availableIn', { time: countdown }) }}
+                  </p>
+                  <p class="mt-2 text-[11px] text-amber-700 dark:text-amber-200/80">
+                    {{ language.t('propertyDetail.reservationDeadline', { time: (prop.reservation_expires_at | date:'medium') || '' }) }}
+                  </p>
+                }
+              }
+            </div>
+          } @else if (ownerStatus() !== 'available' && !prop.has_active_booking) {
             <div class="app-card border-amber-200 bg-amber-50/40 p-6 dark:border-amber-900/60 dark:bg-amber-950/30">
               <div class="mb-2 flex items-center gap-3 font-bold text-amber-800 dark:text-amber-300">
                 <app-icon name="alert" [size]="20" />
                 <span>{{ ownerStatus() === 'removed' ? language.t('propertyDetail.propertyRemovedByOwner') : language.t('propertyDetail.propertyUnavailable') }}</span>
               </div>
               <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-200/80">{{ language.t('propertyDetail.propertyUnavailableHelp') }}</p>
+            </div>
+          } @else if (prop.booking_status === 'Cancelled' && prop.rebook_available_at) {
+            <div class="app-card p-6 border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/30">
+              <div class="mb-2 flex items-center gap-3 font-bold text-slate-700 dark:text-slate-300">
+                <app-icon name="alert" [size]="20" />
+                <span>{{ language.t('propertyDetail.cancelledBooking') }}</span>
+              </div>
+              <p class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                {{ language.t('propertyDetail.cancelledBookingHelp') }}
+              </p>
+              @if (reservationCountdown(prop.rebook_available_at); as countdown) {
+                <p class="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-200 px-3 py-2 text-sm font-extrabold tabular-nums text-slate-800 dark:bg-slate-700 dark:text-slate-100">
+                  <app-icon name="clock" [size]="16" />
+                  {{ language.t('propertyDetail.requestAgainIn', { time: countdown }) }}
+                </p>
+              }
+              <a routerLink="/bookings" class="btn btn-outline w-full text-xs mt-4">
+                {{ language.t('propertyDetail.viewMyBookings') }}
+              </a>
             </div>
           } @else if (prop.has_active_booking) {
             <div class="app-card p-6 border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/30">
@@ -162,10 +214,10 @@
                 <span>{{ language.t('propertyDetail.activeBookingExists') }}</span>
               </div>
               <p class="text-xs text-emerald-700 leading-relaxed mb-4">
-                You already booked this room today. You can still book other rooms today.
+                {{ language.t('propertyDetail.propertyAlreadyBooked') }} You can still book other rooms today.
               </p>
               <a routerLink="/bookings" class="btn btn-primary w-full text-xs">
-                View My Bookings
+                {{ language.t('propertyDetail.viewMyBookings') }}
               </a>
               <button
                 type="button"

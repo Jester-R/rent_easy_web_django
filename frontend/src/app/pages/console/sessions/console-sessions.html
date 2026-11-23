@@ -56,7 +56,7 @@
   </div>
 
   <section class="app-card p-4">
-    <form class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_11rem_11rem_11rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
+    <form class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_11rem_11rem_auto]" (submit)="$event.preventDefault(); applyFilter()">
       <div class="relative sm:col-span-2 xl:col-span-1">
         <span class="pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2 text-ink-3">
           <app-icon name="search" [size]="16" />
@@ -77,14 +77,6 @@
         [ngModelOptions]="{ standalone: true }"
         (ngModelChange)="onMethodChange($event)"
         [placeholder]="language.t('consoleSessions.allMethods')"
-        [searchPlaceholder]="language.t('consoleSessions.filter')"
-      />
-      <app-searchable-select
-        [options]="roleOptions()"
-        [ngModel]="role()"
-        [ngModelOptions]="{ standalone: true }"
-        (ngModelChange)="onRoleChange($event)"
-        [placeholder]="language.t('consoleSessions.allRoles')"
         [searchPlaceholder]="language.t('consoleSessions.filter')"
       />
       <div class="flex gap-2 sm:col-span-2 xl:col-span-1">
@@ -132,7 +124,6 @@
                 [attr.aria-label]="language.t('consoleSessions.selectAllActive')"
               />
             </th>
-            <th class="text-start">{{ language.t('consoleSessions.user') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.status') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.device') }}</th>
             <th class="text-start">{{ language.t('consoleSessions.location') }}</th>
@@ -156,20 +147,6 @@
                     [attr.aria-label]="language.t('consoleSessions.selectSession')"
                   />
                 }
-              </td>
-              <td [attr.data-label]="language.t('consoleSessions.user')" class="min-w-[13rem]">
-                <div class="flex items-center gap-2.5">
-                  <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
-                        [style.background-color]="'hsl(' + item.user.avatar_hue + ' 42% 92%)'"
-                        [style.color]="'hsl(' + item.user.avatar_hue + ' 55% 28%)'">
-                    {{ initials(item.user.display_name) }}
-                  </span>
-                  <span class="min-w-0">
-                    <span class="block truncate font-bold">{{ item.user.display_name }}</span>
-                    <span class="block truncate text-[11px] text-ink-3">{{ item.user.email }}</span>
-                    <span class="block text-[10px] font-semibold text-ink-3">{{ language.valueLabel(roleLabel(item.user.role)) }}</span>
-                  </span>
-                </div>
               </td>
               <td [attr.data-label]="language.t('consoleSessions.status')">
                 <div class="flex flex-col items-start gap-1">
