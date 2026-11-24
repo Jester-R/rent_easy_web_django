@@ -154,7 +154,7 @@ async def clear_one(request):
     pk = param_int(request, "pk")
     user = await login_required(request)
     ok = await in_thread(clear_notification, user, pk)
-    return {"ok": ok}
+    return {"ok": ok, "unread": await in_thread(unread_count, user)}
 
 
 @api.post("/notifications/{pk}/toggle-read/")

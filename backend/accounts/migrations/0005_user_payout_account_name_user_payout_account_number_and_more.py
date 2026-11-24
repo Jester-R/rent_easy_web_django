@@ -31,7 +31,6 @@ class Migration(migrations.Migration):
                 blank=True,
                 choices=[
                     ("aba", "ABA Bank"),
-                    ("wing", "Wing Bank"),
                     ("acleda", "ACLEDA Bank"),
                     ("other", "Other"),
                 ],

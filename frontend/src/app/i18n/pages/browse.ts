@@ -19,6 +19,8 @@ export const browse: PageCatalog = {
   locationLoadFailed: ['Could not load the Cambodia location list. Please try again.', 'មិនអាចផ្ទុកបញ្ជីទីតាំងកម្ពុជាបានទេ។ សូមព្យាយាមម្ដងទៀត។'],
   category: ['Category', 'ប្រភេទ'],
   allCategories: ['All Categories', 'គ្រប់ប្រភេទ'],
+  availability: ['Availability', 'ភាពអាចរកបាន'],
+  availableOnly: ['Available Only', 'តែអចលនទ្រព្យដែលអាចជួល'],
   minBedrooms: ['Min Bedrooms', 'ចំនួនបន្ទប់គេងអប្បបរមា'],
   any: ['Any', 'ទាំងអស់'],
   maxPrice: ['Max Price', 'តម្លៃអតិបរមា'],

@@ -6,6 +6,7 @@ export const navbar: PageCatalog = {
   browse: ['Browse', 'មើលអចលនទ្រព្យ'],
   messages: ['Messages', 'សារ'],
   notifications: ['Notifications', 'ការជូនដំណឹង'],
+  sessions: ['Sessions', 'វគ្គចូលប្រើ'],
   markRead: ['Mark read', 'សម្គាល់ថាបានអាន'],
   noNotifications: ['No notifications', 'មិនមានការជូនដំណឹងទេ'],
   viewAllNotifications: ['View all notifications', 'មើលការជូនដំណឹងទាំងអស់'],

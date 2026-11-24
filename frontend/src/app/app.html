@@ -103,10 +103,6 @@
             </a>
             @if (auth.isSuperadmin()) {
               <p class="px-3 pb-1 pt-3 text-[10px] font-extrabold uppercase tracking-widest text-ink-3">{{ language.t('app.security') }}</p>
-              <a routerLink="/console/sessions" routerLinkActive="is-active" class="nav-item">
-                <app-icon name="monitor" [size]="18" />
-                <span class="flex-1">{{ language.t('app.loginSessions') }}</span>
-              </a>
               <a routerLink="/console/audit-logs" routerLinkActive="is-active" class="nav-item">
                 <app-icon name="list" [size]="18" />
                 <span class="flex-1">{{ language.t('app.auditLog') }}</span>
@@ -118,6 +114,10 @@
           <a routerLink="/notifications" routerLinkActive="is-active" class="nav-item">
             <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 15.5V10a6 6 0 1 0-12 0v5.5L4 18h16l-2-2.5Z"/><path d="M9.5 21h5"/></svg>
             <span class="flex-1">{{ language.t('app.notifications') }}</span>
+          </a>
+          <a routerLink="/sessions" routerLinkActive="is-active" class="nav-item">
+            <app-icon name="monitor" [size]="18" />
+            <span class="flex-1">{{ language.t('app.sessions') }}</span>
           </a>
           <a routerLink="/profile" routerLinkActive="is-active" class="nav-item">
             <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>
@@ -188,62 +188,65 @@
           <a routerLink="/console/bookings" routerLinkActive="is-active" class="app-tab">
             <span class="app-tab__icon"><app-icon name="calendar" [size]="20" /></span><span>{{ language.t('app.bookings') }}</span>
           </a>
-          <button type="button" class="app-tab" [class.is-active]="adminMoreOpen()" (click)="adminMoreOpen.set(!adminMoreOpen())" [attr.aria-expanded]="adminMoreOpen()" aria-haspopup="dialog">
-            <span class="app-tab__icon"><app-icon name="menu" [size]="20" /></span><span>{{ language.t('app.more') }}</span>
-          </button>
         }
-        @if (!auth.isAdmin()) {
-          <a routerLink="/profile" routerLinkActive="is-active" class="app-tab">
-            <span class="app-tab__icon"><app-icon name="user" [size]="20" /></span><span>{{ language.t('app.profile') }}</span>
-          </a>
-        }
+        <button type="button" class="app-tab" [class.is-active]="moreOpen()" (click)="moreOpen.set(!moreOpen())" [attr.aria-expanded]="moreOpen()" aria-haspopup="dialog">
+          <span class="app-tab__icon"><app-icon name="menu" [size]="20" /></span><span>{{ language.t('app.more') }}</span>
+        </button>
       </div>
     </nav>
 
-    @if (auth.isAdmin() && adminMoreOpen()) {
+    @if (auth.isAuthenticated() && moreOpen()) {
       <div class="admin-more lg:hidden" role="dialog" aria-modal="true" [attr.aria-label]="language.t('app.more')">
-        <button type="button" class="admin-more__backdrop" (click)="closeAdminMore()" [attr.aria-label]="language.t('app.close')"></button>
+        <button type="button" class="admin-more__backdrop" (click)="closeMore()" [attr.aria-label]="language.t('app.close')"></button>
         <div class="admin-more__panel">
           <div class="admin-more__header">
             <span class="text-[14px] font-extrabold uppercase tracking-widest text-ink-3">{{ language.t('app.more') }}</span>
-            <button type="button" class="btn btn-ghost btn-icon" (click)="closeAdminMore()" [attr.aria-label]="language.t('app.close')">
+            <button type="button" class="btn btn-ghost btn-icon" (click)="closeMore()" [attr.aria-label]="language.t('app.close')">
               <app-icon name="x" [size]="20" />
             </button>
           </div>
           <div class="admin-more__grid">
-            <a routerLink="/console/payments" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-              <app-icon name="wallet" [size]="24" /><span>{{ language.t('consolePayments.payments') }}</span>
-            </a>
-            <a routerLink="/console/payments/payouts" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-              <app-icon name="clock" [size]="24" /><span>{{ language.t('consolePayments.ownerPayouts') }}</span>
-            </a>
-            <a routerLink="/console/payments/refunds" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-              <app-icon name="rotate-ccw" [size]="24" /><span>{{ language.t('consolePayments.recentRefunds') }}</span>
-            </a>
-            <a routerLink="/console/payments/settings" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-              <app-icon name="settings" [size]="24" /><span>{{ language.t('consoleSettings.paymentCommissions') }}</span>
-            </a>
-            <a routerLink="/console/notifications" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-              <app-icon name="bell" [size]="24" /><span>{{ language.t('app.notificationSettings') }}</span>
-            </a>
-            <a routerLink="/console/settings" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-              <app-icon name="settings" [size]="24" /><span>{{ language.t('app.settings') }}</span>
-            </a>
-            @if (auth.isSuperadmin()) {
-              <a routerLink="/console/sessions" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-                <app-icon name="monitor" [size]="24" /><span>{{ language.t('app.loginSessions') }}</span>
+            @if (auth.isAdmin()) {
+              <a routerLink="/console/payments" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                <app-icon name="wallet" [size]="24" /><span>{{ language.t('consolePayments.payments') }}</span>
               </a>
-              <a routerLink="/console/audit-logs" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
-                <app-icon name="list" [size]="24" /><span>{{ language.t('app.auditLog') }}</span>
+              <a routerLink="/console/payments/payouts" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                <app-icon name="clock" [size]="24" /><span>{{ language.t('consolePayments.ownerPayouts') }}</span>
               </a>
+              <a routerLink="/console/payments/refunds" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                <app-icon name="rotate-ccw" [size]="24" /><span>{{ language.t('consolePayments.recentRefunds') }}</span>
+              </a>
+              <a routerLink="/console/payments/settings" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                <app-icon name="settings" [size]="24" /><span>{{ language.t('consoleSettings.paymentCommissions') }}</span>
+              </a>
+              <a routerLink="/console/notifications" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                <app-icon name="bell" [size]="24" /><span>{{ language.t('app.notificationSettings') }}</span>
+              </a>
+              <a routerLink="/console/settings" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                <app-icon name="settings" [size]="24" /><span>{{ language.t('app.settings') }}</span>
+              </a>
+              @if (auth.isSuperadmin()) {
+                <a routerLink="/console/audit-logs" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+                  <app-icon name="list" [size]="24" /><span>{{ language.t('app.auditLog') }}</span>
+                </a>
+              }
             }
-            <a routerLink="/notifications" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
+            <a routerLink="/messages" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+              <app-icon name="chat" [size]="24" /><span>{{ language.t('app.messages') }}</span>
+            </a>
+            <a routerLink="/notifications" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
               <app-icon name="inbox" [size]="24" /><span>{{ language.t('app.notifications') }}</span>
             </a>
-            <a routerLink="/profile" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeAdminMore()">
+            <a routerLink="/sessions" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+              <app-icon name="monitor" [size]="24" /><span>{{ language.t('app.sessions') }}</span>
+            </a>
+            <a routerLink="/profile" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
               <app-icon name="user" [size]="24" /><span>{{ language.t('app.profile') }}</span>
             </a>
-            <button type="button" class="admin-more__link text-rose-600 dark:text-rose-300 dark:hover:text-rose-200" (click)="closeAdminMore(); logout()">
+            <a routerLink="/settings" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" class="admin-more__link" (click)="closeMore()">
+              <app-icon name="settings" [size]="24" /><span>{{ language.t('app.settings') }}</span>
+            </a>
+            <button type="button" class="admin-more__link text-rose-600 dark:text-rose-300 dark:hover:text-rose-200" (click)="closeMore(); logout()">
               <app-icon name="logout" [size]="24" /><span>{{ language.t('app.logOut') }}</span>
             </button>
           </div>

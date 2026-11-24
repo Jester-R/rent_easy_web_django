@@ -83,6 +83,10 @@ export interface Property {
   is_favorite?: boolean;
   has_active_booking?: boolean;
   has_paid_booking?: boolean;
+  booked_by_other?: boolean;
+  reservation_expires_at?: string | null;
+  booking_status?: string | null;
+  rebook_available_at?: string | null;
   booking_count?: number;
   favorite_count?: number;
 }

@@ -134,15 +134,16 @@ export class NotificationService {
       );
   }
 
-  clear(id: number): Observable<{ ok: boolean }> {
+  clear(id: number): Observable<{ ok: boolean; unread: number }> {
     return this.http
-      .post<{ ok: boolean }>(
+      .post<{ ok: boolean; unread: number }>(
         `${this.baseUrl}/notifications/${id}/clear/`,
         {},
         { withCredentials: true }
       )
       .pipe(
-        tap(() => {
+        tap((res) => {
+          this.unreadCount.set(res.unread);
           this.preview.update((items) => items.filter((item) => item.id !== id));
         })
       );

@@ -17,6 +17,11 @@ def payment_window_hours() -> int:
     return max(1, int(getattr(settings, "BOOKING_PAYMENT_WINDOW_HOURS", 5) or 5))
 
 
+def rebook_cooldown_hours() -> int:
+    """Hours before a renter may request the same property again."""
+    return max(1, int(getattr(settings, "BOOKING_REBOOK_COOLDOWN_HOURS", 24) or 24))
+
+
 #: Mirrors ``PropertyProvider._isValidStatusTransition`` from the Flutter app.
 VALID_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "Pending": ("Approved", "Confirmed", "Rejected", "Cancelled", "Expired"),

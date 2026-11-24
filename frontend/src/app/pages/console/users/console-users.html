@@ -176,7 +176,7 @@
     <app-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="changePage($event)" />
 
     @if (selected().length) {
-      <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl">
+      <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl" data-bulk-bar>
         <div class="app-card flex flex-wrap items-center gap-3 border-primary px-4 py-3 shadow-pop">
           <span class="flex items-center gap-2 text-[13px] font-bold">
             <span class="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">{{ selected().length }}</span>

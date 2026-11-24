@@ -68,7 +68,7 @@ from accounts.telegram_login import (
 )
 from notifications.models import Notification
 from notifications.services import notify
-from bookings.models import Booking, BookingStatus
+from bookings.models import ACTIVE_STATUSES, Booking, BookingStatus
 from core.bolt import (
     body_str,
     in_thread,
@@ -88,7 +88,7 @@ from core.bolt_serializers import payment as serialize_payment
 from core.bolt_serializers import property as serialize_property
 from core.bolt_serializers import user as serialize_user
 from core.uploads import MAX_IMAGE_BYTES, delete_image_url, save_image
-from listings.models import Favorite, Property
+from listings.models import Favorite, Property, active_reservation_property_ids
 from payments.models import Payment
 
 logger = logging.getLogger(__name__)
@@ -1074,6 +1074,9 @@ async def set_theme_view(request):
 
 @api.get("/rent/")
 async def renter_dashboard(request):
+    from payments.services import refresh_booking_availability, rebook_cooldown_info
+
+    await in_thread(refresh_booking_availability)
     user = await renter_required(request)
     properties = (
         Property.objects.filter(owner__role=Role.OWNER)
@@ -1101,8 +1104,43 @@ async def renter_dashboard(request):
     )["v"] or 0
     refunded = (await payments.aaggregate(v=Sum("refunded_amount")))["v"] or 0
 
-    suggested = properties.for_renter(user)[:6]
+    # Home/dashboard listings exclude rooms reserved by other renters. Those
+    # rooms remain discoverable through Browse, where an explicit filter can
+    # show or hide them.
+    all_properties = await in_thread(lambda: list(properties))
+    property_ids = [p.pk for p in all_properties]
     favorite_ids = {v async for v in favorites.values_list("property_id", flat=True)}
+    cooldown = await in_thread(rebook_cooldown_info, user, property_ids)
+    own_booking_ids = {
+        pk for pk, info in cooldown.items() if info["status"] in ACTIVE_STATUSES
+    }
+    reserved_ids = set(
+        await in_thread(
+            lambda: list(active_reservation_property_ids(property_ids))
+        )
+    )
+    featured = [p for p in all_properties if p.pk not in reserved_ids][:3]
+    featured_ids = {p.pk for p in featured}
+    suggested = [
+        p
+        for p in all_properties
+        if p.pk not in reserved_ids and p.pk not in featured_ids
+    ][:6]
+
+    async def serialize_card(p):
+        return await serialize_property(
+            p,
+            is_favorite=p.pk in favorite_ids,
+            has_active_booking=p.pk in own_booking_ids,
+            booking_status=(
+                cooldown.get(p.pk, {}).get("status") if p.pk not in own_booking_ids else None
+            ),
+            rebook_available_at=(
+                cooldown.get(p.pk, {}).get("rebook_available_at")
+                if p.pk not in own_booking_ids
+                else None
+            ),
+        )
 
     return {
         "stats": {
@@ -1122,11 +1160,8 @@ async def renter_dashboard(request):
             "spend": float(spend),
             "refunded": float(refunded),
         },
-        "featured": [await serialize_property(p) async for p in properties[:3]],
-        "suggested": [
-            await serialize_property(p, is_favorite=p.pk in favorite_ids)
-            async for p in suggested
-        ],
+        "featured": [await serialize_card(p) for p in featured],
+        "suggested": [await serialize_card(p) for p in suggested],
         "recent_bookings": [await serialize_booking(b) async for b in bookings[:5]],
         "recent_payments": [await serialize_payment(p) async for p in payments[:5]],
         "favorite_ids": sorted(favorite_ids),

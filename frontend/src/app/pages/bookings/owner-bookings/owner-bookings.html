@@ -83,13 +83,13 @@
               </div>
             </div>
 
-            <div class="flex md:flex-col items-center md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-hairline gap-3">
-              <div class="text-right">
+            <div class="flex flex-col items-stretch md:items-end justify-between border-t md:border-t-0 pt-3 md:pt-0 border-hairline gap-3">
+              <div class="md:text-right">
                 <span class="text-xl font-extrabold text-primary">{{ b.rent_display }}</span>
                 <span class="text-[11px] text-ink-3 block">/{{ language.t('ownerBookings.month') }}</span>
               </div>
 
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
                 <button type="button" class="btn btn-outline btn-sm" [disabled]="isOpeningRenterChatId() === b.id" (click)="openRenterChat(b)">
                   <app-icon name="chat" [size]="14" />
                   <span>{{ language.t('ownerBookings.renterChat') }}</span>

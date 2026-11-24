@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='user',
             name='payout_method',
-            field=models.CharField(blank=True, choices=[('aba', 'ABA Bank'), ('stripe', 'Stripe'), ('wing', 'Wing Bank'), ('acleda', 'ACLEDA Bank'), ('other', 'Other')], max_length=16),
+            field=models.CharField(blank=True, choices=[('aba', 'ABA Bank'), ('stripe', 'Stripe'), ('acleda', 'ACLEDA Bank'), ('other', 'Other')], max_length=16),
         ),
     ]

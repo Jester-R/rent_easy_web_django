@@ -96,10 +96,11 @@ def set_owner_property_availability(
         prop.owner_status = PropertyOwnerStatus.UNAVAILABLE
         action = OwnerPropertyAction.Action.UNAVAILABLE
     else:
-        if prop.is_active and prop.owner_status == PropertyOwnerStatus.AVAILABLE:
-            return prop, False
         if active_paid_property_ids([prop.pk]).exists():
             raise OwnerActionBlocked()
+        released = _reject_unpaid_bookings(prop.pk)
+        if prop.is_active and prop.owner_status == PropertyOwnerStatus.AVAILABLE and not released:
+            return prop, False
         prop.is_active = True
         prop.rental_closed_at = None
         prop.owner_status = PropertyOwnerStatus.AVAILABLE
@@ -220,6 +221,8 @@ def reopen_property_if_idle(property_id: int) -> bool:
     prop = Property.objects.select_for_update().filter(pk=property_id).first()
     if prop is None or prop.is_active or not prop.rental_closed_at:
         return False
+    if prop.owner_status == PropertyOwnerStatus.REMOVED:
+        return False
     if _has_active_paid_booking(property_id):
         return False
     prop.is_active = True
@@ -242,6 +245,8 @@ def reopen_owner_property(property_id: int, owner) -> tuple[Property | None, boo
         Property.objects.select_for_update().filter(pk=property_id, owner=owner).first()
     )
     if prop is None or prop.is_active or not prop.rental_closed_at:
+        return prop, False
+    if prop.owner_status == PropertyOwnerStatus.REMOVED:
         return prop, False
     if _has_active_paid_booking(property_id):
         return prop, False

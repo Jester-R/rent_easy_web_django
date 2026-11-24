@@ -14,7 +14,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from accounts.models import PlatformSettings, Role, User
-from bookings.models import ACTIVE_STATUSES, Booking, BookingStatus, payment_window_hours
+from bookings.models import (
+    ACTIVE_STATUSES,
+    Booking,
+    BookingStatus,
+    payment_window_hours,
+    rebook_cooldown_hours,
+)
 from chat.models import Conversation
 from notifications.models import Notification
 from notifications.services import notify
@@ -95,14 +101,12 @@ def cancellation_terms(payment: Payment) -> tuple[bool, Decimal, Decimal, str]:
     return True, Decimal("0"), Decimal("0"), ""
 
 
-#: Accept the Flutter wire values (``aba``/``wing``/``card``) as well as the
-#: canonical labels already stored in the database.
+#: Accept the Flutter wire values as well as the canonical labels stored in
+#: the database.
 _METHOD_ALIASES: dict[str, str] = {
     "aba": Payment.Method.ABA,
     "aba pay": Payment.Method.ABA,
     "aba pay (mock)": Payment.Method.ABA_MOCK,
-    "wing": Payment.Method.WING,
-    "wing (mock)": Payment.Method.WING,
     "card": Payment.Method.CARD,
     "credit card": Payment.Method.CARD,
     "credit card (mock)": Payment.Method.CARD,
@@ -173,25 +177,38 @@ def create_booking(
     move_in_date = _coerce_date(move_in_date)
     end_date = _coerce_date(end_date)
 
-    expire_unpaid_bookings()
+    refresh_booking_availability()
     Property.objects.select_for_update().get(pk=property_obj.pk)
     if has_active_booking(renter, property_obj):
         return None
     if Booking.objects.filter(
         renter=renter,
         property=property_obj,
-        created_at__date=timezone.localdate(),
+        created_at__gte=timezone.now()
+        - timedelta(hours=rebook_cooldown_hours()),
     ).exists():
         return None
-    if Booking.objects.filter(
-        property=property_obj,
-        status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
-        payment_id__isnull=True,
-    ).exists():
+    if (
+        Booking.objects.filter(
+            property=property_obj,
+            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
+            payment_id__isnull=True,
+        )
+        .exclude(end_date__lt=timezone.localdate())
+        .exists()
+    ):
         return None
-    if Booking.objects.filter(
-        property=property_obj, status__in=ACTIVE_STATUSES
-    ).exists():
+    if (
+        Booking.objects.filter(property=property_obj, status__in=ACTIVE_STATUSES)
+        .exclude(end_date__lt=timezone.localdate())
+        .exclude(
+            payment__refunds__status__in=(
+                Refund.Status.ACCEPTED,
+                Refund.Status.PROCESSED,
+            )
+        )
+        .exists()
+    ):
         return None
     booking = Booking.objects.create(
         property=property_obj,
@@ -224,16 +241,60 @@ def create_booking(
 
 
 def has_active_booking(renter, property_obj) -> bool:
-    """True when renter already booked this room today (1 room/renter/day)."""
+    """True while the renter is inside the rebook cooldown for this room.
+
+    The cooldown starts at the original request time and survives cancellation,
+    so a cancelled booking cannot be immediately re-requested by the same
+    renter. Other renters are unaffected.
+    """
     return Booking.objects.filter(
         renter=renter,
         property=property_obj,
-        created_at__date=timezone.localdate(),
+        created_at__gte=timezone.now()
+        - timedelta(hours=rebook_cooldown_hours()),
     ).exists()
+
+
+def rebook_cooldown_info(renter, property_ids) -> dict[int, dict[str, str]]:
+    """Latest viewer booking inside the rebook cooldown, keyed by property.
+
+    A cancelled/expired/rejected request still blocks new submissions until
+    the cooldown ends. Exposing its status and rebook time lets the UI show
+    "Cancelled — request again in ..." instead of a misleading
+    "Already Booked" state.
+    """
+    if not property_ids or renter is None:
+        return {}
+    hours = rebook_cooldown_hours()
+    cutoff = timezone.now() - timedelta(hours=hours)
+    rows = (
+        Booking.objects.filter(
+            renter=renter,
+            property_id__in=property_ids,
+            created_at__gte=cutoff,
+        )
+        .order_by("-created_at")
+        .values("property_id", "status", "created_at")
+    )
+    info: dict[int, dict[str, str]] = {}
+    for row in rows:
+        pid = row["property_id"]
+        if pid in info:
+            continue
+        info[pid] = {
+            "status": row["status"],
+            "rebook_available_at": (
+                row["created_at"] + timedelta(hours=hours)
+            ).isoformat(),
+        }
+    return info
 
 
 def expire_unpaid_bookings() -> int:
     """Expire unpaid requests that passed the payment window.
+
+    Both ``Pending`` and ``Approved`` reservations are covered so a reserved
+    listing is released automatically after the configured payment window.
 
     Expiry is refreshed on the booking/listing endpoints and can also be run
     from cron via ``manage.py expire_unpaid_bookings``. At most 500 rows are
@@ -242,7 +303,7 @@ def expire_unpaid_bookings() -> int:
     cutoff = timezone.now() - timedelta(hours=payment_window_hours())
     candidates = (
         Booking.objects.filter(
-            status=BookingStatus.PENDING,
+            status__in=(BookingStatus.PENDING, BookingStatus.APPROVED),
             created_at__lt=cutoff,
             payment_id__isnull=True,
         )
@@ -257,7 +318,7 @@ def expire_unpaid_bookings() -> int:
                 .select_related("property", "renter", "owner")
                 .filter(
                     pk=candidate.pk,
-                    status=BookingStatus.PENDING,
+                    status=candidate.status,
                     payment_id__isnull=True,
                 )
                 .first()
@@ -280,6 +341,37 @@ def expire_unpaid_bookings() -> int:
                 link=booking.get_absolute_url(),
             )
     return expired
+
+
+def release_completed_bookings() -> int:
+    """Reopen listings whose paid booking period is already over.
+
+    Paid bookings hide a listing when they are confirmed. Once the lease
+    ``end_date`` has passed, the listing is released automatically so other
+    renters can see and request it again.
+    """
+    from listings.services import reopen_property_if_idle
+
+    property_ids = list(
+        Booking.objects.filter(
+            status__in=ACTIVE_STATUSES,
+            payment__status=Payment.Status.SUCCESS,
+            end_date__lt=timezone.localdate(),
+        )
+        .values_list("property_id", flat=True)
+        .distinct()
+    )
+    released = 0
+    for property_id in property_ids:
+        if reopen_property_if_idle(property_id):
+            released += 1
+    return released
+
+
+def refresh_booking_availability() -> int:
+    """Refresh all time-based booking availability changes in one call."""
+    return expire_unpaid_bookings() + release_completed_bookings()
+
 
 def payout_for_payment(payment: Payment | None) -> Payout | None:
     if payment is None or not payment.pk:

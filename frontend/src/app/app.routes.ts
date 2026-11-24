@@ -221,8 +221,13 @@ export const routes: Routes = [
   },
   {
     path: 'console/sessions',
+    redirectTo: 'sessions',
+    pathMatch: 'full',
+  },
+  {
+    path: 'sessions',
     loadComponent: () => import('./pages/console/sessions/console-sessions').then((m) => m.ConsoleSessionsComponent),
-    canActivate: [superadminGuard],
+    canActivate: [authGuard],
   },
   {
     path: 'console/audit-logs',

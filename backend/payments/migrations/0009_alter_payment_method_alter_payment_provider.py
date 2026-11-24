@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='payment',
             name='method',
-            field=models.CharField(choices=[('ABA Pay', 'ABA Pay'), ('ABA Pay (Mock)', 'ABA Pay (Mock)'), ('Wing (Mock)', 'Wing (Mock)'), ('Credit Card (Mock)', 'Credit Card (Mock)'), ('Stripe Card', 'Stripe Card')], default='ABA Pay', max_length=32),
+            field=models.CharField(choices=[('ABA Pay', 'ABA Pay'), ('ABA Pay (Mock)', 'ABA Pay (Mock)'), ('Credit Card (Mock)', 'Credit Card (Mock)'), ('Stripe Card', 'Stripe Card')], default='ABA Pay', max_length=32),
         ),
         migrations.AlterField(
             model_name='payment',

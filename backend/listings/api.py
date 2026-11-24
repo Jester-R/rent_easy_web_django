@@ -12,7 +12,6 @@ from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
 from django.db.models import Count, Max, Min, Q
-from django.utils import timezone
 from django_bolt import BoltAPI, UploadFile
 from django_bolt.exceptions import HTTPException
 from django_bolt.params import File
@@ -35,7 +34,13 @@ from core.bolt import (
 from core.bolt_serializers import property as serialize_property
 from core.uploads import MAX_IMAGE_BYTES, save_image
 from listings.category_config import DEFAULT_PROPERTY_CATEGORIES
-from listings.models import Favorite, Property, active_paid_property_ids
+from listings.models import (
+    Favorite,
+    Property,
+    active_paid_property_ids,
+    active_reservation_deadlines,
+    active_reservation_property_ids,
+)
 
 api = BoltAPI(
     django_middleware={"exclude": ["django.middleware.csrf.CsrfViewMiddleware"]},
@@ -234,10 +239,9 @@ def _validate_property_payload(data: dict) -> dict:
 @api.get("/rent/properties/")
 async def renter_browse(request):
     from accounts.models import Role
-    from bookings.models import Booking, BookingStatus
-    from payments.services import expire_unpaid_bookings
+    from payments.services import refresh_booking_availability
 
-    await in_thread(expire_unpaid_bookings)
+    await in_thread(refresh_booking_availability)
     user = await get_user(request)
     renter = user if user is not None and user.is_renter else None
 
@@ -292,6 +296,27 @@ async def renter_browse(request):
         with contextlib.suppress(InvalidOperation, ValueError):
             queryset = queryset.filter(price_per_month__lte=Decimal(raw_max))
 
+    availability = q(request, "availability", "all")
+    if availability == "available":
+        # "Available Only" means the renter can submit a lease request now.
+        # Hide unpaid reservations held by anyone and any property this renter
+        # is still locked out of by the rebook cooldown (cancelled included).
+        candidate_ids = await in_thread(
+            lambda: list(queryset.values_list("id", flat=True))
+        )
+        blocked_ids = set(
+            await in_thread(
+                lambda: list(active_reservation_property_ids(candidate_ids))
+            )
+        )
+        if renter is not None:
+            from payments.services import rebook_cooldown_info
+
+            blocked_ids.update(
+                await in_thread(rebook_cooldown_info, renter, candidate_ids)
+            )
+        queryset = queryset.exclude(id__in=blocked_ids)
+
     sort = q(request, "sort", "recommended")
     if sort == "price_low":
         queryset = queryset.order_by("price_per_month", "title")
@@ -309,22 +334,22 @@ async def renter_browse(request):
     ids = [p.pk for p in properties]
     favorite_ids = set()
     active_ids = set()
+    cooldown = {}
     paid_ids = {v async for v in active_paid_property_ids(ids)}
+    reserved = await in_thread(active_reservation_deadlines, ids)
     if renter is not None:
+        from bookings.models import ACTIVE_STATUSES
+        from payments.services import rebook_cooldown_info
+
         favorite_ids = {
             v
             async for v in Favorite.objects.filter(
                 user=renter, property_id__in=ids
             ).values_list("property_id", flat=True)
         }
-        today = timezone.localdate()
+        cooldown = await in_thread(rebook_cooldown_info, renter, ids)
         active_ids = {
-            v
-            async for v in Booking.objects.filter(
-                renter=renter,
-                property_id__in=ids,
-                created_at__date=today,
-            ).values_list("property_id", flat=True)
+            pk for pk, info in cooldown.items() if info["status"] in ACTIVE_STATUSES
         }
 
     bounds = await Property.objects.aaggregate(
@@ -344,6 +369,16 @@ async def renter_browse(request):
                 is_favorite=p.pk in favorite_ids,
                 has_active_booking=p.pk in active_ids,
                 has_paid_booking=p.pk in paid_ids,
+                booked_by_other=p.pk in reserved and p.pk not in active_ids,
+                reservation_expires_at=reserved.get(p.pk),
+                booking_status=(
+                    cooldown.get(p.pk, {}).get("status") if p.pk not in active_ids else None
+                ),
+                rebook_available_at=(
+                    cooldown.get(p.pk, {}).get("rebook_available_at")
+                    if p.pk not in active_ids
+                    else None
+                ),
             )
             for p in properties
         ],
@@ -368,6 +403,7 @@ async def renter_browse(request):
             "category": category,
             "min_bedrooms": min_bedrooms,
             "max_price": raw_max,
+            "availability": availability,
             "sort": sort,
         },
     }
@@ -377,28 +413,51 @@ async def renter_browse(request):
 async def renter_detail(request):
     pk = param_int(request, "pk")
     from bookings.models import ACTIVE_STATUSES, Booking
+    from payments.services import refresh_booking_availability, rebook_cooldown_info
 
+    await in_thread(refresh_booking_availability)
     user = await renter_required(request)
     prop = await _get_property(pk)
     active_bookings = Booking.objects.filter(
         property=prop, status__in=ACTIVE_STATUSES
     )
-    has_active_booking = await active_bookings.aexists()
     is_favorite = await Favorite.objects.filter(user=user, property=prop).aexists()
     viewer_booking = await active_bookings.filter(renter=user).order_by("-created_at").afirst()
+    cooldown = await in_thread(rebook_cooldown_info, user, [prop.pk])
+    viewer_cooldown = None if viewer_booking else cooldown.get(prop.pk)
+    booking_status = viewer_cooldown["status"] if viewer_cooldown else None
+    rebook_available_at = viewer_cooldown["rebook_available_at"] if viewer_cooldown else None
+    reserved = await in_thread(active_reservation_deadlines, [prop.pk])
+    booked_by_other = prop.pk in reserved and viewer_booking is None
+    reservation_expires_at = reserved.get(prop.pk) if booked_by_other else None
+    has_paid_booking = await active_paid_property_ids([prop.pk]).aexists()
     return {
         "property": await serialize_property(
             prop,
             is_favorite=is_favorite,
+            has_active_booking=viewer_booking is not None,
+            has_paid_booking=has_paid_booking,
+            booked_by_other=booked_by_other,
+            reservation_expires_at=reservation_expires_at,
+            booking_status=booking_status,
+            rebook_available_at=rebook_available_at,
         ),
-        "has_active_booking": has_active_booking,
+        "has_active_booking": viewer_booking is not None,
         "active_booking_id": viewer_booking.pk if viewer_booking else None,
+        "booked_by_other": booked_by_other,
+        "reservation_expires_at": reservation_expires_at,
+        "booking_status": booking_status,
+        "rebook_available_at": rebook_available_at,
         "owner_status": prop.owner_status,
     }
 
 
 @api.get("/rent/favorites/")
 async def renter_favorites(request):
+    from bookings.models import ACTIVE_STATUSES
+    from payments.services import refresh_booking_availability, rebook_cooldown_info
+
+    await in_thread(refresh_booking_availability)
     user = await renter_required(request)
     favorites = _counts(
         Property.objects.filter(favorites__user=user)
@@ -408,9 +467,33 @@ async def renter_favorites(request):
     page, page_size = pagination(request)
     total = await favorites.acount()
     favorites = favorites[(page - 1) * page_size : page * page_size]
+    reserved = await in_thread(
+        active_reservation_deadlines, [p.pk for p in favorites]
+    )
+    cooldown = await in_thread(
+        rebook_cooldown_info, user, [p.pk for p in favorites]
+    )
+    active_ids = {
+        pk for pk, info in cooldown.items() if info["status"] in ACTIVE_STATUSES
+    }
     return {
         "favorites": [
-            await serialize_property(p, is_favorite=True) async for p in favorites
+            await serialize_property(
+                p,
+                is_favorite=True,
+                has_active_booking=p.pk in active_ids,
+                booked_by_other=p.pk in reserved and p.pk not in active_ids,
+                reservation_expires_at=reserved.get(p.pk),
+                booking_status=(
+                    cooldown.get(p.pk, {}).get("status") if p.pk not in active_ids else None
+                ),
+                rebook_available_at=(
+                    cooldown.get(p.pk, {}).get("rebook_available_at")
+                    if p.pk not in active_ids
+                    else None
+                ),
+            )
+            async for p in favorites
         ],
         "count": total,
         "total": total,
@@ -492,10 +575,18 @@ async def owner_list(request):
     page, page_size = pagination(request)
     total = await properties.acount()
     rows = list(properties[(page - 1) * page_size : page * page_size])
-    paid_ids = {v async for v in active_paid_property_ids([p.pk for p in rows])}
+    ids = [p.pk for p in rows]
+    paid_ids = {v async for v in active_paid_property_ids(ids)}
+    reserved = await in_thread(active_reservation_deadlines, ids)
     return {
         "properties": [
-            await serialize_property(p, has_paid_booking=p.pk in paid_ids) for p in rows
+            await serialize_property(
+                p,
+                has_paid_booking=p.pk in paid_ids,
+                booked_by_other=p.pk in reserved and p.pk not in paid_ids,
+                reservation_expires_at=reserved.get(p.pk),
+            )
+            for p in rows
         ],
         "total": total,
         "page": page,

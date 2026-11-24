@@ -1,16 +1,27 @@
-# RentEasy Web
+
 
 RentEasy Web is a browser based rental platform built with an Angular frontend and an asynchronous Django backend powered by Django Bolt. It is the web companion to the RentEasy mobile app.
 
+## Screenshots
+
+| RentEasy app | Admin console |
+| --- | --- |
+| ![RentEasy app](docs/RentEasy.png) | ![RentEasy admin panel](docs/AdminPanel.png) |
+
 ## Features
 
-- **Renter portal:** browse and filter public property listings, save favorites, request bookings, and view payments.
+- **Renter portal:** browse and filter property listings, save favorites, request bookings, and view payments.
 - **Owner portal:** manage property listings, review booking requests, and track payments.
 - **Superadmin console:** review platform activity and manage users, properties, bookings, and payments.
 - **Public browsing:** visitors can explore listings without signing in. Sign in to use renter account features such as favorites and booking requests.
+- **Reservation queue:** an unpaid booking keeps the listing visible to other renters with a “Booked by someone else” status and expiry countdown. A new lease request is blocked until the reservation is paid, cancelled, or expires. Paid bookings hide the listing.
+- **Rebook cooldown:** after a renter cancels their own request, the listing stays visible with a “Cancelled” status and a countdown. The lease form returns automatically when the cooldown ends.
+- **Browse filter:** simple **Available only** toggle with **Reset**.
+- **Navigation:** every role uses the same **More** panel for Messages, Notifications, Sessions, Profile, and Settings; the admin bottom bar does not add extra icons.
+- **Location:** property detail includes an **Open in Google Maps** link when coordinates or a location are available.
 - **Language and theme preferences:** English and Khmer, with light and dark themes.
 - **Notifications:** in-app notifications with unread counts and optional Telegram delivery.
-- **Payments:** real ABA PayWay hosted checkout (sandbox or production), Stripe hosted card checkout (test mode or production), with automatic mock fallback, plus demo Wing/card flows and refunds.
+- **Payments:** real ABA PayWay hosted checkout (sandbox or production), Stripe hosted card checkout (test mode or production), with automatic mock fallback, plus a demo card flow and refunds.
 - **Rent hold and owner payouts:** rent is held by the platform for 7 days, cancellations/refunds are allowed during the hold, and admins record manual transfers to owner payout accounts.
 - **Chat:** renters and owners can chat directly about a property; approved refunds create separate one-to-one support chats between the admin and renter, and between the admin and owner.
 - **Chat filters:** conversations can be filtered by chat type, participant, property, date range, and free-text search.
@@ -48,6 +59,20 @@ just run
 
 `just setup` creates/synchronizes the backend virtual environment, applies the Django Bolt compatibility patch, runs database migrations, and installs frontend packages. It uses `uv` and Bun when available, with pip and npm fallbacks.
 
+`backend/requirements.txt` is exported from `backend/uv.lock` for pip-only
+environments:
+
+```bash
+python3.14 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+```
+
+Regenerate it from the Nix shell whenever `uv.lock` changes:
+
+```bash
+nix develop --command bash -lc 'cd backend && uv export --no-hashes --format requirements-txt --output-file requirements.txt >/dev/null'
+```
+
 ## First run and demo data
 
 After setup, seed the demo accounts and sample content:
@@ -74,6 +99,53 @@ The demo credentials are:
 | Renter | `renter` | `renter` | `/renter` |
 
 These are development accounts; change or remove them before deploying the application.
+
+## Booking lifecycle
+
+### Unpaid reservations
+
+A lease request creates a `Pending` booking. Until it is paid, the booking is an
+**unpaid reservation** that lasts `BOOKING_PAYMENT_WINDOW_HOURS` (default **5** hours):
+
+- The listing remains visible in Browse and on the property detail page.
+- Other renters see **“Booked by someone else”** with the payment deadline.
+- The detail page runs a live countdown and hides the lease form while reserved.
+- Other renters receive `409 booking_unavailable_or_already_booked_today` if they try to submit.
+- Property cards show a static countdown; the ticking timer only runs after opening a property.
+- The renter home dashboard excludes reserved-by-other listings; Browse still shows them by default.
+- Expiry is refreshed on listing/booking API requests and can be run from cron with `python manage.py expire_unpaid_bookings` from `backend/`.
+- Owners can release an unpaid reservation, which rejects it and frees the room immediately. Paid bookings are not released by that action; they stay blocked until refund, cancellation, or lease end.
+- A completed paid booking reopens automatically after its `end_date` has passed.
+
+### Cancelled requests and rebook cooldown
+
+Cancelling a request keeps the listing visible to that renter but starts a
+`BOOKING_REBOOK_COOLDOWN_HOURS` (default **24** hours) wait, measured from the
+original request time:
+
+- The card shows **“Cancelled”** with the remaining wait time.
+- The detail page shows **“Cancelled booking”** and **“Request again in HH:MM:SS”**, with the lease form hidden.
+- Other renters are not affected and may book normally.
+- When the wait ends, the API stops sending the status and the property returns to normal with no status badge; the detail page refreshes automatically at zero.
+- **Available Only** also hides cancelled-cooldown rooms for that renter, since a new request cannot be submitted yet.
+
+### Booking and session settings
+
+Add these to `.env` when you need different values (see `.env.example`):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `BOOKING_PAYMENT_WINDOW_HOURS` | `5` | Hours a renter has to pay before an unpaid reservation expires. |
+| `BOOKING_REBOOK_COOLDOWN_HOURS` | `24` | Hours before the same renter can request the same property again after any request, including cancellations. |
+| `LOGIN_SESSION_HISTORY_DAYS` | `30` | Days of signed-out/expired login session history kept for security review. |
+
+Old session history is pruned automatically on login and when the session list or
+export is opened. Run it on a schedule with:
+
+```bash
+cd backend
+.venv/bin/python manage.py cleanup_login_sessions
+```
 
 ## Payments (ABA PayWay)
 
@@ -121,7 +193,7 @@ current key, or use the remove checkbox to fall back to `ABA_PAYWAY_API_KEY`.
 
 Leaving the merchant ID or API key empty, or setting `ABA_PAYWAY_ENABLED=false`,
 keeps the demo flow: `ABA Pay` is recorded as `ABA Pay (Mock)` using the existing
-90% success simulation. Wing and card remain demo-only methods. While PayWay is
+90% success simulation. Card remains a demo-only method. While PayWay is
 configured, a client cannot request a simulated ABA success; disable the gateway
 to use demo outcomes.
 

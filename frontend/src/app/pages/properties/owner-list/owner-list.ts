@@ -88,6 +88,18 @@ export class OwnerPropertiesComponent implements OnInit {
     });
   }
 
+  releaseReservation(p: Property): void {
+    if (!confirm(this.language.t('ownerList.releaseReservationConfirm'))) return;
+
+    this.propertyService.setAvailability(p.id, false).subscribe({
+      next: () => {
+        this.successMessage.set(this.language.t('ownerList.availabilityUpdated'));
+        this.loadProperties();
+      },
+      error: (err: HttpErrorResponse) => this.successMessage.set(this.errorMessage(err)),
+    });
+  }
+
   private errorMessage(err: HttpErrorResponse): string {
     const detail = err.error?.detail;
     if (detail === 'owner_action_rate_limited') {

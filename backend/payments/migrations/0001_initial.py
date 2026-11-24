@@ -47,7 +47,6 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("ABA Pay (Mock)", "ABA Pay (Mock)"),
-                            ("Wing (Mock)", "Wing (Mock)"),
                             ("Credit Card (Mock)", "Credit Card (Mock)"),
                         ],
                         default="ABA Pay (Mock)",

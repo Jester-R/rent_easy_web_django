@@ -1,11 +1,16 @@
 from django.core.management.base import BaseCommand
 
-from payments.services import expire_unpaid_bookings
+from payments.services import expire_unpaid_bookings, release_completed_bookings
 
 
 class Command(BaseCommand):
-    help = "Expire unpaid booking requests that passed the payment window."
+    help = "Refresh booking-based listing availability (expiry and completed leases)."
 
     def handle(self, *args, **options):
-        count = expire_unpaid_bookings()
-        self.stdout.write(self.style.SUCCESS(f"Expired {count} booking request(s)."))
+        expired = expire_unpaid_bookings()
+        released = release_completed_bookings()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Expired {expired} unpaid booking(s); reopened {released} completed listing(s)."
+            )
+        )

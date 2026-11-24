@@ -2,11 +2,11 @@ import type { PageCatalog } from '../types';
 
 export const consoleSessions: PageCatalog = {
   loginSessions: ['Login sessions', 'វគ្គចូលប្រើ'],
-  subtitle: ['Review every sign-in, device and approximate location', 'ពិនិត្យការចូលប្រើ ឧបករណ៍ និងទីតាំងប្រហែលទាំងអស់'],
+  subtitle: ['Review your sign-ins, devices and approximate locations', 'ពិនិត្យការចូលប្រើ ឧបករណ៍ និងទីតាំងប្រហែលរបស់អ្នក'],
   activeSessions: ['Active sessions', 'វគ្គកំពុងសកម្ម'],
   inactiveSessions: ['Inactive sessions', 'វគ្គមិនសកម្ម'],
   allSessions: ['All sessions', 'វគ្គទាំងអស់'],
-  searchPlaceholder: ['Search user, email, IP, city or browser', 'ស្វែងរកអ្នកប្រើ អ៊ីមែល IP ទីក្រុង ឬកម្មវិធីរុករក'],
+  searchPlaceholder: ['Search IP, city or browser', 'ស្វែងរក IP ទីក្រុង ឬកម្មវិធីរុករក'],
   allStatuses: ['All statuses', 'ស្ថានភាពទាំងអស់'],
   allMethods: ['All sign-in methods', 'វិធីចូលប្រើទាំងអស់'],
   allRoles: ['All roles', 'តួនាទីទាំងអស់'],
@@ -42,8 +42,8 @@ export const consoleSessions: PageCatalog = {
   clearSelection: ['Clear', 'សម្អាត'],
   selectSession: ['Select session', 'ជ្រើសរើសវគ្គ'],
   selectAllActive: ['Select all active sessions', 'ជ្រើសរើសវគ្គសកម្មទាំងអស់'],
-  confirmLogoutSingle: ['Log out {user} from this session?', 'ចាកចេញ {user} ពីវគ្គនេះ?'],
-  confirmLogoutCurrent: ['Log out your current admin session?', 'ចាកចេញពីវគ្គអ្នកគ្រប់គ្រងបច្ចុប្បន្នរបស់អ្នក?'],
+  confirmLogoutSingle: ['Log out this session?', 'ចាកចេញពីវគ្គនេះ?'],
+  confirmLogoutCurrent: ['Log out your current session?', 'ចាកចេញពីវគ្គបច្ចុប្បន្នរបស់អ្នក?'],
   confirmLogoutMultiple: ['Log out {count} selected session(s)?', 'ចាកចេញពីវគ្គដែលបានជ្រើស {count}?'],
   logoutFailed: ['Could not log out the selected session(s).', 'មិនអាចចាកចេញពីវគ្គដែលបានជ្រើសបានទេ។'],
 };

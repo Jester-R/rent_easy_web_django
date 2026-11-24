@@ -81,7 +81,6 @@ export function refundReasonLabel(reason: string): string {
 
 /** Icon name used next to a payment method. */
 export function methodIcon(method: string): string {
-  if (method.startsWith('Wing')) return 'send';
   if (method.startsWith('Credit')) return 'card';
   if (method.startsWith('Stripe')) return 'card';
   return 'layers';

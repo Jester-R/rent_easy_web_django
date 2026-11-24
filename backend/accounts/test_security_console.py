@@ -2,10 +2,12 @@ from copy import deepcopy
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
+from django.conf import settings
 from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.sessions.models import Session
 from django.test import TestCase
 from django.utils import timezone
+from django_bolt.exceptions import HTTPException
 
 from accounts.console_api import (
     audit_logs_export,
@@ -13,6 +15,7 @@ from accounts.console_api import (
     notification_message_reset,
     property_restore,
     refund_create,
+    session_logout,
     sessions_export,
     sessions_list,
 )
@@ -181,7 +184,7 @@ class SecurityConsoleEndpointTests(TestCase):
             session=self.active_store,
         )
         with patch(
-            "accounts.console_api.superadmin_required", new=AsyncMock(return_value=self.user)
+            "accounts.console_api.login_required", new=AsyncMock(return_value=self.user)
         ):
             result = await sessions_list(request)
 
@@ -196,10 +199,38 @@ class SecurityConsoleEndpointTests(TestCase):
             {item["value"] for item in result["methods"]}, {"email", "google"}
         )
 
+    async def test_sessions_list_prunes_old_logged_out_history(self):
+        cutoff = timezone.now() - timedelta(
+            days=settings.LOGIN_SESSION_HISTORY_DAYS + 1
+        )
+        old = await LoginSession.objects.acreate(
+            user=self.user,
+            session_key="old-signed-out-session",
+            auth_method="email",
+            logged_out_at=cutoff,
+        )
+        expired = await LoginSession.objects.acreate(
+            user=self.user,
+            session_key="old-expired-session",
+            auth_method="email",
+            session_expires_at=cutoff,
+        )
+        request = MockRequest(
+            query={"page": "1", "page_size": "25"}, session=self.active_store
+        )
+        with patch(
+            "accounts.console_api.login_required", new=AsyncMock(return_value=self.user)
+        ):
+            result = await sessions_list(request)
+
+        self.assertEqual(result["total"], 2)
+        self.assertFalse(await LoginSession.objects.filter(pk=old.pk).aexists())
+        self.assertFalse(await LoginSession.objects.filter(pk=expired.pk).aexists())
+
     async def test_sessions_export_returns_utf8_csv(self):
         request = MockRequest(query={"status": "active"}, session=self.active_store)
         with patch(
-            "accounts.console_api.superadmin_required", new=AsyncMock(return_value=self.user)
+            "accounts.console_api.login_required", new=AsyncMock(return_value=self.user)
         ):
             response = await sessions_export(request)
 
@@ -210,6 +241,36 @@ class SecurityConsoleEndpointTests(TestCase):
         self.assertIn("Chrome", body)
         self.assertNotIn("Safari", body)
         self.assertIn("attachment; filename=", response.headers["Content-Disposition"])
+
+    async def test_sessions_are_scoped_to_the_signed_in_user(self):
+        other = await User.objects.acreate(
+            email="other@example.com", username="other", role=Role.RENTER
+        )
+        other_session = await LoginSession.objects.acreate(
+            user=other,
+            session_key="other-user-session",
+            auth_method="email",
+        )
+
+        request = MockRequest(
+            query={"page": "1", "page_size": "25"}, session=self.active_store
+        )
+        with patch(
+            "accounts.console_api.login_required", new=AsyncMock(return_value=self.user)
+        ):
+            result = await sessions_list(request)
+        self.assertEqual(result["total"], 2)
+        self.assertTrue(
+            all(item["user"]["id"] == self.user.pk for item in result["sessions"])
+        )
+
+        logout_request = MockRequest(session=self.active_store)
+        logout_request.params = {"pk": str(other_session.pk)}
+        with patch(
+            "accounts.console_api.login_required", new=AsyncMock(return_value=self.user)
+        ):
+            with self.assertRaises(HTTPException):
+                await session_logout(logout_request)
 
     async def test_audit_report_filters_and_builds_chart(self):
         await AuditLog.objects.acreate(

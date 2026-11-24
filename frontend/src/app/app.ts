@@ -18,12 +18,13 @@ export class App {
   readonly auth = inject(AuthService);
   readonly language = inject(LanguageService);
   private readonly router = inject(Router);
-  readonly adminMoreOpen = signal(false);
+  readonly moreOpen = signal(false);
   readonly paymentsMenuOpen = signal(false);
 
   constructor() {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
+        this.moreOpen.set(false);
         this.paymentsMenuOpen.set(
           event.urlAfterRedirects.startsWith('/console/payments'),
         );
@@ -31,8 +32,8 @@ export class App {
     });
   }
 
-  closeAdminMore(): void {
-    this.adminMoreOpen.set(false);
+  closeMore(): void {
+    this.moreOpen.set(false);
   }
 
   logout(): void {

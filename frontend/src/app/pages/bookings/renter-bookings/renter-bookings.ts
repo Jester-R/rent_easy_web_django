@@ -9,10 +9,7 @@ import { PaymentService } from '../../../services/payment.service';
 import { Booking } from '../../../models';
 import { IconComponent } from '../../../components/icon/icon';
 import { DataPaginationComponent } from '../../../components/data-pagination/data-pagination';
-import {
-  SearchableSelectComponent,
-  SelectOption,
-} from '../../../components/searchable-select/searchable-select';
+import { SelectOption } from '../../../components/searchable-select/searchable-select';
 import { LanguageService } from '../../../services/language.service';
 import { propertyLocation, propertyTitle } from '../../../shared/property-text';
 import type { Property } from '../../../models';
@@ -21,7 +18,7 @@ import { bookingPill, PAYMENT_METHOD_OPTIONS } from '../../../shared/ui';
 
 @Component({
   selector: 'app-renter-bookings',
-  imports: [CommonModule, RouterLink, FormsModule, IconComponent, SearchableSelectComponent, DataPaginationComponent],
+  imports: [CommonModule, RouterLink, FormsModule, IconComponent, DataPaginationComponent],
   templateUrl: './renter-bookings.html',
 })
 export class RenterBookingsComponent implements OnInit {

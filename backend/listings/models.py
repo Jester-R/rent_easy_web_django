@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 
@@ -47,33 +49,79 @@ def active_paid_property_ids(property_ids=None):
     return queryset.values_list("property_id", flat=True)
 
 
+def _active_reservations(property_ids=None):
+    """Bookings that currently reserve a property without a successful payment."""
+    from bookings.models import Booking, BookingStatus, payment_window_hours
+    from payments.models import Payment
+
+    hours = payment_window_hours()
+    queryset = (
+        Booking.objects.filter(
+            property__isnull=False,
+            status__in=(BookingStatus.PENDING, BookingStatus.APPROVED),
+            created_at__gte=timezone.now() - timedelta(hours=hours),
+        )
+        .filter(Q(payment__isnull=True) | ~Q(payment__status=Payment.Status.SUCCESS))
+    )
+    if property_ids is not None:
+        queryset = queryset.filter(property_id__in=property_ids)
+    return queryset
+
+
+def active_reservation_property_ids(property_ids=None):
+    """Property IDs with an active unpaid reservation."""
+    return (
+        _active_reservations(property_ids)
+        .values_list("property_id", flat=True)
+        .distinct()
+    )
+
+
+def active_reservation_deadlines(property_ids=None) -> dict[int, str]:
+    """Deadlines for active unpaid reservations, keyed by property ID.
+
+    A reservation is an unpaid ``Pending``/``Approved`` booking inside the
+    payment window. It is visible to other renters and blocks new bookings,
+    but it does not hide the listing like a paid booking does.
+    """
+    from bookings.models import payment_window_hours
+
+    hours = payment_window_hours()
+    queryset = _active_reservations(property_ids)
+
+    deadlines: dict[int, object] = {}
+    for property_id, created_at in queryset.values_list("property_id", "created_at"):
+        deadline = created_at + timedelta(hours=hours)
+        current = deadlines.get(property_id)
+        if current is None or deadline > current:
+            deadlines[property_id] = deadline
+    return {
+        property_id: deadline.isoformat()
+        for property_id, deadline in deadlines.items()
+    }
+
+
 class PropertyQuerySet(models.QuerySet):
     def for_renter(self, user):
-        """Hide confirmed/paid rentals and the renter's existing active requests."""
+        """Hide confirmed/paid rentals from every renter.
+
+        Unpaid reservations stay visible to everyone; they are reported as
+        reserved by the API and block new booking requests until paid,
+        expired, or released by the owner. A renter who cancelled a request
+        still sees the listing again - the rebook cooldown only blocks the
+        submit action in ``create_booking``.
+        """
         from bookings.models import Booking, BookingStatus
 
         confirmed = Booking.objects.filter(
-            property__isnull=False, status=BookingStatus.CONFIRMED
-        ).values_list("property_id", flat=True)
-        unpaid = Booking.objects.filter(
             property__isnull=False,
-            status__in=[BookingStatus.PENDING, BookingStatus.APPROVED],
-            payment_id__isnull=True,
-        ).values_list("property_id", flat=True)
-        queryset = (
+            status=BookingStatus.CONFIRMED,
+        ).exclude(end_date__lt=timezone.localdate()).values_list("property_id", flat=True)
+        return (
             self.filter(is_active=True)
             .exclude(id__in=confirmed)
-            .exclude(id__in=unpaid)
             .exclude(id__in=active_paid_property_ids())
         )
-        if not user or not user.is_authenticated:
-            return queryset
-        same_day = Booking.objects.filter(
-            renter=user,
-            property__isnull=False,
-            created_at__date=timezone.localdate(),
-        ).values_list("property_id", flat=True)
-        return queryset.exclude(id__in=same_day)
 
     def available(self):
         return self

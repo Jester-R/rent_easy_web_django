@@ -71,6 +71,7 @@ export class BrowsePropertiesComponent implements OnInit {
   selectedCategory = '__all__';
   minBedrooms = 0;
   maxPrice: number | undefined;
+  availability = 'all';
   sort = 'recommended';
 
   readonly provinceOptions = computed<SelectOption[]>(() => [
@@ -230,6 +231,7 @@ export class BrowsePropertiesComponent implements OnInit {
         category: this.selectedCategory,
         min_bedrooms: this.minBedrooms,
         max_price: this.maxPrice,
+        availability: this.availability,
         sort: this.sort,
         page: this.page(),
         page_size: this.pageSize,
@@ -255,6 +257,12 @@ export class BrowsePropertiesComponent implements OnInit {
     this.loadProperties();
   }
 
+  onAvailabilityToggle(event: Event): void {
+    this.availability = (event.target as HTMLInputElement).checked
+      ? 'available'
+      : 'all';
+    this.onFilterChange();
+  }
 
   onProvinceChange(code: string): void {
     this.selectedProvince.set(code);
@@ -297,6 +305,7 @@ export class BrowsePropertiesComponent implements OnInit {
     this.selectedCategory = '__all__';
     this.minBedrooms = 0;
     this.maxPrice = undefined;
+    this.availability = 'all';
     this.sort = 'recommended';
     this.page.set(1);
     this.loadProperties();
